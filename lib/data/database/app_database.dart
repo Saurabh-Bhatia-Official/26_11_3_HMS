@@ -119,6 +119,16 @@ class AppDatabase extends _$AppDatabase {
 
   /// Built-in demo accounts with verified SHA-256 salted hashes.
   static final Map<String, UserAuthRecord> _demoUsers = {
+    'superadmin': UserAuthRecord(
+      id: 0,
+      uuid: '00000000-0000-0000-0000-000000000000',
+      username: 'superadmin',
+      fullName: 'Super Administrator',
+      role: 'Super Admin',
+      email: 'superadmin@caresync.health',
+      passwordHash: 'salt_superadmin_secure:1c4d9bc26920b4e694f5e096a4e3827be11f39ec8d96e8e8bd3685c576f715e4',
+      isDeleted: false,
+    ),
     'admin': UserAuthRecord(
       id: 1,
       uuid: '00000000-0000-0000-0000-000000000001',
@@ -294,7 +304,16 @@ class AppDatabase extends _$AppDatabase {
     const standardActions = ['view', 'create', 'edit', 'print'];
     const readOnlyActions = ['view', 'print'];
 
-    if (lower.contains('admin')) {
+    if (lower.contains('super')) {
+      const allModules = [
+        'dashboard', 'patients', 'appointments', 'opd', 'ipd', 'beds',
+        'staff', 'lab', 'pharmacy', 'billing', 'reports', 'settings',
+        'audit', 'prescriptions', 'emr', 'hospitals',
+      ];
+      for (final m in allModules) {
+        grant(m, allActions);
+      }
+    } else if (lower.contains('admin')) {
       const allModules = [
         'dashboard', 'patients', 'appointments', 'opd', 'ipd', 'beds',
         'staff', 'lab', 'pharmacy', 'billing', 'reports', 'settings',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
@@ -59,18 +60,21 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final staffAsync = ref.watch(staffListProvider);
+    final checker = ref.watch(permissionCheckerProvider);
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
         title: const Text('Doctors & Hospital Staff Directory'),
         actions: [
-          FilledButton.icon(
-            onPressed: () => context.go(AppRoutes.staffNew),
-            icon: const Icon(Icons.person_add_alt_1, size: 18),
-            label: const Text('Add Staff / Doctor'),
-          ),
-          const Gap(16),
+          if (checker.can(Modules.staff, AppActions.create)) ...[
+            FilledButton.icon(
+              onPressed: () => context.go(AppRoutes.staffNew),
+              icon: const Icon(Icons.person_add_alt_1, size: 18),
+              label: const Text('Add Staff / Doctor'),
+            ),
+            const Gap(16),
+          ],
         ],
       ),
       body: Padding(
@@ -189,21 +193,24 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined),
-                                tooltip: 'Edit Profile',
-                                onPressed: () => context.go(AppRoutes.staffEdit(item.id), extra: item),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.calendar_month_outlined),
-                                tooltip: 'Schedules',
-                                onPressed: () => context.go(AppRoutes.appointments),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                tooltip: 'Delete Staff Member',
-                                onPressed: () => _confirmDeleteStaff(item),
-                              ),
+                              if (checker.can(Modules.staff, AppActions.edit))
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  tooltip: 'Edit Profile',
+                                  onPressed: () => context.go(AppRoutes.staffEdit(item.id), extra: item),
+                                ),
+                              if (checker.canAccessModule(Modules.appointments))
+                                IconButton(
+                                  icon: const Icon(Icons.calendar_month_outlined),
+                                  tooltip: 'Schedules',
+                                  onPressed: () => context.go(AppRoutes.appointments),
+                                ),
+                              if (checker.can(Modules.staff, AppActions.delete))
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                  tooltip: 'Delete Staff Member',
+                                  onPressed: () => _confirmDeleteStaff(item),
+                                ),
                             ],
                           ),
                         );

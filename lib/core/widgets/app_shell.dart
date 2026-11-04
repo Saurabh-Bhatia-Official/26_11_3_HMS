@@ -8,6 +8,8 @@ import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/theme/theme_provider.dart';
+import 'package:hospital_management/data/database/app_database.dart';
+import 'package:hospital_management/data/models/hms_models.dart';
 import 'package:hospital_management/features/patients/patients_provider.dart';
 
 class NavDestination {
@@ -235,6 +237,131 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 
+  void _showAddHospitalDialog(BuildContext context) {
+    final nameCtrl = TextEditingController();
+    final codeCtrl = TextEditingController();
+    final typeCtrl = TextEditingController(text: 'Multispeciality Hospital');
+    final addressCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final taxCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.add_business_rounded, color: Colors.blue),
+            Gap(10),
+            Text('Register New Hospital / Branch'),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Hospital Name *', hintText: 'e.g. CareSync City Hospital'),
+                  validator: (v) => v == null || v.trim().isEmpty ? 'Hospital name is required' : null,
+                ),
+                const Gap(10),
+                TextFormField(
+                  controller: codeCtrl,
+                  decoration: const InputDecoration(labelText: 'Branch Code *', hintText: 'e.g. CS-CITY, CS-NORTH'),
+                  validator: (v) => v == null || v.trim().isEmpty ? 'Branch code is required' : null,
+                ),
+                const Gap(10),
+                DropdownButtonFormField<String>(
+                  value: typeCtrl.text,
+                  decoration: const InputDecoration(labelText: 'Facility Type'),
+                  items: const [
+                    DropdownMenuItem(value: 'Multispeciality Hospital', child: Text('Multispeciality Hospital')),
+                    DropdownMenuItem(value: 'Trauma & Emergency Center', child: Text('Trauma & Emergency Center')),
+                    DropdownMenuItem(value: 'General Hospital', child: Text('General Hospital')),
+                    DropdownMenuItem(value: 'Diagnostic Clinic', child: Text('Diagnostic Clinic')),
+                    DropdownMenuItem(value: 'Day Surgery Center', child: Text('Day Surgery Center')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) typeCtrl.text = v;
+                  },
+                ),
+                const Gap(10),
+                TextFormField(
+                  controller: addressCtrl,
+                  decoration: const InputDecoration(labelText: 'Address', hintText: 'Street, City, State'),
+                ),
+                const Gap(10),
+                TextFormField(
+                  controller: phoneCtrl,
+                  decoration: const InputDecoration(labelText: 'Phone', hintText: '+91 98765 43210'),
+                ),
+                const Gap(10),
+                TextFormField(
+                  controller: emailCtrl,
+                  decoration: const InputDecoration(labelText: 'Email', hintText: 'branch@caresync.health'),
+                ),
+                const Gap(10),
+                TextFormField(
+                  controller: taxCtrl,
+                  decoration: const InputDecoration(labelText: 'GSTIN / Tax ID', hintText: 'e.g. GSTIN27AABCT3518Q1Z5'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              Navigator.pop(ctx);
+
+              final newHospital = HospitalModel(
+                id: 0,
+                uuid: 'hosp-${DateTime.now().millisecondsSinceEpoch}',
+                name: nameCtrl.text.trim(),
+                code: codeCtrl.text.trim().toUpperCase(),
+                type: typeCtrl.text.trim(),
+                address: addressCtrl.text.trim(),
+                phone: phoneCtrl.text.trim(),
+                email: emailCtrl.text.trim(),
+                taxId: taxCtrl.text.trim(),
+                status: 'Active',
+              );
+
+              final db = ref.read(appDatabaseProvider);
+              await db.hmsDao.insertHospital(newHospital);
+              ref.invalidate(allHospitalsProvider);
+
+              // Automatically switch to the newly created hospital
+              final all = await db.hmsDao.getAllHospitals();
+              final created = all.lastWhere((h) => h.code == newHospital.code, orElse: () => newHospital);
+              await ref.read(activeHospitalProvider.notifier).switchHospital(created);
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Hospital "${newHospital.name}" added and activated!'),
+                    backgroundColor: Colors.teal.shade800,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.check, size: 16),
+            label: const Text('Create & Activate'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
@@ -300,6 +427,112 @@ class _AppShellState extends ConsumerState<AppShell> {
             ],
           ),
           actions: [
+            // Super Admin Multi-Hospital Switcher
+            if (user?.role.toLowerCase().contains('super') ?? false)
+              Consumer(
+                builder: (context, ref, _) {
+                  final activeHosp = ref.watch(activeHospitalProvider);
+                  final allHospAsync = ref.watch(allHospitalsProvider);
+                  final hospitals = allHospAsync.value ?? [];
+
+                  return PopupMenuButton<String>(
+                    tooltip: 'Active Hospital (Super Admin Multi-Hospital)',
+                    offset: const Offset(0, 48),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: colorScheme.secondaryContainer.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: colorScheme.secondary.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.domain_rounded, size: 16, color: colorScheme.onSecondaryContainer),
+                          const Gap(6),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 160),
+                            child: Text(
+                              activeHosp?.name ?? hospitalName,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSecondaryContainer,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Gap(4),
+                          Icon(Icons.arrow_drop_down, size: 18, color: colorScheme.onSecondaryContainer),
+                        ],
+                      ),
+                    ),
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem<String>(
+                        enabled: false,
+                        child: Text(
+                          'SUPER ADMIN • MULTI-HOSPITAL',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      for (final h in hospitals)
+                        PopupMenuItem<String>(
+                          value: 'switch_${h.id}',
+                          child: Row(
+                            children: [
+                              Icon(
+                                h.id == activeHosp?.id ? Icons.check_circle : Icons.business_outlined,
+                                size: 16,
+                                color: h.id == activeHosp?.id ? Colors.green : Colors.grey,
+                              ),
+                              const Gap(8),
+                              Expanded(
+                                child: Text(
+                                  '${h.name} (${h.code})',
+                                  style: TextStyle(
+                                    fontWeight: h.id == activeHosp?.id ? FontWeight.bold : FontWeight.normal,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem<String>(
+                        value: 'add_hospital',
+                        child: Row(
+                          children: [
+                            Icon(Icons.add_business_outlined, size: 16, color: Colors.blue),
+                            Gap(8),
+                            Text('Add New Hospital / Branch', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ],
+                    onSelected: (val) {
+                      if (val == 'add_hospital') {
+                        _showAddHospitalDialog(context);
+                      } else if (val.startsWith('switch_')) {
+                        final id = int.tryParse(val.replaceFirst('switch_', ''));
+                        if (id != null) {
+                          final target = hospitals.firstWhere((h) => h.id == id);
+                          ref.read(activeHospitalProvider.notifier).switchHospital(target);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Switched to ${target.name} (${target.code})'),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  );
+                },
+              ),
+
             // Quick Search Dialog
             IconButton(
               icon: const Icon(Icons.search_rounded),
@@ -307,145 +540,160 @@ class _AppShellState extends ConsumerState<AppShell> {
               onPressed: () => _showQuickSearchDialog(context),
             ),
 
-            // Global Quick Actions Menu
-            PopupMenuButton<String>(
-              tooltip: 'Quick Actions',
-              offset: const Offset(0, 48),
-              icon: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: colorScheme.primary,
-                  borderRadius: BorderRadius.circular(8),
+            // Global Quick Actions Menu (Role-Based Enabled/Disabled)
+            if (checker.can(Modules.patients, AppActions.create) ||
+                checker.can(Modules.appointments, AppActions.create) ||
+                checker.can(Modules.ipd, AppActions.create) ||
+                checker.canAccessModule(Modules.opd) ||
+                checker.canAccessModule(Modules.pharmacy) ||
+                checker.can(Modules.staff, AppActions.create) ||
+                checker.can(Modules.billing, AppActions.create))
+              PopupMenuButton<String>(
+                tooltip: 'Quick Actions',
+                offset: const Offset(0, 48),
+                icon: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, size: 16, color: colorScheme.onPrimary),
+                      const Gap(4),
+                      Text(
+                        'Quick New',
+                        style: TextStyle(
+                          color: colorScheme.onPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.add, size: 16, color: colorScheme.onPrimary),
-                    const Gap(4),
-                    Text(
-                      'Quick New',
-                      style: TextStyle(
-                        color: colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                itemBuilder: (context) => [
+                  if (checker.can(Modules.patients, AppActions.create))
+                    const PopupMenuItem(
+                      value: 'patient',
+                      child: Row(
+                        children: [
+                          Icon(Icons.person_add_outlined, size: 18),
+                          Gap(10),
+                          Text('Register Patient'),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  if (checker.can(Modules.appointments, AppActions.create))
+                    const PopupMenuItem(
+                      value: 'appointment',
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_month_outlined, size: 18),
+                          Gap(10),
+                          Text('Book Appointment'),
+                        ],
+                      ),
+                    ),
+                  if (checker.can(Modules.ipd, AppActions.create))
+                    const PopupMenuItem(
+                      value: 'ipd',
+                      child: Row(
+                        children: [
+                          Icon(Icons.hotel_outlined, size: 18),
+                          Gap(10),
+                          Text('Admit to Ward / IPD'),
+                        ],
+                      ),
+                    ),
+                  if (checker.canAccessModule(Modules.opd))
+                    const PopupMenuItem(
+                      value: 'opd',
+                      child: Row(
+                        children: [
+                          Icon(Icons.local_hospital_outlined, size: 18),
+                          Gap(10),
+                          Text('OPD Queue & Vitals'),
+                        ],
+                      ),
+                    ),
+                  if (checker.canAccessModule(Modules.pharmacy))
+                    const PopupMenuItem(
+                      value: 'pharmacy',
+                      child: Row(
+                        children: [
+                          Icon(Icons.medication_outlined, size: 18),
+                          Gap(10),
+                          Text('Pharmacy & Add Medicine'),
+                        ],
+                      ),
+                    ),
+                  if (checker.can(Modules.staff, AppActions.create))
+                    const PopupMenuItem(
+                      value: 'staff',
+                      child: Row(
+                        children: [
+                          Icon(Icons.person_add_alt_1_outlined, size: 18),
+                          Gap(10),
+                          Text('Add Staff / Doctor'),
+                        ],
+                      ),
+                    ),
+                  if (checker.canAccessModule(Modules.lab))
+                    const PopupMenuItem(
+                      value: 'lab',
+                      child: Row(
+                        children: [
+                          Icon(Icons.biotech_outlined, size: 18),
+                          Gap(10),
+                          Text('Order Lab Test'),
+                        ],
+                      ),
+                    ),
+                  if (checker.can(Modules.billing, AppActions.create))
+                    const PopupMenuItem(
+                      value: 'billing',
+                      child: Row(
+                        children: [
+                          Icon(Icons.receipt_long_outlined, size: 18),
+                          Gap(10),
+                          Text('Generate Invoice / Bill'),
+                        ],
+                      ),
+                    ),
+                ],
+                onSelected: (val) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    switch (val) {
+                      case 'patient':
+                        context.go(AppRoutes.patientsNew);
+                        break;
+                      case 'appointment':
+                        context.go(AppRoutes.appointmentsNew);
+                        break;
+                      case 'ipd':
+                        context.go(AppRoutes.ipdAdmit);
+                        break;
+                      case 'opd':
+                        context.go(AppRoutes.opd);
+                        break;
+                      case 'lab':
+                        context.go(AppRoutes.lab);
+                        break;
+                      case 'pharmacy':
+                        context.go(AppRoutes.pharmacy);
+                        break;
+                      case 'staff':
+                        context.go(AppRoutes.staffNew);
+                        break;
+                      case 'billing':
+                        context.go(AppRoutes.billing);
+                        break;
+                    }
+                  });
+                },
               ),
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'patient',
-                  child: Row(
-                    children: [
-                      Icon(Icons.person_add_outlined, size: 18),
-                      Gap(10),
-                      Text('Register Patient'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'appointment',
-                  child: Row(
-                    children: [
-                      Icon(Icons.calendar_month_outlined, size: 18),
-                      Gap(10),
-                      Text('Book Appointment'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'ipd',
-                  child: Row(
-                    children: [
-                      Icon(Icons.hotel_outlined, size: 18),
-                      Gap(10),
-                      Text('Admit to Ward / IPD'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'opd',
-                  child: Row(
-                    children: [
-                      Icon(Icons.local_hospital_outlined, size: 18),
-                      Gap(10),
-                      Text('OPD Queue & Vitals'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'pharmacy',
-                  child: Row(
-                    children: [
-                      Icon(Icons.medication_outlined, size: 18),
-                      Gap(10),
-                      Text('Pharmacy & Add Medicine'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'staff',
-                  child: Row(
-                    children: [
-                      Icon(Icons.person_add_alt_1_outlined, size: 18),
-                      Gap(10),
-                      Text('Add Staff / Doctor'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'lab',
-                  child: Row(
-                    children: [
-                      Icon(Icons.biotech_outlined, size: 18),
-                      Gap(10),
-                      Text('Order Lab Test'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'billing',
-                  child: Row(
-                    children: [
-                      Icon(Icons.receipt_long_outlined, size: 18),
-                      Gap(10),
-                      Text('Generate Invoice / Bill'),
-                    ],
-                  ),
-                ),
-              ],
-              onSelected: (val) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  switch (val) {
-                    case 'patient':
-                      context.go(AppRoutes.patientsNew);
-                      break;
-                    case 'appointment':
-                      context.go(AppRoutes.appointmentsNew);
-                      break;
-                    case 'ipd':
-                      context.go(AppRoutes.ipdAdmit);
-                      break;
-                    case 'opd':
-                      context.go(AppRoutes.opd);
-                      break;
-                    case 'lab':
-                      context.go(AppRoutes.lab);
-                      break;
-                    case 'pharmacy':
-                      context.go(AppRoutes.pharmacy);
-                      break;
-                    case 'staff':
-                      context.go(AppRoutes.staffNew);
-                      break;
-                    case 'billing':
-                      context.go(AppRoutes.billing);
-                      break;
-                  }
-                });
-              },
-            ),
             const Gap(4),
 
             // Dark / Light Mode Toggle
@@ -530,7 +778,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                     children: [
                       const Icon(Icons.badge_outlined, size: 18),
                       const Gap(10),
-                      Text('Signed in as ${user?.username ?? ""}'),
+                      Text('Signed in as ${user?.username ?? ""} • ${user?.role ?? "Staff"}'),
                     ],
                   ),
                 ),

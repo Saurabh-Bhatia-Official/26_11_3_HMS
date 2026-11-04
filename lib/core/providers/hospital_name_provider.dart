@@ -2,12 +2,13 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hospital_management/data/database/app_database.dart';
+import 'package:hospital_management/data/models/hms_models.dart';
 
 /// Provides all hospital identity details from the `settings` table.
 final hospitalInfoProvider = FutureProvider<Map<String, String>>((ref) async {
   final db = ref.watch(appDatabaseProvider);
   final dao = db.settingsDao;
-  final name = (await dao.getSetting('hospital_name'))?.value ?? 'Hospital';
+  final name = (await dao.getSetting('hospital_name'))?.value ?? 'CareSync';
   final address = (await dao.getSetting('address'))?.value ?? '';
   final phone = (await dao.getSetting('phone'))?.value ?? '';
   final regNo = (await dao.getSetting('reg_no'))?.value ?? '';
@@ -56,5 +57,49 @@ class HospitalNameNotifier extends StateNotifier<String> {
     state = name;
     final db = _ref.read(appDatabaseProvider);
     await db.settingsDao.upsertSetting('hospital_name', name);
+  }
+}
+
+/// Provides all registered hospitals in CareSync (for Super Admin multi-hospital management).
+final allHospitalsProvider = FutureProvider<List<HospitalModel>>((ref) async {
+  final db = ref.watch(appDatabaseProvider);
+  return db.hmsDao.getAllHospitals();
+});
+
+/// Active hospital state for multi-hospital switching.
+final activeHospitalProvider =
+    StateNotifierProvider<ActiveHospitalNotifier, HospitalModel?>((ref) {
+  return ActiveHospitalNotifier(ref);
+});
+
+class ActiveHospitalNotifier extends StateNotifier<HospitalModel?> {
+  ActiveHospitalNotifier(this._ref) : super(null) {
+    _load();
+  }
+
+  final Ref _ref;
+
+  Future<void> _load() async {
+    final db = _ref.read(appDatabaseProvider);
+    final hospitals = await db.hmsDao.getAllHospitals();
+    if (hospitals.isNotEmpty && mounted) {
+      final activeIdStr = await db.getSetting('active_hospital_id');
+      final activeId = int.tryParse(activeIdStr ?? '1') ?? 1;
+      final selected = hospitals.firstWhere(
+        (h) => h.id == activeId,
+        orElse: () => hospitals.first,
+      );
+      state = selected;
+    }
+  }
+
+  Future<void> switchHospital(HospitalModel hospital) async {
+    state = hospital;
+    final db = _ref.read(appDatabaseProvider);
+    await db.saveSetting('active_hospital_id', hospital.id.toString());
+    await db.settingsDao.upsertSetting('hospital_name', hospital.name);
+    _ref.read(hospitalNameNotifierProvider.notifier).update(hospital.name);
+    _ref.invalidate(hospitalNameProvider);
+    _ref.invalidate(hospitalInfoProvider);
   }
 }

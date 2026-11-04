@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/kpi_card.dart';
 import 'package:hospital_management/core/widgets/section_header.dart';
@@ -60,6 +61,7 @@ class DashboardScreen extends ConsumerWidget {
     final nearExpiryAsync = ref.watch(nearExpiryBatchesProvider);
     final bedsAsync = ref.watch(bedsListProvider);
     final queueAsync = ref.watch(opdQueueProvider);
+    final checker = ref.watch(permissionCheckerProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -101,16 +103,18 @@ class DashboardScreen extends ConsumerWidget {
                       Wrap(
                         spacing: 12,
                         children: [
-                          FilledButton.icon(
-                            onPressed: () => context.go(AppRoutes.patientsNew),
-                            icon: const Icon(Icons.person_add_rounded, size: 18),
-                            label: const Text('Register Patient'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () => context.go(AppRoutes.appointmentsNew),
-                            icon: const Icon(Icons.add_task_rounded, size: 18),
-                            label: const Text('Book Appointment'),
-                          ),
+                          if (checker.can(Modules.patients, AppActions.create))
+                            FilledButton.icon(
+                              onPressed: () => context.go(AppRoutes.patientsNew),
+                              icon: const Icon(Icons.person_add_rounded, size: 18),
+                              label: const Text('Register Patient'),
+                            ),
+                          if (checker.can(Modules.appointments, AppActions.create))
+                            OutlinedButton.icon(
+                              onPressed: () => context.go(AppRoutes.appointmentsNew),
+                              icon: const Icon(Icons.add_task_rounded, size: 18),
+                              label: const Text('Book Appointment'),
+                            ),
                         ],
                       ),
                     ],
@@ -288,26 +292,30 @@ class DashboardScreen extends ConsumerWidget {
                                       spacing: 8,
                                       runSpacing: 8,
                                       children: [
-                                        ActionChip(
-                                          avatar: const Icon(Icons.person_add, size: 16),
-                                          label: const Text('New Patient'),
-                                          onPressed: () => context.go(AppRoutes.patientsNew),
-                                        ),
-                                        ActionChip(
-                                          avatar: const Icon(Icons.hotel, size: 16),
-                                          label: const Text('Admit Patient'),
-                                          onPressed: () => context.go(AppRoutes.ipdAdmit),
-                                        ),
-                                        ActionChip(
-                                          avatar: const Icon(Icons.medication, size: 16),
-                                          label: const Text('Dispense Rx'),
-                                          onPressed: () => context.go(AppRoutes.pharmacy),
-                                        ),
-                                        ActionChip(
-                                          avatar: const Icon(Icons.receipt, size: 16),
-                                          label: const Text('New Invoice'),
-                                          onPressed: () => context.go(AppRoutes.billing),
-                                        ),
+                                        if (checker.can(Modules.patients, AppActions.create))
+                                          ActionChip(
+                                            avatar: const Icon(Icons.person_add, size: 16),
+                                            label: const Text('New Patient'),
+                                            onPressed: () => context.go(AppRoutes.patientsNew),
+                                          ),
+                                        if (checker.can(Modules.ipd, AppActions.create))
+                                          ActionChip(
+                                            avatar: const Icon(Icons.hotel, size: 16),
+                                            label: const Text('Admit Patient'),
+                                            onPressed: () => context.go(AppRoutes.ipdAdmit),
+                                          ),
+                                        if (checker.canAccessModule(Modules.pharmacy))
+                                          ActionChip(
+                                            avatar: const Icon(Icons.medication, size: 16),
+                                            label: const Text('Dispense Rx'),
+                                            onPressed: () => context.go(AppRoutes.pharmacy),
+                                          ),
+                                        if (checker.can(Modules.billing, AppActions.create))
+                                          ActionChip(
+                                            avatar: const Icon(Icons.receipt, size: 16),
+                                            label: const Text('New Invoice'),
+                                            onPressed: () => context.go(AppRoutes.billing),
+                                          ),
                                       ],
                                     ),
                                   ],

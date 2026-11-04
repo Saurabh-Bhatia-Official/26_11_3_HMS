@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/data/database/app_database.dart';
@@ -205,53 +206,56 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
             const Divider(height: 24),
             Row(
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _showAddEditBedDialog(bed: bed);
-                    },
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: const Text('Edit Bed'),
+                if (ref.read(permissionCheckerProvider).can(Modules.beds, AppActions.edit)) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _showAddEditBedDialog(bed: bed);
+                      },
+                      icon: const Icon(Icons.edit_outlined, size: 16),
+                      label: const Text('Edit Bed'),
+                    ),
                   ),
-                ),
-                const Gap(8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                    onPressed: () async {
-                      Navigator.pop(ctx);
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (c) => AlertDialog(
-                          title: const Text('Delete Bed'),
-                          content: Text('Are you sure you want to remove Bed ${bed.bedNo} from ${bed.ward} Ward?'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                            FilledButton(
-                              style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                              onPressed: () => Navigator.pop(c, true),
-                              child: const Text('Delete'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirm == true) {
-                        final db = ref.read(appDatabaseProvider);
-                        await db.hmsDao.deleteBed(bed.id, bed.bedNo);
-                        ref.invalidate(bedsListProvider);
-                        ref.invalidate(dashboardStatsProvider);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Bed ${bed.bedNo} deleted.')),
-                          );
+                  const Gap(8),
+                ],
+                if (ref.read(permissionCheckerProvider).can(Modules.beds, AppActions.delete))
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (c) => AlertDialog(
+                            title: const Text('Delete Bed'),
+                            content: Text('Are you sure you want to remove Bed ${bed.bedNo} from ${bed.ward} Ward?'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                              FilledButton(
+                                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                onPressed: () => Navigator.pop(c, true),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          final db = ref.read(appDatabaseProvider);
+                          await db.hmsDao.deleteBed(bed.id, bed.bedNo);
+                          ref.invalidate(bedsListProvider);
+                          ref.invalidate(dashboardStatsProvider);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Bed ${bed.bedNo} deleted.')),
+                            );
+                          }
                         }
-                      }
-                    },
-                    icon: const Icon(Icons.delete_outline, size: 16),
-                    label: const Text('Delete Bed'),
+                      },
+                      icon: const Icon(Icons.delete_outline, size: 16),
+                      label: const Text('Delete Bed'),
+                    ),
                   ),
-                ),
               ],
             ),
           ],
@@ -403,6 +407,7 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final bedsAsync = ref.watch(bedsListProvider);
+    final checker = ref.watch(permissionCheckerProvider);
     final allBeds = bedsAsync.value ?? [];
     final wardOptions = [
       'All Wards',
@@ -414,18 +419,22 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
       appBar: AppBar(
         title: const Text('Bed & Ward Management (Bed Board)'),
         actions: [
-          OutlinedButton.icon(
-            onPressed: () => _showAddEditBedDialog(),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add Bed'),
-          ),
-          const Gap(8),
-          FilledButton.icon(
-            onPressed: () => context.go(AppRoutes.ipdAdmit),
-            icon: const Icon(Icons.person_add, size: 18),
-            label: const Text('Admit to Bed'),
-          ),
-          const Gap(16),
+          if (checker.can(Modules.beds, AppActions.create)) ...[
+            OutlinedButton.icon(
+              onPressed: () => _showAddEditBedDialog(),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add Bed'),
+            ),
+            const Gap(8),
+          ],
+          if (checker.can(Modules.ipd, AppActions.create)) ...[
+            FilledButton.icon(
+              onPressed: () => context.go(AppRoutes.ipdAdmit),
+              icon: const Icon(Icons.person_add, size: 18),
+              label: const Text('Admit to Bed'),
+            ),
+            const Gap(16),
+          ],
         ],
       ),
       body: Padding(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/empty_state.dart';
 import 'package:hospital_management/features/patients/patients_provider.dart';
@@ -59,6 +60,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
   @override
   Widget build(BuildContext context) {
     final patientsAsync = ref.watch(patientListProvider);
+    final checker = ref.watch(permissionCheckerProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -66,12 +68,14 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
       appBar: AppBar(
         title: const Text('Patient Directory'),
         actions: [
-          FilledButton.icon(
-            onPressed: () => context.go(AppRoutes.patientsNew),
-            icon: const Icon(Icons.person_add_rounded, size: 18),
-            label: const Text('New Registration'),
-          ),
-          const Gap(16),
+          if (checker.can(Modules.patients, AppActions.create)) ...[
+            FilledButton.icon(
+              onPressed: () => context.go(AppRoutes.patientsNew),
+              icon: const Icon(Icons.person_add_rounded, size: 18),
+              label: const Text('New Registration'),
+            ),
+            const Gap(16),
+          ],
         ],
       ),
       body: Padding(
@@ -207,26 +211,30 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined, size: 20),
-                                tooltip: 'Edit Patient',
-                                onPressed: () => context.go('/patients/${patient.id}/edit'),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.calendar_month_outlined, size: 20),
-                                tooltip: 'Book Appointment',
-                                onPressed: () => context.go(AppRoutes.appointmentsNew),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.hotel_outlined, size: 20),
-                                tooltip: 'Admit to Ward',
-                                onPressed: () => context.go(AppRoutes.ipdAdmit),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                                tooltip: 'Archive Patient',
-                                onPressed: () => _confirmDeletePatient(patient),
-                              ),
+                              if (checker.can(Modules.patients, AppActions.edit))
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, size: 20),
+                                  tooltip: 'Edit Patient',
+                                  onPressed: () => context.go('/patients/${patient.id}/edit'),
+                                ),
+                              if (checker.can(Modules.appointments, AppActions.create))
+                                IconButton(
+                                  icon: const Icon(Icons.calendar_month_outlined, size: 20),
+                                  tooltip: 'Book Appointment',
+                                  onPressed: () => context.go(AppRoutes.appointmentsNew),
+                                ),
+                              if (checker.can(Modules.ipd, AppActions.create))
+                                IconButton(
+                                  icon: const Icon(Icons.hotel_outlined, size: 20),
+                                  tooltip: 'Admit to Ward',
+                                  onPressed: () => context.go(AppRoutes.ipdAdmit),
+                                ),
+                              if (checker.can(Modules.patients, AppActions.delete))
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                  tooltip: 'Archive Patient',
+                                  onPressed: () => _confirmDeletePatient(patient),
+                                ),
                               const Icon(Icons.chevron_right_rounded),
                             ],
                           ),

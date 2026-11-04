@@ -266,12 +266,38 @@ class HmsDao {
       );
     ''');
 
+    // 14. Hospitals Table (Multi-Hospital Management for Super Admin)
+    await db.customStatement('''
+      CREATE TABLE IF NOT EXISTS hospitals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT NOT NULL,
+        name TEXT NOT NULL,
+        code TEXT NOT NULL,
+        type TEXT NOT NULL,
+        address TEXT,
+        phone TEXT,
+        email TEXT,
+        tax_id TEXT,
+        status TEXT DEFAULT 'Active',
+        created_at TEXT
+      );
+    ''');
+
     // Seed data if empty
     await _seedIfEmpty();
   }
 
   Future<void> _seedIfEmpty() async {
     final now = DateTime.now().toIso8601String();
+
+    // Hospitals Master if empty (Default Super Admin hospital)
+    final hospRes = await db.customSelect('SELECT count(*) as count FROM hospitals').getSingle();
+    if ((hospRes.data['count'] as int) == 0) {
+      await db.customStatement('''
+        INSERT INTO hospitals (uuid, name, code, type, address, phone, email, tax_id, status, created_at)
+        VALUES ('00000000-0000-0000-0000-000000000001', 'CareSync Central Hospital', 'CS-CENTRAL', 'Multispeciality Hospital', '100 Medical Center Blvd, Health City', '+91 98765 00000', 'central@caresync.health', 'GSTIN27AABCT3518Q1Z5', 'Active', '$now')
+      ''');
+    }
 
     // System Audit Log if empty
     final auditRes = await db.customSelect('SELECT count(*) as count FROM audit_logs').getSingle();
@@ -369,6 +395,50 @@ class HmsDao {
   Future<void> deleteAllBeds() async {
     await db.customStatement('DELETE FROM beds');
     await insertAuditLog('admin', 'DELETE_ALL', 'Beds Master', 'Cleared all bed and ward records');
+  }
+
+  // Hospitals (Multi-Hospital Management for Super Admin)
+  Future<List<HospitalModel>> getAllHospitals() async {
+    final rows = await db.customSelect('SELECT * FROM hospitals ORDER BY id ASC').get();
+    return rows.map((r) => HospitalModel.fromMap(r.data)).toList();
+  }
+
+  Future<HospitalModel?> getHospitalById(int id) async {
+    final rows = await db.customSelect('SELECT * FROM hospitals WHERE id = $id').get();
+    if (rows.isEmpty) return null;
+    return HospitalModel.fromMap(rows.first.data);
+  }
+
+  Future<int> insertHospital(HospitalModel hospital) async {
+    final now = DateTime.now().toIso8601String();
+    final uuid = hospital.uuid.isNotEmpty ? hospital.uuid : 'hosp-${DateTime.now().millisecondsSinceEpoch}';
+    final id = await db.customInsert('''
+      INSERT INTO hospitals (uuid, name, code, type, address, phone, email, tax_id, status, created_at)
+      VALUES ('${_esc(uuid)}', '${_esc(hospital.name)}', '${_esc(hospital.code)}', '${_esc(hospital.type)}', '${_esc(hospital.address)}', '${_esc(hospital.phone)}', '${_esc(hospital.email)}', '${_esc(hospital.taxId)}', '${_esc(hospital.status)}', '$now')
+    ''');
+    await insertAuditLog('superadmin', 'CREATE', 'Hospital #${hospital.name}', 'Added hospital entity ${hospital.name} (${hospital.code})');
+    return id;
+  }
+
+  Future<void> updateHospital(HospitalModel hospital) async {
+    await db.customStatement('''
+      UPDATE hospitals SET
+        name = '${_esc(hospital.name)}',
+        code = '${_esc(hospital.code)}',
+        type = '${_esc(hospital.type)}',
+        address = '${_esc(hospital.address)}',
+        phone = '${_esc(hospital.phone)}',
+        email = '${_esc(hospital.email)}',
+        tax_id = '${_esc(hospital.taxId)}',
+        status = '${_esc(hospital.status)}'
+      WHERE id = ${hospital.id}
+    ''');
+    await insertAuditLog('superadmin', 'UPDATE', 'Hospital #${hospital.name}', 'Updated hospital profile for ${hospital.name}');
+  }
+
+  Future<void> deleteHospital(int id, String name) async {
+    await db.customStatement('DELETE FROM hospitals WHERE id = $id');
+    await insertAuditLog('superadmin', 'DELETE', 'Hospital #$name', 'Deleted hospital entity $name');
   }
 
   Future<void> updateBedStatus(String bedNo, String status, {String? patientName, String? uhid}) async {

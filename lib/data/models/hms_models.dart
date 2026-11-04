@@ -7,6 +7,7 @@ export 'appointment_models.dart';
 export 'audit_models.dart';
 export 'bed_models.dart';
 export 'billing_models.dart';
+export 'hospital_models.dart';
 export 'ipd_models.dart';
 export 'lab_models.dart';
 export 'opd_models.dart';

@@ -26,12 +26,13 @@ abstract class Modules {
   static const String audit = 'audit';
   static const String prescriptions = 'prescriptions';
   static const String emr = 'emr';
+  static const String hospitals = 'hospitals';
 }
 
 /// Predefined action identifiers.  These must match the `action` column
 /// values in the `role_permissions` table.
-abstract class Actions {
-  Actions._();
+abstract class AppActions {
+  AppActions._();
 
   static const String view = 'view';
   static const String create = 'create';
