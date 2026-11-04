@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:hospital_management/core/auth/session_service.dart';
+import 'package:hospital_management/data/models/hms_models.dart';
 import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/theme/theme_provider.dart';
@@ -99,7 +101,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
     _nameController.text = ref.read(hospitalNameNotifierProvider);
     _loadPersistedSettings();
   }
@@ -360,6 +362,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
             Tab(icon: Icon(Icons.medication_outlined), text: 'Pharmacy Stock Rules'),
             Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Billing & Taxation'),
             Tab(icon: Icon(Icons.shield_outlined), text: 'Backup & Security'),
+            Tab(icon: Icon(Icons.manage_accounts_outlined), text: 'Staff & User Accounts'),
           ],
         ),
       ),
@@ -385,6 +388,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
 
                 // 6. Backup, Export & Security
                 _buildBackupSecurityTab(colorScheme, themeMode),
+
+                // 7. Staff & User Accounts Provisioning
+                _buildStaffAndUsersTab(colorScheme),
               ],
             ),
     );
@@ -1100,6 +1106,439 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ── Tab 7: Staff & User Accounts Provisioning (Super Admin) ───────────────
+  Widget _buildStaffAndUsersTab(ColorScheme colorScheme) {
+    final textTheme = Theme.of(context).textTheme;
+    final usersAsync = ref.watch(allUsersProvider);
+    final hospitalsAsync = ref.watch(allHospitalsProvider);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Super Admin Control Header ─────────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      colorScheme.primaryContainer.withValues(alpha: 0.6),
+                      colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: colorScheme.outlineVariant),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.shield_outlined, color: colorScheme.onPrimary, size: 28),
+                    ),
+                    const Gap(16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Staff & User Account Provisioning (Super Admin Settings)',
+                            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const Gap(4),
+                          Text(
+                            'In accordance with clinical data protection, all staff accounts (Doctors, Nurses, Receptionists, Pharmacists, Lab Techs, and Admins) must be provisioned and assigned to hospital branches through Super Admin Settings.',
+                            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Gap(16),
+                    FilledButton.icon(
+                      onPressed: () => _showProvisionStaffDialog(hospitalsAsync.valueOrNull ?? []),
+                      icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                      label: const Text('Provision Staff Account'),
+                    ),
+                  ],
+                ),
+              ),
+              const Gap(24),
+
+              // ── Accounts List Title ────────────────────────────────────────
+              Text(
+                'Active System Accounts & Staff Credentials',
+                style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const Gap(12),
+
+              usersAsync.when(
+                loading: () => const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator())),
+                error: (e, _) => Center(child: Text('Error loading user accounts: $e')),
+                data: (users) {
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: users.length,
+                    separatorBuilder: (_, __) => const Gap(10),
+                    itemBuilder: (context, idx) {
+                      final u = users[idx];
+                      final isDemo = u.id < 100;
+
+                      return Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: colorScheme.outlineVariant),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: _getRoleColor(u.role).withValues(alpha: 0.15),
+                                foregroundColor: _getRoleColor(u.role),
+                                child: Text(
+                                  u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : u.username[0].toUpperCase(),
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const Gap(16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          u.fullName,
+                                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                                        ),
+                                        const Gap(8),
+                                        Text(
+                                          '(@${u.username})',
+                                          style: TextStyle(color: colorScheme.outline, fontSize: 13),
+                                        ),
+                                        const Gap(8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: _getRoleColor(u.role).withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: _getRoleColor(u.role).withValues(alpha: 0.4)),
+                                          ),
+                                          child: Text(
+                                            u.role,
+                                            style: TextStyle(
+                                              color: _getRoleColor(u.role),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ),
+                                        if (isDemo) ...[
+                                          const Gap(8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: colorScheme.surfaceContainerHighest,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              'BUILT-IN',
+                                              style: TextStyle(color: colorScheme.outline, fontSize: 10, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    const Gap(4),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.domain_rounded, size: 14, color: colorScheme.outline),
+                                        const Gap(4),
+                                        Text(
+                                          u.hospitalName != null ? 'Hospital: ${u.hospitalName}' : 'Default Network Entity',
+                                          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+                                        ),
+                                        const Gap(16),
+                                        Icon(Icons.email_outlined, size: 14, color: colorScheme.outline),
+                                        const Gap(4),
+                                        Text(
+                                          u.email,
+                                          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (!isDemo)
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                  tooltip: 'Delete User Account',
+                                  onPressed: () => _confirmDeleteUser(u.username, u.fullName),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getRoleColor(String role) {
+    final lower = role.toLowerCase();
+    if (lower.contains('super')) return Colors.purple;
+    if (lower.contains('admin')) return Colors.indigo;
+    if (lower.contains('doctor')) return Colors.teal;
+    if (lower.contains('nurse')) return Colors.pink;
+    if (lower.contains('pharm')) return Colors.orange;
+    if (lower.contains('lab')) return Colors.cyan;
+    if (lower.contains('reception')) return Colors.amber.shade900;
+    if (lower.contains('account')) return Colors.green;
+    return Colors.blueGrey;
+  }
+
+  void _showProvisionStaffDialog(List<HospitalModel> hospitals) {
+    final formKey = GlobalKey<FormState>();
+    final fullNameCtrl = TextEditingController();
+    final usernameCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController();
+    final confirmPasswordCtrl = TextEditingController();
+    String selectedRole = 'Doctor';
+    HospitalModel? selectedHospital = hospitals.isNotEmpty ? hospitals.first : null;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.person_add_alt_1, color: Colors.teal),
+              Gap(8),
+              Text('Provision Staff / User Account'),
+            ],
+          ),
+          content: SizedBox(
+            width: 500,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (hospitals.isNotEmpty) ...[
+                      DropdownButtonFormField<HospitalModel>(
+                        value: selectedHospital,
+                        decoration: const InputDecoration(
+                          labelText: 'Assigned Hospital Branch *',
+                          prefixIcon: Icon(Icons.domain_rounded),
+                        ),
+                        items: hospitals.map((h) {
+                          return DropdownMenuItem(
+                            value: h,
+                            child: Text('${h.name} (${h.code})', overflow: TextOverflow.ellipsis),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setDlgState(() => selectedHospital = val);
+                        },
+                      ),
+                      const Gap(12),
+                    ],
+                    TextFormField(
+                      controller: fullNameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Staff Full Name *',
+                        hintText: 'e.g. Dr. Arthur Miller',
+                        prefixIcon: Icon(Icons.badge_outlined),
+                      ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                    ),
+                    const Gap(12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: usernameCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Username *',
+                              hintText: 'e.g. amiller',
+                              prefixIcon: Icon(Icons.person_outline),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return 'Required';
+                              if (v.trim().contains(' ')) return 'No spaces';
+                              return null;
+                            },
+                          ),
+                        ),
+                        const Gap(12),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: selectedRole,
+                            decoration: const InputDecoration(
+                              labelText: 'System Role *',
+                              prefixIcon: Icon(Icons.security),
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 'Doctor', child: Text('Doctor')),
+                              DropdownMenuItem(value: 'Nurse', child: Text('Nurse')),
+                              DropdownMenuItem(value: 'Receptionist', child: Text('Receptionist')),
+                              DropdownMenuItem(value: 'Pharmacist', child: Text('Pharmacist')),
+                              DropdownMenuItem(value: 'Lab Technician', child: Text('Lab Tech')),
+                              DropdownMenuItem(value: 'Accounts', child: Text('Accounts')),
+                              DropdownMenuItem(value: 'Admin', child: Text('Hospital Admin')),
+                              DropdownMenuItem(value: 'Staff', child: Text('Staff')),
+                            ],
+                            onChanged: (v) {
+                              if (v != null) setDlgState(() => selectedRole = v);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Gap(12),
+                    TextFormField(
+                      controller: emailCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Email Address *',
+                        hintText: 'amiller@hospital.org',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      validator: (v) => v == null || !v.contains('@') ? 'Valid email required' : null,
+                    ),
+                    const Gap(12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: passwordCtrl,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Password *',
+                              prefixIcon: Icon(Icons.lock_outline),
+                            ),
+                            validator: (v) => v == null || v.length < 6 ? 'Min 6 characters' : null,
+                          ),
+                        ),
+                        const Gap(12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: confirmPasswordCtrl,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Confirm Password *',
+                              prefixIcon: Icon(Icons.lock_reset),
+                            ),
+                            validator: (v) => v != passwordCtrl.text ? 'Passwords do not match' : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton.icon(
+              icon: const Icon(Icons.save, size: 16),
+              label: const Text('Provision Account'),
+              onPressed: () async {
+                if (!(formKey.currentState?.validate() ?? false)) return;
+                final db = ref.read(appDatabaseProvider);
+                final uname = usernameCtrl.text.trim();
+                final isTaken = await db.isUsernameTaken(uname);
+                if (isTaken) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Username "$uname" is already taken.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                final hash = createPasswordHash(passwordCtrl.text);
+                await db.createRegularUser(
+                  username: uname,
+                  passwordHash: hash,
+                  fullName: fullNameCtrl.text.trim(),
+                  role: selectedRole,
+                  email: emailCtrl.text.trim(),
+                  hospitalId: selectedHospital?.id,
+                  hospitalName: selectedHospital?.name,
+                );
+
+                ref.invalidate(allUsersProvider);
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Provisioned $selectedRole account for "${fullNameCtrl.text.trim()}" successfully!'),
+                      backgroundColor: Colors.teal.shade800,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteUser(String username, String fullName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            Gap(8),
+            Text('Remove User Account'),
+          ],
+        ),
+        content: Text('Are you sure you want to permanently delete user account "$fullName" (@$username)?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade800),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final db = ref.read(appDatabaseProvider);
+              await db.deleteCustomUser(username);
+              ref.invalidate(allUsersProvider);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Deleted account @$username')),
+                );
+              }
+            },
+            child: const Text('Confirm Delete'),
+          ),
+        ],
       ),
     );
   }

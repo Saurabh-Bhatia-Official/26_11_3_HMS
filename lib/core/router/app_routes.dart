@@ -78,6 +78,9 @@ abstract class AppRoutes {
   // ── Reports ──────────────────────────────────────────────────────────────
   static const String reports = '/reports';
 
+  // ── Hospitals (Super Admin Multi-Hospital) ────────────────────────────────
+  static const String hospitals = '/hospitals';
+
   // ── Settings ─────────────────────────────────────────────────────────────
   static const String settings = '/settings';
 

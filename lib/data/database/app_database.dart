@@ -246,6 +246,49 @@ class AppDatabase extends _$AppDatabase {
     return customUserJson != null;
   }
 
+  /// List all registered custom users plus demo users.
+  Future<List<UserAuthRecord>> getAllUsers() async {
+    final users = <UserAuthRecord>[];
+    // 1. Add demo users
+    users.addAll(_demoUsers.values);
+
+    // 2. Add custom registered users from settings table
+    final customRows = await customSelect(
+      "SELECT key, value FROM settings WHERE key LIKE 'custom_user_%'",
+    ).get();
+
+    for (final r in customRows) {
+      final jsonStr = r.data['value'] as String?;
+      if (jsonStr != null) {
+        try {
+          final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+          final username = map['username'] as String;
+          if (!_demoUsers.containsKey(username.toLowerCase())) {
+            users.add(UserAuthRecord(
+              id: 100 + username.hashCode.abs() % 10000,
+              uuid: '00000000-0000-0000-0001-${username.hashCode.abs().toString().padLeft(12, '0')}',
+              username: username,
+              fullName: map['fullName'] as String? ?? username,
+              role: map['role'] as String? ?? 'Staff',
+              email: map['email'] as String? ?? '',
+              passwordHash: map['passwordHash'] as String? ?? '',
+              hospitalId: map['hospitalId'] as int?,
+              hospitalName: map['hospitalName'] as String?,
+              isDeleted: false,
+            ));
+          }
+        } catch (_) {}
+      }
+    }
+    return users;
+  }
+
+  /// Delete a custom user from persistent settings.
+  Future<void> deleteCustomUser(String username) async {
+    final key = 'custom_user_${username.trim().toLowerCase()}';
+    await customStatement("DELETE FROM settings WHERE key = '$key'");
+  }
+
   /// Retrieve a user by username (checks database custom users first, then demo users).
   Future<UserAuthRecord?> getUserByUsername(String username) async {
     final lower = username.trim().toLowerCase();
@@ -402,3 +445,9 @@ class RolePermissionRow {
 
 /// Riverpod provider for AppDatabase singleton
 final appDatabaseProvider = Provider<AppDatabase>((ref) => AppDatabase.instance);
+
+/// Riverpod provider for all user accounts (Super Admin & Admin management)
+final allUsersProvider = FutureProvider<List<UserAuthRecord>>((ref) async {
+  final db = ref.watch(appDatabaseProvider);
+  return db.getAllUsers();
+});

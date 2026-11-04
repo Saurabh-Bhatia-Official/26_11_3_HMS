@@ -114,6 +114,13 @@ const List<NavDestination> kNavDestinations = [
     module: Modules.audit,
   ),
   NavDestination(
+    label: 'Hospitals',
+    icon: Icons.domain_outlined,
+    selectedIcon: Icons.domain_rounded,
+    route: AppRoutes.hospitals,
+    module: Modules.hospitals,
+  ),
+  NavDestination(
     label: 'Settings',
     icon: Icons.settings_outlined,
     selectedIcon: Icons.settings_rounded,

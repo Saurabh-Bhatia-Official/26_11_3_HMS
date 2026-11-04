@@ -5,9 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/auth/session_service.dart';
 import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
+import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
 
-enum AuthTab { signIn, createAccount }
+enum AuthTab { signIn, createHospital }
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({
@@ -32,30 +33,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
   HospitalModel? _selectedHospital;
 
-  // ── Create Account Form ─────────────────────────────────────────────────────
+  // ── Create Hospital & Super Admin Form ──────────────────────────────────────
   final _createFormKey = GlobalKey<FormState>();
-  final _regFullNameController = TextEditingController();
-  final _regUsernameController = TextEditingController();
-  final _regEmailController = TextEditingController();
-  final _regPasswordController = TextEditingController();
-  final _regConfirmPasswordController = TextEditingController();
-  String _regRole = 'Doctor';
-  HospitalModel? _regHospital;
-  bool _regObscurePassword = true;
-  bool _regObscureConfirm = true;
+  final _hospNameController = TextEditingController();
+  final _hospCodeController = TextEditingController();
+  final _hospAddressController = TextEditingController();
+  String _hospType = 'Multi-Specialty Hospital';
+
+  final _adminFullNameController = TextEditingController();
+  final _adminUsernameController = TextEditingController();
+  final _adminEmailController = TextEditingController();
+  final _adminPasswordController = TextEditingController();
+  final _adminConfirmPasswordController = TextEditingController();
+  bool _adminObscurePassword = true;
+  bool _adminObscureConfirm = true;
 
   bool _isSubmitting = false;
-
-  final List<String> _availableRoles = const [
-    'Doctor',
-    'Nurse',
-    'Receptionist',
-    'Pharmacist',
-    'Lab Technician',
-    'Accounts',
-    'Staff',
-    'Admin',
-  ];
 
   @override
   void initState() {
@@ -69,11 +62,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _passwordController.dispose();
     _passwordFocusNode.dispose();
 
-    _regFullNameController.dispose();
-    _regUsernameController.dispose();
-    _regEmailController.dispose();
-    _regPasswordController.dispose();
-    _regConfirmPasswordController.dispose();
+    _hospNameController.dispose();
+    _hospCodeController.dispose();
+    _hospAddressController.dispose();
+
+    _adminFullNameController.dispose();
+    _adminUsernameController.dispose();
+    _adminEmailController.dispose();
+    _adminPasswordController.dispose();
+    _adminConfirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -114,47 +111,104 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  // ── Create Account Submission ───────────────────────────────────────────────
-  Future<void> _submitCreateAccount() async {
+  // ── Create Hospital & Super Admin Submission ────────────────────────────────
+  Future<void> _submitCreateHospitalAndSuperAdmin() async {
     if (_isSubmitting) return;
     if (!(_createFormKey.currentState?.validate() ?? false)) return;
 
     setState(() => _isSubmitting = true);
 
-    final error = await ref.read(sessionProvider.notifier).registerUser(
-          fullName: _regFullNameController.text.trim(),
-          username: _regUsernameController.text.trim(),
-          email: _regEmailController.text.trim(),
-          password: _regPasswordController.text,
-          role: _regRole,
-          hospitalId: _regHospital?.id,
-          hospitalName: _regHospital?.name,
-        );
+    final db = ref.read(appDatabaseProvider);
+    final hospName = _hospNameController.text.trim();
+    final hospCode = _hospCodeController.text.trim().toUpperCase();
+    final hospAddress = _hospAddressController.text.trim();
 
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
+    final adminUsername = _adminUsernameController.text.trim();
+    final adminFullName = _adminFullNameController.text.trim();
+    final adminEmail = _adminEmailController.text.trim();
+    final adminPassword = _adminPasswordController.text;
 
-    if (error != null) {
+    // 1. Verify username is available
+    final isTaken = await db.isUsernameTaken(adminUsername);
+    if (isTaken) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error),
+          content: Text('Username "$adminUsername" is already in use. Please select another.'),
           backgroundColor: Theme.of(context).colorScheme.error,
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
         ),
       );
-    } else {
-      if (_regHospital != null) {
-        ref.read(activeHospitalProvider.notifier).switchHospital(_regHospital!);
+      return;
+    }
+
+    try {
+      // 2. Insert new Hospital Entity
+      final newHospital = HospitalModel(
+        uuid: 'hosp-${DateTime.now().millisecondsSinceEpoch}',
+        name: hospName,
+        code: hospCode,
+        type: _hospType,
+        address: hospAddress,
+        phone: '',
+        email: adminEmail,
+        status: 'Active',
+      );
+      final newHospId = await db.hmsDao.insertHospital(newHospital);
+      final savedHospital = newHospital.copyWith(id: newHospId);
+
+      // 3. Register Super Admin User
+      final regError = await ref.read(sessionProvider.notifier).registerUser(
+            fullName: adminFullName,
+            username: adminUsername,
+            email: adminEmail,
+            password: adminPassword,
+            role: 'Super Admin',
+            hospitalId: newHospId,
+            hospitalName: hospName,
+          );
+
+      if (regError != null) {
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(regError),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
       }
+
+      // 4. Set active hospital and refresh
+      ref.invalidate(allHospitalsProvider);
+      ref.read(activeHospitalProvider.notifier).switchHospital(savedHospital);
+
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Account created successfully for ${_regFullNameController.text.trim()}! Logged in as $_regRole.'),
+          content: Text('Hospital "$hospName" created! Super Admin account "$adminUsername" is ready. You can now add other staff via Settings.'),
           backgroundColor: Colors.teal.shade800,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+
+      context.go(AppRoutes.dashboard);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to register hospital: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
           behavior: SnackBarBehavior.floating,
         ),
       );
-      if (mounted) context.go(AppRoutes.dashboard);
     }
   }
 
@@ -177,7 +231,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // Ensure default selected hospital
     if (hospitals.isNotEmpty) {
       _selectedHospital ??= activeHospital ?? hospitals.first;
-      _regHospital ??= _selectedHospital ?? hospitals.first;
     }
 
     return Scaffold(
@@ -186,7 +239,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
+            constraints: const BoxConstraints(maxWidth: 500),
             child: Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -246,7 +299,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const Gap(22),
 
-                    // ── Segmented Tab Switcher (Sign In vs Create Account) ───
+                    // ── Segmented Tab Switcher ───────────────────────────────
                     SegmentedButton<AuthTab>(
                       segments: const [
                         ButtonSegment(
@@ -255,9 +308,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           label: Text('Sign In', style: TextStyle(fontWeight: FontWeight.w600)),
                         ),
                         ButtonSegment(
-                          value: AuthTab.createAccount,
-                          icon: Icon(Icons.person_add_rounded, size: 18),
-                          label: Text('Create Account', style: TextStyle(fontWeight: FontWeight.w600)),
+                          value: AuthTab.createHospital,
+                          icon: Icon(Icons.domain_add_rounded, size: 18),
+                          label: Text('Create Hospital', style: TextStyle(fontWeight: FontWeight.w600)),
                         ),
                       ],
                       selected: {_currentTab},
@@ -271,7 +324,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     if (_currentTab == AuthTab.signIn)
                       _buildSignInForm(context, colorScheme, textTheme, hospitals)
                     else
-                      _buildCreateAccountForm(context, colorScheme, textTheme, hospitals),
+                      _buildCreateHospitalForm(context, colorScheme, textTheme),
                   ],
                 ),
               ),
@@ -388,14 +441,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
-          const Gap(20),
+          const Gap(16),
 
-          // ── Switch to Create Account Link ──────────────────────────────────
+          // ── Switch to Create Hospital Link ─────────────────────────────────
           Center(
             child: TextButton.icon(
-              onPressed: () => setState(() => _currentTab = AuthTab.createAccount),
-              icon: const Icon(Icons.person_add_alt_1, size: 16),
-              label: const Text("Don't have an account? Create an Account"),
+              onPressed: () => setState(() => _currentTab = AuthTab.createHospital),
+              icon: const Icon(Icons.domain_add_rounded, size: 16),
+              label: const Text('Register New Hospital (Super Admin)'),
             ),
           ),
           const Gap(16),
@@ -459,198 +512,256 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  // ── Create Account View ─────────────────────────────────────────────────────
-  Widget _buildCreateAccountForm(
+  // ── Create Hospital & Super Admin View ──────────────────────────────────────
+  Widget _buildCreateHospitalForm(
     BuildContext context,
     ColorScheme colorScheme,
     TextTheme textTheme,
-    List<HospitalModel> hospitals,
   ) {
     return Form(
       key: _createFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Hospital Selector ──────────────────────────────────────────────
-          if (hospitals.isNotEmpty) ...[
-            DropdownButtonFormField<HospitalModel>(
-              value: hospitals.any((h) => h.id == _regHospital?.id)
-                  ? hospitals.firstWhere((h) => h.id == _regHospital?.id)
-                  : hospitals.first,
-              decoration: const InputDecoration(
-                labelText: 'Select Hospital / Branch *',
-                prefixIcon: Icon(Icons.domain_rounded),
-                helperText: 'Your account will be registered under this hospital entity',
-              ),
-              items: hospitals.map((h) {
-                return DropdownMenuItem(
-                  value: h,
-                  child: Text(
-                    h.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                );
-              }).toList(),
-              validator: (val) => val == null ? 'Please select a hospital' : null,
-              onChanged: (val) {
-                if (val != null) setState(() => _regHospital = val);
-              },
+          // ── Information Note ───────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colorScheme.primaryContainer.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
             ),
-            const Gap(14),
-          ],
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.shield_outlined, size: 20, color: colorScheme.primary),
+                const Gap(8),
+                Expanded(
+                  child: Text(
+                    'Creating a hospital registers the master Super Admin account. Other staff (Doctors, Nurses, Receptionists, Pharmacists) are provisioned securely through Super Admin Settings.',
+                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onPrimaryContainer),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Gap(16),
 
-          // ── Full Name Field ────────────────────────────────────────────────
+          // ── Hospital Section Header ────────────────────────────────────────
+          Row(
+            children: [
+              Icon(Icons.domain_rounded, size: 18, color: colorScheme.primary),
+              const Gap(6),
+              Text(
+                'Hospital Information',
+                style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
+              ),
+            ],
+          ),
+          const Divider(height: 16),
+
+          // ── Hospital Name ──────────────────────────────────────────────────
           TextFormField(
-            controller: _regFullNameController,
+            controller: _hospNameController,
             decoration: const InputDecoration(
-              labelText: 'Full Name *',
-              hintText: 'e.g. Dr. Sarah Jenkins',
+              labelText: 'Hospital / Facility Name *',
+              hintText: 'e.g. St. Jude Memorial Hospital',
+              prefixIcon: Icon(Icons.local_hospital_outlined),
+            ),
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) return 'Hospital name is required';
+              return null;
+            },
+          ),
+          const Gap(12),
+
+          // ── Hospital Code & Facility Type ──────────────────────────────────
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _hospCodeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Branch Code *',
+                    hintText: 'e.g. SJH-CENTRAL',
+                    prefixIcon: Icon(Icons.tag),
+                  ),
+                  textCapitalization: TextCapitalization.characters,
+                  textInputAction: TextInputAction.next,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) return 'Code required';
+                    return null;
+                  },
+                ),
+              ),
+              const Gap(12),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _hospType,
+                  decoration: const InputDecoration(
+                    labelText: 'Type',
+                    prefixIcon: Icon(Icons.category_outlined),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Multi-Specialty Hospital', child: Text('Multi-Specialty')),
+                    DropdownMenuItem(value: 'General Hospital', child: Text('General Hospital')),
+                    DropdownMenuItem(value: 'Clinic / Outpatient', child: Text('Clinic')),
+                    DropdownMenuItem(value: 'Trauma & Emergency', child: Text('Trauma Center')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setState(() => _hospType = val);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const Gap(12),
+
+          // ── Hospital Address ───────────────────────────────────────────────
+          TextFormField(
+            controller: _hospAddressController,
+            decoration: const InputDecoration(
+              labelText: 'Address & City',
+              hintText: 'e.g. 100 Medical Blvd, City Center',
+              prefixIcon: Icon(Icons.location_on_outlined),
+            ),
+            textInputAction: TextInputAction.next,
+          ),
+          const Gap(20),
+
+          // ── Super Admin Section Header ─────────────────────────────────────
+          Row(
+            children: [
+              Icon(Icons.admin_panel_settings_outlined, size: 18, color: colorScheme.primary),
+              const Gap(6),
+              Text(
+                'Super Admin Account Credentials',
+                style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
+              ),
+            ],
+          ),
+          const Divider(height: 16),
+
+          // ── Super Admin Full Name ──────────────────────────────────────────
+          TextFormField(
+            controller: _adminFullNameController,
+            decoration: const InputDecoration(
+              labelText: 'Super Admin Full Name *',
+              hintText: 'e.g. Dr. Arthur Vance',
               prefixIcon: Icon(Icons.badge_outlined),
             ),
             textCapitalization: TextCapitalization.words,
             textInputAction: TextInputAction.next,
             validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Full name is required';
-              }
+              if (value == null || value.trim().isEmpty) return 'Full name is required';
               return null;
             },
           ),
-          const Gap(14),
+          const Gap(12),
 
-          // ── Username Field ─────────────────────────────────────────────────
-          TextFormField(
-            controller: _regUsernameController,
-            decoration: const InputDecoration(
-              labelText: 'Username *',
-              hintText: 'e.g. sjenkins',
-              prefixIcon: Icon(Icons.person_outline_rounded),
-            ),
-            textInputAction: TextInputAction.next,
-            autocorrect: false,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Username is required';
-              }
-              if (value.trim().contains(' ')) {
-                return 'Username cannot contain spaces';
-              }
-              if (value.trim().length < 3) {
-                return 'Username must be at least 3 characters';
-              }
-              return null;
-            },
+          // ── Super Admin Username & Email ───────────────────────────────────
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _adminUsernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Username *',
+                    hintText: 'e.g. arthur_superadmin',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  ),
+                  textInputAction: TextInputAction.next,
+                  autocorrect: false,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) return 'Username required';
+                    if (value.trim().contains(' ')) return 'No spaces allowed';
+                    if (value.trim().length < 3) return 'Min 3 chars';
+                    return null;
+                  },
+                ),
+              ),
+              const Gap(12),
+              Expanded(
+                child: TextFormField(
+                  controller: _adminEmailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Official Email *',
+                    hintText: 'admin@stjude.org',
+                    prefixIcon: Icon(Icons.alternate_email_rounded),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) return 'Email required';
+                    if (!value.contains('@') || !value.contains('.')) return 'Invalid email';
+                    return null;
+                  },
+                ),
+              ),
+            ],
           ),
-          const Gap(14),
+          const Gap(12),
 
-          // ── Email Field ────────────────────────────────────────────────────
+          // ── Super Admin Password ───────────────────────────────────────────
           TextFormField(
-            controller: _regEmailController,
-            decoration: const InputDecoration(
-              labelText: 'Email Address *',
-              hintText: 'e.g. sjenkins@caresync.health',
-              prefixIcon: Icon(Icons.alternate_email_rounded),
-            ),
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Email address is required';
-              }
-              if (!value.contains('@') || !value.contains('.')) {
-                return 'Enter a valid email address';
-              }
-              return null;
-            },
-          ),
-          const Gap(14),
-
-          // ── Role Selector Dropdown ─────────────────────────────────────────
-          DropdownButtonFormField<String>(
-            value: _regRole,
-            decoration: const InputDecoration(
-              labelText: 'Assigned Role *',
-              prefixIcon: Icon(Icons.security_outlined),
-            ),
-            items: _availableRoles.map((role) {
-              return DropdownMenuItem(
-                value: role,
-                child: Text(role, style: const TextStyle(fontWeight: FontWeight.w500)),
-              );
-            }).toList(),
-            onChanged: (val) {
-              if (val != null) setState(() => _regRole = val);
-            },
-          ),
-          const Gap(14),
-
-          // ── Password Field ─────────────────────────────────────────────────
-          TextFormField(
-            controller: _regPasswordController,
+            controller: _adminPasswordController,
             decoration: InputDecoration(
-              labelText: 'Password *',
-              hintText: 'At least 6 characters',
+              labelText: 'Super Admin Password *',
+              hintText: 'Min 6 characters',
               prefixIcon: const Icon(Icons.lock_outline_rounded),
               suffixIcon: IconButton(
-                icon: Icon(_regObscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                onPressed: () => setState(() => _regObscurePassword = !_regObscurePassword),
-                tooltip: _regObscurePassword ? 'Show password' : 'Hide password',
+                icon: Icon(_adminObscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                onPressed: () => setState(() => _adminObscurePassword = !_adminObscurePassword),
+                tooltip: _adminObscurePassword ? 'Show password' : 'Hide password',
               ),
             ),
-            obscureText: _regObscurePassword,
+            obscureText: _adminObscurePassword,
             textInputAction: TextInputAction.next,
             validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Password is required';
-              }
-              if (value.length < 6) {
-                return 'Password must be at least 6 characters';
-              }
+              if (value == null || value.isEmpty) return 'Password is required';
+              if (value.length < 6) return 'At least 6 characters required';
               return null;
             },
           ),
-          const Gap(14),
+          const Gap(12),
 
-          // ── Confirm Password Field ─────────────────────────────────────────
+          // ── Confirm Password ───────────────────────────────────────────────
           TextFormField(
-            controller: _regConfirmPasswordController,
+            controller: _adminConfirmPasswordController,
             decoration: InputDecoration(
               labelText: 'Confirm Password *',
               prefixIcon: const Icon(Icons.lock_reset_rounded),
               suffixIcon: IconButton(
-                icon: Icon(_regObscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                onPressed: () => setState(() => _regObscureConfirm = !_regObscureConfirm),
-                tooltip: _regObscureConfirm ? 'Show password' : 'Hide password',
+                icon: Icon(_adminObscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                onPressed: () => setState(() => _adminObscureConfirm = !_adminObscureConfirm),
+                tooltip: _adminObscureConfirm ? 'Show password' : 'Hide password',
               ),
             ),
-            obscureText: _regObscureConfirm,
+            obscureText: _adminObscureConfirm,
             textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _submitCreateAccount(),
+            onFieldSubmitted: (_) => _submitCreateHospitalAndSuperAdmin(),
             validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please confirm your password';
-              }
-              if (value != _regPasswordController.text) {
-                return 'Passwords do not match';
-              }
+              if (value == null || value.isEmpty) return 'Please confirm password';
+              if (value != _adminPasswordController.text) return 'Passwords do not match';
               return null;
             },
           ),
           const Gap(22),
 
-          // ── Create Account Button ──────────────────────────────────────────
+          // ── Submit Button ──────────────────────────────────────────────────
           FilledButton.icon(
-            onPressed: _isSubmitting ? null : _submitCreateAccount,
+            onPressed: _isSubmitting ? null : _submitCreateHospitalAndSuperAdmin,
             icon: _isSubmitting
                 ? const SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Icon(Icons.person_add_rounded),
+                : const Icon(Icons.domain_add_rounded),
             label: Text(
-              _isSubmitting ? 'Creating Account…' : 'Create Account & Sign In',
+              _isSubmitting ? 'Registering Hospital & Admin…' : 'Register Hospital & Super Admin',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             style: FilledButton.styleFrom(
@@ -658,14 +769,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
-          const Gap(18),
+          const Gap(16),
 
           // ── Switch to Sign In Link ─────────────────────────────────────────
           Center(
             child: TextButton.icon(
               onPressed: () => setState(() => _currentTab = AuthTab.signIn),
               icon: const Icon(Icons.arrow_back, size: 16),
-              label: const Text('Already have an account? Sign In'),
+              label: const Text('Back to Sign In'),
             ),
           ),
         ],

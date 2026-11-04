@@ -15,7 +15,7 @@ class HospitalModel {
   final String createdAt;
 
   const HospitalModel({
-    required this.id,
+    this.id = 0,
     required this.uuid,
     required this.name,
     required this.code,

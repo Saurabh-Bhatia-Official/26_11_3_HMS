@@ -14,6 +14,7 @@ import 'package:hospital_management/features/auth/presentation/screens/login_scr
 import 'package:hospital_management/features/beds/presentation/screens/bed_board_screen.dart';
 import 'package:hospital_management/features/billing/presentation/screens/billing_list_screen.dart';
 import 'package:hospital_management/features/billing/presentation/screens/invoice_detail_screen.dart';
+import 'package:hospital_management/features/hospitals/presentation/screens/hospitals_screen.dart';
 import 'package:hospital_management/features/ipd/presentation/screens/admit_patient_screen.dart';
 import 'package:hospital_management/features/ipd/presentation/screens/ipd_admission_screen.dart';
 import 'package:hospital_management/features/ipd/presentation/screens/ipd_list_screen.dart';
@@ -93,7 +94,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.register,
         name: 'register',
-        builder: (context, state) => const LoginScreen(initialTab: AuthTab.createAccount),
+        builder: (context, state) => const LoginScreen(initialTab: AuthTab.createHospital),
       ),
       GoRoute(
         path: AppRoutes.lock,
@@ -304,6 +305,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const ReportsScreen(),
           ),
 
+          // Hospitals (Super Admin)
+          GoRoute(
+            path: AppRoutes.hospitals,
+            name: 'hospitals',
+            builder: (context, state) => const HospitalsScreen(),
+          ),
+
           // Settings
           GoRoute(
             path: AppRoutes.settings,
@@ -336,6 +344,7 @@ String? _routeToModule(String location) {
   if (location.startsWith('/reports')) return Modules.reports;
   if (location.startsWith('/audit')) return Modules.audit;
   if (location.startsWith('/settings')) return Modules.settings;
+  if (location.startsWith('/hospitals')) return Modules.hospitals;
   if (location.startsWith('/dashboard')) return Modules.dashboard;
   return null;
 }

@@ -129,5 +129,29 @@ void main() {
       expect(user!.role, equals('Super Admin'));
       expect(user.fullName, contains('Super Administrator'));
     });
+
+    test('7. Super Admin can provision staff accounts for any hospital and retrieve all users', () async {
+      await db.createRegularUser(
+        username: 'dr_miller',
+        passwordHash: 'salt_miller:hash123',
+        fullName: 'Dr. Arthur Miller',
+        role: 'Doctor',
+        email: 'miller@hospital.org',
+        hospitalId: 1,
+        hospitalName: 'CareSync Central Hospital',
+      );
+
+      final allUsers = await db.getAllUsers();
+      expect(allUsers.any((u) => u.username == 'dr_miller'), isTrue);
+
+      final miller = allUsers.firstWhere((u) => u.username == 'dr_miller');
+      expect(miller.role, equals('Doctor'));
+      expect(miller.hospitalId, equals(1));
+      expect(miller.hospitalName, equals('CareSync Central Hospital'));
+
+      await db.deleteCustomUser('dr_miller');
+      final afterDelete = await db.getAllUsers();
+      expect(afterDelete.any((u) => u.username == 'dr_miller'), isFalse);
+    });
   });
 }
