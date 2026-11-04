@@ -49,25 +49,25 @@ class HospitalProfileModel {
   final String uhidPrefix;
 
   const HospitalProfileModel({
-    this.hospitalName = 'City Hospital & Medical Center',
-    this.tagline = 'Excellence in Healthcare & Patient Wellbeing',
-    this.address = '123 Health Ave, Medical District',
-    this.phone = '+91 98765 43210',
-    this.email = 'info@cityhospital.local',
-    this.taxId = 'GSTIN27AABCT3518Q1Z5',
+    this.hospitalName = 'CareSync',
+    this.tagline = 'Connecting Care. Simplifying Healthcare.',
+    this.address = '',
+    this.phone = '',
+    this.email = '',
+    this.taxId = '',
     this.currencySymbol = '₹',
-    this.logoPath = '',
+    this.logoPath = 'assets/images/caresync_logo.png',
     this.uhidPrefix = 'UHID',
   });
 
   factory HospitalProfileModel.fromMap(Map<String, dynamic> map) {
     return HospitalProfileModel(
-      hospitalName: map['hospital_name'] as String? ?? 'City Hospital & Medical Center',
-      tagline: map['tagline'] as String? ?? 'Excellence in Healthcare & Patient Wellbeing',
-      address: map['address'] as String? ?? '123 Health Ave, Medical District',
-      phone: map['phone'] as String? ?? '+91 98765 43210',
-      email: map['email'] as String? ?? 'info@cityhospital.local',
-      taxId: map['tax_id'] as String? ?? 'GSTIN27AABCT3518Q1Z5',
+      hospitalName: map['hospital_name'] as String? ?? 'CareSync',
+      tagline: map['tagline'] as String? ?? 'Connecting Care. Simplifying Healthcare.',
+      address: map['address'] as String? ?? '',
+      phone: map['phone'] as String? ?? '',
+      email: map['email'] as String? ?? '',
+      taxId: map['tax_id'] as String? ?? '',
       currencySymbol: map['currency_symbol'] as String? ?? '₹',
       logoPath: map['logo_path'] as String? ?? '',
       uhidPrefix: map['uhid_prefix'] as String? ?? 'UHID',

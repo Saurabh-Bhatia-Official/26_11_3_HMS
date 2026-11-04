@@ -91,19 +91,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ── Hospital Brand Icon ────────────────────────────────
+                      // ── CareSync Brand Logo ────────────────────────────────
                       Center(
-                        child: Container(
-                          width: 76,
-                          height: 76,
-                          decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.local_hospital_rounded,
-                            size: 42,
-                            color: colorScheme.onPrimaryContainer,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.asset(
+                            'assets/images/caresync_logo.png',
+                            height: 100,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 76,
+                              height: 76,
+                              decoration: BoxDecoration(
+                                color: colorScheme.primaryContainer,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.local_hospital_rounded,
+                                size: 42,
+                                color: colorScheme.onPrimaryContainer,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -111,18 +119,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                       // ── App Header ─────────────────────────────────────────
                       Text(
-                        'Hospital Management',
-                        style: textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
+                        'CareSync',
+                        style: textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
                           color: colorScheme.onSurface,
+                          letterSpacing: -0.5,
                         ),
                         textAlign: TextAlign.center,
                       ),
                       const Gap(4),
                       Text(
-                        'Sign in to access hospital clinical systems',
+                        'Connecting Care. Simplifying Healthcare.',
                         style: textTheme.bodyMedium?.copyWith(
                           color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
                         ),
                         textAlign: TextAlign.center,
                       ),

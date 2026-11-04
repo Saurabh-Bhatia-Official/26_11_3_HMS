@@ -84,7 +84,7 @@ class AppDatabase extends _$AppDatabase {
           // Seed default settings
           await settingsDao.upsertSetting('uhid_prefix', 'UHID');
           await settingsDao.upsertSetting('uhid_sequence', '0');
-          await settingsDao.upsertSetting('hospital_name', 'City Hospital & Medical Center');
+          await settingsDao.upsertSetting('hospital_name', 'CareSync');
           await settingsDao.upsertSetting('currency_symbol', '₹');
         },
         onUpgrade: (m, from, to) async {
@@ -281,19 +281,78 @@ class AppDatabase extends _$AppDatabase {
   // ── Permissions ───────────────────────────────────────────────────────────
 
   Future<List<RolePermissionRow>> getPermissionsForRole(String role) async {
-    const modules = [
-      'dashboard', 'patients', 'appointments', 'opd', 'ipd', 'beds',
-      'staff', 'lab', 'pharmacy', 'billing', 'reports', 'settings',
-      'audit', 'prescriptions', 'emr',
-    ];
-    const actions = ['view', 'create', 'edit', 'delete', 'print', 'export', 'approve'];
-
+    final lower = role.trim().toLowerCase();
     final list = <RolePermissionRow>[];
-    for (final m in modules) {
+
+    void grant(String module, List<String> actions) {
       for (final a in actions) {
-        list.add(RolePermissionRow(m, a));
+        list.add(RolePermissionRow(module, a));
       }
     }
+
+    const allActions = ['view', 'create', 'edit', 'delete', 'print', 'export', 'approve'];
+    const standardActions = ['view', 'create', 'edit', 'print'];
+    const readOnlyActions = ['view', 'print'];
+
+    if (lower.contains('admin')) {
+      const allModules = [
+        'dashboard', 'patients', 'appointments', 'opd', 'ipd', 'beds',
+        'staff', 'lab', 'pharmacy', 'billing', 'reports', 'settings',
+        'audit', 'prescriptions', 'emr',
+      ];
+      for (final m in allModules) {
+        grant(m, allActions);
+      }
+    } else if (lower.contains('doctor')) {
+      grant('dashboard', readOnlyActions);
+      grant('patients', standardActions);
+      grant('appointments', standardActions);
+      grant('opd', standardActions);
+      grant('ipd', standardActions);
+      grant('beds', standardActions);
+      grant('prescriptions', standardActions);
+      grant('emr', standardActions);
+      grant('lab', readOnlyActions);
+      grant('pharmacy', readOnlyActions);
+    } else if (lower.contains('nurse')) {
+      grant('dashboard', readOnlyActions);
+      grant('patients', readOnlyActions);
+      grant('appointments', standardActions);
+      grant('opd', standardActions);
+      grant('ipd', standardActions);
+      grant('beds', standardActions);
+      grant('prescriptions', readOnlyActions);
+      grant('pharmacy', readOnlyActions);
+    } else if (lower.contains('reception')) {
+      grant('dashboard', readOnlyActions);
+      grant('patients', standardActions);
+      grant('appointments', allActions);
+      grant('opd', readOnlyActions);
+      grant('beds', readOnlyActions);
+      grant('billing', standardActions);
+    } else if (lower.contains('pharm')) {
+      grant('dashboard', readOnlyActions);
+      grant('pharmacy', allActions);
+      grant('prescriptions', standardActions);
+      grant('patients', readOnlyActions);
+      grant('billing', standardActions);
+    } else if (lower.contains('lab')) {
+      grant('dashboard', readOnlyActions);
+      grant('lab', allActions);
+      grant('patients', readOnlyActions);
+    } else if (lower.contains('account') || lower.contains('billing')) {
+      grant('dashboard', readOnlyActions);
+      grant('billing', allActions);
+      grant('reports', allActions);
+      grant('patients', readOnlyActions);
+    } else {
+      // Default Staff
+      grant('dashboard', readOnlyActions);
+      grant('appointments', readOnlyActions);
+      grant('beds', readOnlyActions);
+      grant('patients', readOnlyActions);
+    }
+
     return list;
   }
 }

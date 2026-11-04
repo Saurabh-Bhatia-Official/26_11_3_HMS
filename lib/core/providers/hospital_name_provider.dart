@@ -25,12 +25,12 @@ final hospitalInfoProvider = FutureProvider<Map<String, String>>((ref) async {
 
 /// Provides the hospital name read from the `settings` table.
 ///
-/// Falls back to `'City Hospital'` if the setting has not been seeded yet.
+/// Falls back to `'CareSync'` if the setting has not been seeded yet.
 final hospitalNameProvider = FutureProvider<String>((ref) async {
   final db = ref.watch(appDatabaseProvider);
   final dao = db.settingsDao;
   final row = await dao.getSetting('hospital_name');
-  return row?.value ?? 'City Hospital';
+  return row?.value ?? 'CareSync';
 });
 
 /// Mutable notifier so the Settings screen can update the name immediately.
@@ -40,7 +40,7 @@ final hospitalNameNotifierProvider =
 });
 
 class HospitalNameNotifier extends StateNotifier<String> {
-  HospitalNameNotifier(this._ref) : super('City Hospital') {
+  HospitalNameNotifier(this._ref) : super('CareSync') {
     _load();
   }
 
@@ -49,7 +49,7 @@ class HospitalNameNotifier extends StateNotifier<String> {
   Future<void> _load() async {
     final db = _ref.read(appDatabaseProvider);
     final row = await db.settingsDao.getSetting('hospital_name');
-    if (mounted) state = row?.value ?? 'City Hospital';
+    if (mounted) state = row?.value ?? 'CareSync';
   }
 
   Future<void> update(String name) async {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/auth/auto_lock_service.dart';
 import 'package:hospital_management/core/auth/session_service.dart';
+import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/app_shell.dart';
 import 'package:hospital_management/features/appointments/presentation/screens/appointment_form_screen.dart';
@@ -64,6 +65,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // 4. Root redirect
       if (state.matchedLocation == AppRoutes.root) {
         return AppRoutes.dashboard;
+      }
+
+      // 5. Role-based module access check
+      final user = session.user;
+      if (user != null) {
+        final loc = state.matchedLocation;
+        final module = _routeToModule(loc);
+        if (module != null && module != Modules.dashboard) {
+          final checker = ref.read(permissionCheckerProvider);
+          // When permissions are loaded, ensure the user has access to this module
+          if (checker.canAccessModule(Modules.dashboard) && !checker.canAccessModule(module)) {
+            return AppRoutes.dashboard;
+          }
+        }
       }
 
       return null;
@@ -302,10 +317,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
+String? _routeToModule(String location) {
+  if (location.startsWith('/patients')) return Modules.patients;
+  if (location.startsWith('/appointments')) return Modules.appointments;
+  if (location.startsWith('/opd')) return Modules.opd;
+  if (location.startsWith('/ipd')) return Modules.ipd;
+  if (location.startsWith('/beds')) return Modules.beds;
+  if (location.startsWith('/lab')) return Modules.lab;
+  if (location.startsWith('/pharmacy')) return Modules.pharmacy;
+  if (location.startsWith('/billing')) return Modules.billing;
+  if (location.startsWith('/staff')) return Modules.staff;
+  if (location.startsWith('/reports')) return Modules.reports;
+  if (location.startsWith('/audit')) return Modules.audit;
+  if (location.startsWith('/settings')) return Modules.settings;
+  if (location.startsWith('/dashboard')) return Modules.dashboard;
+  return null;
+}
+
 class _RouterNotifier extends ChangeNotifier {
   _RouterNotifier(this._ref) {
     _ref.listen<SessionState>(sessionProvider, (_, __) => notifyListeners());
     _ref.listen<bool>(autoLockProvider, (_, __) => notifyListeners());
+    _ref.listen<AsyncValue<PermissionMap>>(permissionsProvider, (_, __) => notifyListeners());
   }
 
   final Ref _ref;

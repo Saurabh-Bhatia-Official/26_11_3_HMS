@@ -4,6 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/auth/auto_lock_service.dart';
 import 'package:hospital_management/core/auth/session_service.dart';
+import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/theme/theme_provider.dart';
@@ -14,12 +15,14 @@ class NavDestination {
   final IconData icon;
   final IconData selectedIcon;
   final String route;
+  final String module;
 
   const NavDestination({
     required this.label,
     required this.icon,
     required this.selectedIcon,
     required this.route,
+    required this.module,
   });
 }
 
@@ -29,78 +32,91 @@ const List<NavDestination> kNavDestinations = [
     icon: Icons.dashboard_outlined,
     selectedIcon: Icons.dashboard_rounded,
     route: AppRoutes.dashboard,
+    module: Modules.dashboard,
   ),
   NavDestination(
     label: 'Patients',
     icon: Icons.people_outline_rounded,
     selectedIcon: Icons.people_rounded,
     route: AppRoutes.patients,
+    module: Modules.patients,
   ),
   NavDestination(
     label: 'Appointments',
     icon: Icons.calendar_month_outlined,
     selectedIcon: Icons.calendar_month_rounded,
     route: AppRoutes.appointments,
+    module: Modules.appointments,
   ),
   NavDestination(
     label: 'OPD Care',
     icon: Icons.local_hospital_outlined,
     selectedIcon: Icons.local_hospital_rounded,
     route: AppRoutes.opd,
+    module: Modules.opd,
   ),
   NavDestination(
     label: 'IPD / Wards',
     icon: Icons.hotel_outlined,
     selectedIcon: Icons.hotel_rounded,
     route: AppRoutes.ipd,
+    module: Modules.ipd,
   ),
   NavDestination(
     label: 'Bed Board',
     icon: Icons.single_bed_outlined,
     selectedIcon: Icons.single_bed_rounded,
     route: AppRoutes.beds,
+    module: Modules.beds,
   ),
   NavDestination(
     label: 'Laboratory',
     icon: Icons.biotech_outlined,
     selectedIcon: Icons.biotech_rounded,
     route: AppRoutes.lab,
+    module: Modules.lab,
   ),
   NavDestination(
     label: 'Pharmacy',
     icon: Icons.medication_outlined,
     selectedIcon: Icons.medication_rounded,
     route: AppRoutes.pharmacy,
+    module: Modules.pharmacy,
   ),
   NavDestination(
     label: 'Billing',
     icon: Icons.receipt_long_outlined,
     selectedIcon: Icons.receipt_long_rounded,
     route: AppRoutes.billing,
+    module: Modules.billing,
   ),
   NavDestination(
     label: 'Staff',
     icon: Icons.badge_outlined,
     selectedIcon: Icons.badge_rounded,
     route: AppRoutes.staff,
+    module: Modules.staff,
   ),
   NavDestination(
     label: 'Reports',
     icon: Icons.bar_chart_outlined,
     selectedIcon: Icons.bar_chart_rounded,
     route: AppRoutes.reports,
+    module: Modules.reports,
   ),
   NavDestination(
     label: 'Audit Log',
     icon: Icons.history_outlined,
     selectedIcon: Icons.history_rounded,
     route: AppRoutes.audit,
+    module: Modules.audit,
   ),
   NavDestination(
     label: 'Settings',
     icon: Icons.settings_outlined,
     selectedIcon: Icons.settings_rounded,
     route: AppRoutes.settings,
+    module: Modules.settings,
   ),
 ];
 
@@ -114,9 +130,9 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  int _getSelectedIndex(String location) {
-    for (int i = 0; i < kNavDestinations.length; i++) {
-      if (location.startsWith(kNavDestinations[i].route)) {
+  int _getSelectedIndex(String location, List<NavDestination> destinations) {
+    for (int i = 0; i < destinations.length; i++) {
+      if (location.startsWith(destinations[i].route)) {
         return i;
       }
     }
@@ -222,11 +238,14 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
-    final selectedIndex = _getSelectedIndex(location);
+    final checker = ref.watch(permissionCheckerProvider);
+    final visibleDestinations = kNavDestinations.where((d) => checker.canAccessModule(d.module)).toList();
+    final effectiveDestinations = visibleDestinations.isEmpty ? kNavDestinations : visibleDestinations;
+    final selectedIndex = _getSelectedIndex(location, effectiveDestinations);
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
     final colorScheme = Theme.of(context).colorScheme;
     final user = ref.watch(currentUserProvider);
-    final hospitalName = ref.watch(hospitalNameProvider).value ?? 'City Hospital';
+    final hospitalName = ref.watch(hospitalNameProvider).value ?? 'CareSync';
     final themeMode = ref.watch(themeModeProvider);
 
     return AutoLockActivityDetector(
@@ -236,16 +255,25 @@ class _AppShellState extends ConsumerState<AppShell> {
           titleSpacing: 16,
           title: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.local_hospital_rounded,
-                  size: 22,
-                  color: colorScheme.onPrimaryContainer,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.asset(
+                  'assets/images/caresync_logo.png',
+                  width: 32,
+                  height: 32,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.local_hospital_rounded,
+                      size: 20,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
+                  ),
                 ),
               ),
               const Gap(12),
@@ -260,7 +288,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                     ),
                   ),
                   Text(
-                    'Hospital Management System • Offline Mode',
+                    'CareSync • Connecting Care. Simplifying Healthcare.',
                     style: TextStyle(
                       fontSize: 11,
                       color: colorScheme.onSurfaceVariant,
@@ -557,10 +585,19 @@ class _AppShellState extends ConsumerState<AppShell> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Icon(
-                            Icons.local_hospital_rounded,
-                            size: 40,
-                            color: colorScheme.onPrimaryContainer,
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.asset(
+                              'assets/images/caresync_logo.png',
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => Icon(
+                                Icons.local_hospital_rounded,
+                                size: 40,
+                                color: colorScheme.onPrimaryContainer,
+                              ),
+                            ),
                           ),
                           const Gap(8),
                           Text(
@@ -572,25 +609,25 @@ class _AppShellState extends ConsumerState<AppShell> {
                             ),
                           ),
                           Text(
-                            'Hospital Management System',
+                            'CareSync • Connecting Care. Simplifying Healthcare.',
                             style: TextStyle(
                               color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
-                              fontSize: 12,
+                              fontSize: 11,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    for (int i = 0; i < kNavDestinations.length; i++)
+                    for (int i = 0; i < effectiveDestinations.length; i++)
                       ListTile(
                         leading: Icon(
                           i == selectedIndex
-                              ? kNavDestinations[i].selectedIcon
-                              : kNavDestinations[i].icon,
+                              ? effectiveDestinations[i].selectedIcon
+                              : effectiveDestinations[i].icon,
                           color: i == selectedIndex ? colorScheme.primary : null,
                         ),
                         title: Text(
-                          kNavDestinations[i].label,
+                          effectiveDestinations[i].label,
                           style: TextStyle(
                             fontWeight: i == selectedIndex
                                 ? FontWeight.bold
@@ -602,7 +639,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                         onTap: () {
                           Navigator.pop(context);
                           WidgetsBinding.instance.addPostFrameCallback((_) {
-                            context.go(kNavDestinations[i].route);
+                            context.go(effectiveDestinations[i].route);
                           });
                         },
                       ),
@@ -618,7 +655,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 minExtendedWidth: 210,
                 leading: const Gap(8),
                 destinations: [
-                  for (final item in kNavDestinations)
+                  for (final item in effectiveDestinations)
                     NavigationRailDestination(
                       icon: Icon(item.icon),
                       selectedIcon: Icon(item.selectedIcon),
@@ -627,7 +664,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ],
                 onDestinationSelected: (index) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    context.go(kNavDestinations[index].route);
+                    context.go(effectiveDestinations[index].route);
                   });
                 },
               ),
