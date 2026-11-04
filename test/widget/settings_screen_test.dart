@@ -11,7 +11,7 @@ void main() {
     await db.open();
     // Seed with raw 'UHID' prefix just like default migration
     await db.settingsDao.upsertSetting('uhid_prefix', 'UHID');
-    await db.settingsDao.upsertSetting('hospital_name', 'Metropolitan Hospital');
+    await db.settingsDao.upsertSetting('hospital_name', 'CareSync');
 
     await tester.pumpWidget(
       ProviderScope(

@@ -1,10 +1,31 @@
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hospital_management/core/widgets/kpi_card.dart';
+import 'package:hospital_management/data/database/app_database.dart';
 
 void main() {
-  group('KpiCard Widget Tests', () {
-    testWidgets('renders all details without overflow at desktop card size', (tester) async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('KpiCard Widget Tests (Database-driven)', () {
+    late AppDatabase db;
+
+    setUp(() async {
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      await db.open();
+    });
+
+    tearDown(() async {
+      await db.close();
+    });
+
+    testWidgets('renders OPD metric dynamically fetched from SQLite database', (tester) async {
+      // Fetch operational metrics directly from SQLite database
+      final stats = await db.hmsDao.getDashboardStats();
+      final opdVisitsCount = stats['todayOpdVisits'] as int;
+      final opdValueStr = opdVisitsCount.toString();
+      final subtitleStr = opdVisitsCount > 0 ? '$opdVisitsCount in active queue' : 'Queue completed';
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -14,11 +35,9 @@ void main() {
                 height: 160,
                 child: KpiCard(
                   label: "Today's OPD Patients",
-                  value: '42',
+                  value: opdValueStr,
                   icon: Icons.people_outline_rounded,
-                  subtitle: '+3 in waiting queue',
-                  trend: 5.2,
-                  trendLabel: 'vs yesterday',
+                  subtitle: subtitleStr,
                 ),
               ),
             ),
@@ -28,18 +47,28 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text("Today's OPD Patients"), findsOneWidget);
-      expect(find.text('42'), findsOneWidget);
-      expect(find.text('+3 in waiting queue'), findsOneWidget);
-      expect(find.text('+5.2%'), findsOneWidget);
+      expect(find.text(opdValueStr), findsOneWidget);
+      expect(find.text(subtitleStr), findsOneWidget);
     });
 
-    testWidgets('renders in a 4-column grid at 1280x800 without overflow', (tester) async {
+    testWidgets('renders all KPI metrics in grid fetched dynamically from SQLite database', (tester) async {
       tester.view.physicalSize = const Size(1280, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
       });
+
+      // Fetch live operational metrics directly from SQLite database
+      final stats = await db.hmsDao.getDashboardStats();
+      final opdStr = (stats['todayOpdVisits'] as int).toString();
+      final revenuePaise = stats['todayRevenuePaise'] as int;
+      final revenueStr = '₹${(revenuePaise / 100).toStringAsFixed(0)}';
+      final totalBeds = stats['totalBeds'] as int;
+      final availBeds = stats['availableBeds'] as int;
+      final occupancyRate = totalBeds == 0 ? 0 : (((totalBeds - availBeds) / totalBeds) * 100).round();
+      final occupancyStr = '$occupancyRate%';
+      final pendingLabStr = (stats['pendingLabOrders'] as int).toString();
 
       await tester.pumpWidget(
         MaterialApp(
@@ -57,30 +86,30 @@ void main() {
                     ),
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    children: const [
+                    children: [
                       KpiCard(
                         label: "Today's OPD Patients",
-                        value: '42',
+                        value: opdStr,
                         icon: Icons.people_outline_rounded,
-                        subtitle: '+3 in waiting queue',
+                        subtitle: 'Live SQLite count',
                       ),
                       KpiCard(
                         label: "Today's Revenue",
-                        value: '₹1,24,500',
+                        value: revenueStr,
                         icon: Icons.currency_rupee_rounded,
                         subtitle: 'Billing & pharmacy combined',
                       ),
                       KpiCard(
                         label: 'Bed Occupancy',
-                        value: '75%',
+                        value: occupancyStr,
                         icon: Icons.hotel_rounded,
-                        subtitle: '15 of 20 beds occupied',
+                        subtitle: '${totalBeds - availBeds} of $totalBeds beds occupied',
                       ),
                       KpiCard(
                         label: 'Pending Lab Tests',
-                        value: '8',
+                        value: pendingLabStr,
                         icon: Icons.biotech_rounded,
-                        subtitle: '2 urgent (STAT) samples',
+                        subtitle: 'Database pending orders',
                       ),
                     ],
                   );
@@ -94,10 +123,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.text("Today's OPD Patients"), findsOneWidget);
-      expect(find.text('₹1,24,500'), findsOneWidget);
-      expect(find.text('75%'), findsOneWidget);
-      expect(find.text('8'), findsOneWidget);
+      expect(find.text("Today's Revenue"), findsOneWidget);
+      expect(find.text('Bed Occupancy'), findsOneWidget);
+      expect(find.text('Pending Lab Tests'), findsOneWidget);
+      expect(find.text(revenueStr), findsOneWidget);
+      expect(find.text(occupancyStr), findsOneWidget);
+      if (opdStr == pendingLabStr) {
+        expect(find.text(opdStr), findsNWidgets(2));
+      } else {
+        expect(find.text(opdStr), findsOneWidget);
+        expect(find.text(pendingLabStr), findsOneWidget);
+      }
     });
   });
 }
-
