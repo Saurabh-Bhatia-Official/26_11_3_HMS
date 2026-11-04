@@ -496,3 +496,4 @@ jobs:
             --notes "" \
             --verify-tag
           echo "GitHub Release ${{ needs.version.outputs.version }} published with zero description text and all platform assets attached."
+
