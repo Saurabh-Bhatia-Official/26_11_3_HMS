@@ -202,6 +202,58 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                 ),
               ),
             ],
+            const Divider(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _showAddEditBedDialog(bed: bed);
+                    },
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Edit Bed'),
+                  ),
+                ),
+                const Gap(8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: const Text('Delete Bed'),
+                          content: Text('Are you sure you want to remove Bed ${bed.bedNo} from ${bed.ward} Ward?'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                            FilledButton(
+                              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                              onPressed: () => Navigator.pop(c, true),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        final db = ref.read(appDatabaseProvider);
+                        await db.hmsDao.deleteBed(bed.id, bed.bedNo);
+                        ref.invalidate(bedsListProvider);
+                        ref.invalidate(dashboardStatsProvider);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Bed ${bed.bedNo} deleted.')),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Delete Bed'),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
         actions: [
@@ -210,6 +262,139 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAddEditBedDialog({BedModel? bed}) {
+    final isEditing = bed != null;
+    final bedNoController = TextEditingController(text: bed?.bedNo ?? '');
+    final wardController = TextEditingController(text: bed?.ward ?? (_selectedWard != 'All Wards' ? _selectedWard : 'General Ward'));
+    final typeController = TextEditingController(text: bed?.type ?? 'General');
+    final tariffController = TextEditingController(text: bed != null ? (bed.tariffPaise / 100).toStringAsFixed(0) : '800');
+    String status = bed?.status ?? 'Available';
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setModalState) => AlertDialog(
+          title: Text(isEditing ? 'Edit Bed ${bed.bedNo}' : 'Add New Hospital Bed'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: bedNoController,
+                    decoration: const InputDecoration(labelText: 'Bed Identifier / Number *', hintText: 'e.g. ICU-01, B-101'),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Bed number is required' : null,
+                  ),
+                  const Gap(12),
+                  TextFormField(
+                    controller: wardController,
+                    decoration: const InputDecoration(labelText: 'Ward Name *', hintText: 'e.g. ICU, Male General, Deluxe'),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Ward name is required' : null,
+                  ),
+                  const Gap(12),
+                  DropdownButtonFormField<String>(
+                    value: const ['General', 'ICU', 'Private AC', 'Semi-Private', 'Emergency', 'Pediatric'].contains(typeController.text)
+                        ? typeController.text
+                        : 'General',
+                    decoration: const InputDecoration(labelText: 'Bed Type'),
+                    items: const [
+                      DropdownMenuItem(value: 'General', child: Text('General')),
+                      DropdownMenuItem(value: 'ICU', child: Text('ICU / Critical Care')),
+                      DropdownMenuItem(value: 'Private AC', child: Text('Private AC')),
+                      DropdownMenuItem(value: 'Semi-Private', child: Text('Semi-Private')),
+                      DropdownMenuItem(value: 'Emergency', child: Text('Emergency / Trauma')),
+                      DropdownMenuItem(value: 'Pediatric', child: Text('Pediatric')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setModalState(() => typeController.text = v);
+                    },
+                  ),
+                  const Gap(12),
+                  TextFormField(
+                    controller: tariffController,
+                    decoration: const InputDecoration(labelText: 'Daily Tariff (₹) *', hintText: 'e.g. 1200'),
+                    keyboardType: TextInputType.number,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Tariff is required';
+                      if (double.tryParse(v.trim()) == null) return 'Must be a valid number';
+                      return null;
+                    },
+                  ),
+                  const Gap(12),
+                  DropdownButtonFormField<String>(
+                    value: status,
+                    decoration: const InputDecoration(labelText: 'Initial Status'),
+                    items: const [
+                      DropdownMenuItem(value: 'Available', child: Text('Available')),
+                      DropdownMenuItem(value: 'Cleaning', child: Text('Cleaning')),
+                      DropdownMenuItem(value: 'Maintenance', child: Text('Maintenance')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setModalState(() => status = v);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                Navigator.pop(dialogCtx);
+
+                final db = ref.read(appDatabaseProvider);
+                final tariffPaise = ((double.tryParse(tariffController.text.trim()) ?? 0) * 100).round();
+
+                if (isEditing) {
+                  final updatedBed = bed.copyWith(
+                    bedNo: bedNoController.text.trim(),
+                    ward: wardController.text.trim(),
+                    type: typeController.text.trim(),
+                    tariffPaise: tariffPaise,
+                    status: status,
+                  );
+                  await db.hmsDao.updateBed(updatedBed);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Bed ${updatedBed.bedNo} updated.')),
+                    );
+                  }
+                } else {
+                  final newBed = BedModel(
+                    id: 0,
+                    bedNo: bedNoController.text.trim(),
+                    ward: wardController.text.trim(),
+                    type: typeController.text.trim(),
+                    tariffPaise: tariffPaise,
+                    status: status,
+                  );
+                  await db.hmsDao.insertBed(newBed);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Bed ${newBed.bedNo} added to ${newBed.ward} Ward.')),
+                    );
+                  }
+                }
+
+                ref.invalidate(bedsListProvider);
+                ref.invalidate(dashboardStatsProvider);
+              },
+              icon: Icon(isEditing ? Icons.check : Icons.add, size: 16),
+              label: Text(isEditing ? 'Save Changes' : 'Create Bed'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -229,6 +414,12 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
       appBar: AppBar(
         title: const Text('Bed & Ward Management (Bed Board)'),
         actions: [
+          OutlinedButton.icon(
+            onPressed: () => _showAddEditBedDialog(),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add Bed'),
+          ),
+          const Gap(8),
           FilledButton.icon(
             onPressed: () => context.go(AppRoutes.ipdAdmit),
             icon: const Icon(Icons.person_add, size: 18),
@@ -294,7 +485,32 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                       : beds.where((b) => b.ward == _selectedWard).toList();
 
                   if (filtered.isEmpty) {
-                    return const Center(child: Text('No beds found in this ward.'));
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.hotel_outlined, size: 64, color: colorScheme.outline),
+                          const Gap(16),
+                          Text(
+                            _selectedWard == 'All Wards'
+                                ? 'No beds configured yet'
+                                : 'No beds in $_selectedWard',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const Gap(8),
+                          Text(
+                            'Click "Add Bed" to create wards and assign hospital beds.',
+                            style: TextStyle(color: colorScheme.onSurfaceVariant),
+                          ),
+                          const Gap(16),
+                          FilledButton.icon(
+                            onPressed: () => _showAddEditBedDialog(),
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('Add Bed'),
+                          ),
+                        ],
+                      ),
+                    );
                   }
 
                   return GridView.builder(

@@ -21,10 +21,7 @@ void main() {
       expect(staff, isEmpty);
 
       final beds = await db.hmsDao.getAllBeds();
-      expect(beds.length, greaterThanOrEqualTo(16));
-      expect(beds.any((b) => b.bedNo == 'ICU-01'), isTrue);
-      // All beds must be clean and unassigned
-      expect(beds.every((b) => b.status == 'Available'), isTrue);
+      expect(beds, isEmpty); // Beds table starts completely clean without hardcoded dummy entries
 
       final appointments = await db.hmsDao.getAllAppointments();
       expect(appointments, isEmpty);
@@ -70,7 +67,15 @@ void main() {
       expect(list.any((s) => s.name == 'Dr. Test Cardiologist'), isTrue);
     });
 
-    test('3. Bed status updates dynamically in SQLite', () async {
+    test('3. Bed creation, update, and status updates dynamically in SQLite', () async {
+      await db.hmsDao.insertBed(const BedModel(
+        id: 0,
+        bedNo: 'ICU-01',
+        ward: 'ICU',
+        type: 'ICU',
+        tariffPaise: 350000,
+        status: 'Available',
+      ));
       await db.hmsDao.updateBedStatus('ICU-01', 'Occupied', patientName: 'John Doe', uhid: 'UHID-999');
       final beds = await db.hmsDao.getAllBeds();
       final updated = beds.firstWhere((b) => b.bedNo == 'ICU-01');
@@ -185,6 +190,14 @@ void main() {
     });
 
     test('7. Dashboard & Reports aggregates reflect database data dynamically', () async {
+      await db.hmsDao.insertBed(const BedModel(
+        id: 0,
+        bedNo: 'B-101',
+        ward: 'General',
+        type: 'General',
+        tariffPaise: 100000,
+        status: 'Available',
+      ));
       final statsEmpty = await db.hmsDao.getDashboardStats();
       expect(statsEmpty['totalBeds'], greaterThan(0));
 
@@ -266,6 +279,14 @@ void main() {
     });
 
     test('9. IPD nursing notes and quick discharge updates bed status to Cleaning', () async {
+      await db.hmsDao.insertBed(const BedModel(
+        id: 0,
+        bedNo: 'MG-01',
+        ward: 'Male General',
+        type: 'General',
+        tariffPaise: 80000,
+        status: 'Available',
+      ));
       await db.hmsDao.insertIpdAdmission(const IpdAdmissionModel(
         id: 0,
         patientName: 'Test IPD Patient',
@@ -466,6 +487,14 @@ void main() {
     });
 
     test('15. IPD admission update & delete in SQLite releases bed', () async {
+      await db.hmsDao.insertBed(const BedModel(
+        id: 0,
+        bedNo: 'FG-01',
+        ward: 'Female General',
+        type: 'General',
+        tariffPaise: 80000,
+        status: 'Available',
+      ));
       await db.hmsDao.insertIpdAdmission(const IpdAdmissionModel(
         id: 0,
         patientName: 'Adm Test Patient',

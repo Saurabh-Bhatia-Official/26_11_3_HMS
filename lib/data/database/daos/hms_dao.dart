@@ -273,37 +273,7 @@ class HmsDao {
   Future<void> _seedIfEmpty() async {
     final now = DateTime.now().toIso8601String();
 
-    // 1. Seed Beds Master if empty (All 16 beds completely Available with no dummy patients)
-    final bedsRes = await db.customSelect('SELECT count(*) as count FROM beds').getSingle();
-    if ((bedsRes.data['count'] as int) == 0) {
-      final bedsList = [
-        {'bed_no': 'ICU-01', 'ward': 'ICU', 'bed_type': 'ICU', 'tariff_paise': 350000, 'status': 'Available'},
-        {'bed_no': 'ICU-02', 'ward': 'ICU', 'bed_type': 'ICU', 'tariff_paise': 350000, 'status': 'Available'},
-        {'bed_no': 'ICU-03', 'ward': 'ICU', 'bed_type': 'ICU', 'tariff_paise': 350000, 'status': 'Available'},
-        {'bed_no': 'ICU-04', 'ward': 'ICU', 'bed_type': 'ICU', 'tariff_paise': 350000, 'status': 'Available'},
-        {'bed_no': 'MG-01', 'ward': 'Male General', 'bed_type': 'General', 'tariff_paise': 80000, 'status': 'Available'},
-        {'bed_no': 'MG-02', 'ward': 'Male General', 'bed_type': 'General', 'tariff_paise': 80000, 'status': 'Available'},
-        {'bed_no': 'MG-03', 'ward': 'Male General', 'bed_type': 'General', 'tariff_paise': 80000, 'status': 'Available'},
-        {'bed_no': 'MG-04', 'ward': 'Male General', 'bed_type': 'General', 'tariff_paise': 80000, 'status': 'Available'},
-        {'bed_no': 'MG-05', 'ward': 'Male General', 'bed_type': 'General', 'tariff_paise': 80000, 'status': 'Available'},
-        {'bed_no': 'MG-06', 'ward': 'Male General', 'bed_type': 'General', 'tariff_paise': 80000, 'status': 'Available'},
-        {'bed_no': 'FG-01', 'ward': 'Female General', 'bed_type': 'General', 'tariff_paise': 80000, 'status': 'Available'},
-        {'bed_no': 'FG-02', 'ward': 'Female General', 'bed_type': 'General', 'tariff_paise': 80000, 'status': 'Available'},
-        {'bed_no': 'FG-03', 'ward': 'Female General', 'bed_type': 'General', 'tariff_paise': 80000, 'status': 'Available'},
-        {'bed_no': 'FG-04', 'ward': 'Female General', 'bed_type': 'General', 'tariff_paise': 80000, 'status': 'Available'},
-        {'bed_no': 'PVT-101', 'ward': 'Private Wing', 'bed_type': 'Private AC', 'tariff_paise': 250000, 'status': 'Available'},
-        {'bed_no': 'PVT-102', 'ward': 'Private Wing', 'bed_type': 'Private AC', 'tariff_paise': 250000, 'status': 'Available'},
-      ];
-
-      for (final b in bedsList) {
-        await db.customStatement('''
-          INSERT INTO beds (bed_no, ward, bed_type, tariff_paise, status, patient_name, uhid, created_at)
-          VALUES ('${_esc(b['bed_no'] as String)}', '${_esc(b['ward'] as String)}', '${_esc(b['bed_type'] as String)}', ${b['tariff_paise']}, '${_esc(b['status'] as String)}', NULL, NULL, '$now')
-        ''');
-      }
-    }
-
-    // 2. Seed System Audit Log if empty
+    // System Audit Log if empty
     final auditRes = await db.customSelect('SELECT count(*) as count FROM audit_logs').getSingle();
     if ((auditRes.data['count'] as int) == 0) {
       await db.customStatement('''
@@ -364,6 +334,41 @@ class HmsDao {
   Future<List<BedModel>> getAllBeds() async {
     final rows = await db.customSelect('SELECT * FROM beds ORDER BY id ASC').get();
     return rows.map((r) => BedModel.fromMap(r.data)).toList();
+  }
+
+  Future<int> insertBed(BedModel bed) async {
+    final now = DateTime.now().toIso8601String();
+    final pName = bed.patientName != null ? "'${_esc(bed.patientName!)}'" : 'NULL';
+    final pUhid = bed.uhid != null ? "'${_esc(bed.uhid!)}'" : 'NULL';
+    final id = await db.customInsert('''
+      INSERT INTO beds (bed_no, ward, bed_type, tariff_paise, status, patient_name, uhid, created_at)
+      VALUES ('${_esc(bed.bedNo)}', '${_esc(bed.ward)}', '${_esc(bed.type)}', ${bed.tariffPaise}, '${_esc(bed.status)}', $pName, $pUhid, '$now')
+    ''');
+    await insertAuditLog('admin', 'CREATE', 'Bed #${bed.bedNo}', 'Added bed ${bed.bedNo} (${bed.ward} - ${bed.type})');
+    return id;
+  }
+
+  Future<void> updateBed(BedModel bed) async {
+    await db.customStatement('''
+      UPDATE beds SET
+        bed_no = '${_esc(bed.bedNo)}',
+        ward = '${_esc(bed.ward)}',
+        bed_type = '${_esc(bed.type)}',
+        tariff_paise = ${bed.tariffPaise},
+        status = '${_esc(bed.status)}'
+      WHERE id = ${bed.id}
+    ''');
+    await insertAuditLog('admin', 'UPDATE', 'Bed #${bed.bedNo}', 'Updated bed details for ${bed.bedNo}');
+  }
+
+  Future<void> deleteBed(int id, String bedNo) async {
+    await db.customStatement('DELETE FROM beds WHERE id = $id');
+    await insertAuditLog('admin', 'DELETE', 'Bed #$bedNo', 'Deleted bed $bedNo');
+  }
+
+  Future<void> deleteAllBeds() async {
+    await db.customStatement('DELETE FROM beds');
+    await insertAuditLog('admin', 'DELETE_ALL', 'Beds Master', 'Cleared all bed and ward records');
   }
 
   Future<void> updateBedStatus(String bedNo, String status, {String? patientName, String? uhid}) async {
