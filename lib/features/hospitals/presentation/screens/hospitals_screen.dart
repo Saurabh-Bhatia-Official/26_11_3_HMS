@@ -17,6 +17,29 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
+  static const List<String> _facilityTypes = [
+    'Multispeciality Hospital',
+    'General Hospital',
+    'Clinic / Outpatient',
+    'Trauma & Emergency Center',
+    'Diagnostic Clinic',
+    'Day Surgery Center',
+  ];
+
+  static String _normalizeFacilityType(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return _facilityTypes.first;
+    final clean = raw.trim();
+    if (_facilityTypes.contains(clean)) return clean;
+    final lower = clean.toLowerCase().replaceAll('-', '').replaceAll(' ', '');
+    if (lower.contains('multi')) return 'Multispeciality Hospital';
+    if (lower.contains('general')) return 'General Hospital';
+    if (lower.contains('clinic') || lower.contains('outpatient')) return 'Clinic / Outpatient';
+    if (lower.contains('trauma') || lower.contains('emergency')) return 'Trauma & Emergency Center';
+    if (lower.contains('diagnos')) return 'Diagnostic Clinic';
+    if (lower.contains('surgery')) return 'Day Surgery Center';
+    return _facilityTypes.first;
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -27,7 +50,8 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
     final isEditing = hospital != null;
     final nameCtrl = TextEditingController(text: hospital?.name ?? '');
     final codeCtrl = TextEditingController(text: hospital?.code ?? '');
-    final typeCtrl = TextEditingController(text: hospital?.type ?? 'Multi-Specialty Hospital');
+    final initialType = _normalizeFacilityType(hospital?.type);
+    final typeCtrl = TextEditingController(text: initialType);
     final addressCtrl = TextEditingController(text: hospital?.address ?? '');
     final phoneCtrl = TextEditingController(text: hospital?.phone ?? '');
     final emailCtrl = TextEditingController(text: hospital?.email ?? '');
@@ -78,17 +102,15 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                       const Gap(12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: typeCtrl.text.isNotEmpty ? typeCtrl.text : 'Multi-Specialty Hospital',
+                          isExpanded: true,
+                          value: _normalizeFacilityType(typeCtrl.text),
                           decoration: const InputDecoration(
                             labelText: 'Facility Type',
                             prefixIcon: Icon(Icons.category_outlined),
                           ),
-                          items: const [
-                            DropdownMenuItem(value: 'Multi-Specialty Hospital', child: Text('Multi-Specialty')),
-                            DropdownMenuItem(value: 'General Hospital', child: Text('General Hospital')),
-                            DropdownMenuItem(value: 'Clinic / Outpatient', child: Text('Clinic / Outpatient')),
-                            DropdownMenuItem(value: 'Trauma & Emergency', child: Text('Trauma Center')),
-                          ],
+                          items: _facilityTypes.map((t) {
+                            return DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis));
+                          }).toList(),
                           onChanged: (val) {
                             if (val != null) typeCtrl.text = val;
                           },
@@ -315,7 +337,10 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 4,
                               children: [
                                 Text(
                                   'Current Operating Context:',
@@ -324,7 +349,6 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                                     color: colorScheme.primary,
                                   ),
                                 ),
-                                const Gap(8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
@@ -466,7 +490,10 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
+                                    Wrap(
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      spacing: 8,
+                                      runSpacing: 4,
                                       children: [
                                         Text(
                                           h.name,
@@ -474,7 +501,6 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        const Gap(8),
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
@@ -490,8 +516,7 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                                             ),
                                           ),
                                         ),
-                                        if (isActive) ...[
-                                          const Gap(8),
+                                        if (isActive)
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                             decoration: BoxDecoration(
@@ -510,7 +535,6 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                                               ],
                                             ),
                                           ),
-                                        ],
                                       ],
                                     ),
                                     const Gap(4),
@@ -583,3 +607,4 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
     );
   }
 }
+

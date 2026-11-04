@@ -1349,6 +1349,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                     if (hospitals.isNotEmpty) ...[
                       DropdownButtonFormField<HospitalModel>(
                         value: selectedHospital,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'Assigned Hospital Branch *',
                           prefixIcon: Icon(Icons.domain_rounded),
@@ -1396,6 +1397,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                         Expanded(
                           child: DropdownButtonFormField<String>(
                             value: selectedRole,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'System Role *',
                               prefixIcon: Icon(Icons.security),

@@ -283,7 +283,15 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ),
                 const Gap(10),
                 DropdownButtonFormField<String>(
-                  value: typeCtrl.text,
+                  value: const [
+                    'Multispeciality Hospital',
+                    'Trauma & Emergency Center',
+                    'General Hospital',
+                    'Diagnostic Clinic',
+                    'Day Surgery Center',
+                  ].contains(typeCtrl.text)
+                      ? typeCtrl.text
+                      : 'Multispeciality Hospital',
                   decoration: const InputDecoration(labelText: 'Facility Type'),
                   items: const [
                     DropdownMenuItem(value: 'Multispeciality Hospital', child: Text('Multispeciality Hospital')),

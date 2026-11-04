@@ -38,7 +38,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _hospNameController = TextEditingController();
   final _hospCodeController = TextEditingController();
   final _hospAddressController = TextEditingController();
-  String _hospType = 'Multi-Specialty Hospital';
+  String _hospType = 'Multispeciality Hospital';
 
   final _adminFullNameController = TextEditingController();
   final _adminUsernameController = TextEditingController();
@@ -605,10 +605,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     prefixIcon: Icon(Icons.category_outlined),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'Multi-Specialty Hospital', child: Text('Multi-Specialty')),
+                    DropdownMenuItem(value: 'Multispeciality Hospital', child: Text('Multispeciality')),
                     DropdownMenuItem(value: 'General Hospital', child: Text('General Hospital')),
                     DropdownMenuItem(value: 'Clinic / Outpatient', child: Text('Clinic')),
-                    DropdownMenuItem(value: 'Trauma & Emergency', child: Text('Trauma Center')),
+                    DropdownMenuItem(value: 'Trauma & Emergency Center', child: Text('Trauma Center')),
+                    DropdownMenuItem(value: 'Diagnostic Clinic', child: Text('Diagnostic Clinic')),
                   ],
                   onChanged: (val) {
                     if (val != null) setState(() => _hospType = val);
