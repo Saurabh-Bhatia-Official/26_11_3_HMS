@@ -7,7 +7,7 @@
 #define MyAppURL "https://github.com/Saurabh-Bhatia-Official/26_11_3_HMS"
 #define MyAppExeName "hospital_management.exe"
 #ifndef AppDir
-  #define AppDir "build\windows\x64\runner\Release"
+  #define AppDir "..\..\build\windows\x64\runner\Release"
 #endif
 
 [Setup]
