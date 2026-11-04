@@ -130,6 +130,52 @@ void main() {
         sessionNotifier.logout();
       }
     });
+
+    test('11. registerUser creates new account with hospital selection and logs in automatically', () async {
+      final regError = await sessionNotifier.registerUser(
+        fullName: 'Dr. Sarah Jenkins',
+        username: 'sjenkins',
+        email: 'sjenkins@caresync.health',
+        password: 'Password@1234',
+        role: 'Doctor',
+        hospitalId: 1,
+        hospitalName: 'CareSync Central Hospital',
+      );
+
+      expect(regError, isNull);
+      expect(sessionNotifier.state.isAuthenticated, isTrue);
+      expect(sessionNotifier.state.user?.username, equals('sjenkins'));
+      expect(sessionNotifier.state.user?.fullName, equals('Dr. Sarah Jenkins'));
+      expect(sessionNotifier.state.user?.role, equals('Doctor'));
+      expect(sessionNotifier.state.user?.hospitalId, equals(1));
+      expect(sessionNotifier.state.user?.hospitalName, equals('CareSync Central Hospital'));
+    });
+
+    test('12. registerUser rejects already taken usernames', () async {
+      final regError = await sessionNotifier.registerUser(
+        fullName: 'Duplicate Admin',
+        username: 'admin',
+        email: 'duplicate@test.com',
+        password: 'Password@1234',
+        role: 'Doctor',
+      );
+
+      expect(regError, contains('already taken'));
+    });
+
+    test('13. login allows selecting hospital entity and updates active session', () async {
+      final error = await sessionNotifier.login(
+        'doctor',
+        'Doctor@1234',
+        selectedHospitalId: 2,
+        selectedHospitalName: 'CareSync North Clinic',
+      );
+
+      expect(error, isNull);
+      expect(sessionNotifier.state.isAuthenticated, isTrue);
+      expect(sessionNotifier.state.user?.hospitalId, equals(2));
+      expect(sessionNotifier.state.user?.hospitalName, equals('CareSync North Clinic'));
+    });
   });
 }
 

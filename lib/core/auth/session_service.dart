@@ -20,6 +20,8 @@ class SessionUser {
     required this.role,
     required this.email,
     this.avatarPath,
+    this.hospitalId,
+    this.hospitalName,
   });
 
   final int id;
@@ -29,6 +31,8 @@ class SessionUser {
   final String role;
   final String email;
   final String? avatarPath;
+  final int? hospitalId;
+  final String? hospitalName;
 
   SessionUser copyWith({
     int? id,
@@ -38,6 +42,8 @@ class SessionUser {
     String? role,
     String? email,
     String? avatarPath,
+    int? hospitalId,
+    String? hospitalName,
   }) {
     return SessionUser(
       id: id ?? this.id,
@@ -47,11 +53,13 @@ class SessionUser {
       role: role ?? this.role,
       email: email ?? this.email,
       avatarPath: avatarPath ?? this.avatarPath,
+      hospitalId: hospitalId ?? this.hospitalId,
+      hospitalName: hospitalName ?? this.hospitalName,
     );
   }
 
   @override
-  String toString() => 'SessionUser($username, role=$role)';
+  String toString() => 'SessionUser($username, role=$role, hospital=$hospitalName)';
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +158,12 @@ class SessionNotifier extends StateNotifier<SessionState> {
   ///
   /// Returns `null` on success, or a clear error string on failure.
   /// Account locking and attempt counters are disabled per system policy.
-  Future<String?> login(String username, String password) async {
+  Future<String?> login(
+    String username,
+    String password, {
+    int? selectedHospitalId,
+    String? selectedHospitalName,
+  }) async {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
@@ -181,6 +194,19 @@ class SessionNotifier extends StateNotifier<SessionState> {
         debugPrint('Failed to record login timestamp: $e');
       }
 
+      // Determine active hospital
+      final effectiveHospitalId = selectedHospitalId ?? row.hospitalId;
+      final effectiveHospitalName = selectedHospitalName ?? row.hospitalName;
+
+      if (effectiveHospitalId != null && effectiveHospitalName != null) {
+        try {
+          await _db.saveSetting('active_hospital_id', effectiveHospitalId.toString());
+          await _db.settingsDao.upsertSetting('hospital_name', effectiveHospitalName);
+        } catch (e) {
+          debugPrint('Failed to sync active hospital: $e');
+        }
+      }
+
       final sessionUser = SessionUser(
         id: row.id,
         uuid: row.uuid,
@@ -189,6 +215,8 @@ class SessionNotifier extends StateNotifier<SessionState> {
         role: row.role,
         email: row.email,
         avatarPath: row.avatarPath,
+        hospitalId: effectiveHospitalId,
+        hospitalName: effectiveHospitalName,
       );
 
       state = SessionState(
@@ -201,6 +229,81 @@ class SessionNotifier extends StateNotifier<SessionState> {
       debugPrint('Login exception: $e\n$st');
       state = state.copyWith(isLoading: false);
       return 'An unexpected error occurred. Please try again.';
+    }
+  }
+
+  // ── Register ───────────────────────────────────────────────────────────────
+
+  /// Creates a new user account with specified hospital and role, and authenticates.
+  Future<String?> registerUser({
+    required String fullName,
+    required String username,
+    required String email,
+    required String password,
+    required String role,
+    int? hospitalId,
+    String? hospitalName,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final trimmedUsername = username.trim();
+      final taken = await _db.isUsernameTaken(trimmedUsername);
+      if (taken) {
+        state = state.copyWith(isLoading: false);
+        return 'Username "$trimmedUsername" is already taken. Please choose another.';
+      }
+
+      final passwordHash = createPasswordHash(password);
+      await _db.createRegularUser(
+        username: trimmedUsername,
+        passwordHash: passwordHash,
+        fullName: fullName.trim(),
+        role: role.trim(),
+        email: email.trim(),
+        hospitalId: hospitalId,
+        hospitalName: hospitalName,
+      );
+
+      // Synchronize active hospital if provided
+      if (hospitalId != null && hospitalName != null) {
+        try {
+          await _db.saveSetting('active_hospital_id', hospitalId.toString());
+          await _db.settingsDao.upsertSetting('hospital_name', hospitalName);
+        } catch (e) {
+          debugPrint('Failed to sync active hospital on register: $e');
+        }
+      }
+
+      // Fetch newly created record
+      final row = await _db.getUserByUsername(trimmedUsername);
+      if (row != null) {
+        final sessionUser = SessionUser(
+          id: row.id,
+          uuid: row.uuid,
+          username: row.username,
+          fullName: row.fullName,
+          role: row.role,
+          email: row.email,
+          avatarPath: row.avatarPath,
+          hospitalId: hospitalId ?? row.hospitalId,
+          hospitalName: hospitalName ?? row.hospitalName,
+        );
+
+        state = SessionState(
+          user: sessionUser,
+          isAuthenticated: true,
+          isLocked: false,
+        );
+      } else {
+        state = state.copyWith(isLoading: false);
+      }
+
+      return null;
+    } catch (e, st) {
+      debugPrint('Registration exception: $e\n$st');
+      state = state.copyWith(isLoading: false);
+      return 'An unexpected error occurred while creating the account.';
     }
   }
 

@@ -10,6 +10,7 @@ abstract class AppRoutes {
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   static const String login = '/login';
+  static const String register = '/register';
   static const String lock = '/lock';
 
   // ── Root (redirects to dashboard) ─────────────────────────────────────────

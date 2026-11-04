@@ -44,7 +44,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final session = ref.read(sessionProvider);
       final isLocked = ref.read(autoLockProvider);
 
-      final goingToLogin = state.matchedLocation == AppRoutes.login;
+      final goingToLogin = state.matchedLocation == AppRoutes.login ||
+          state.matchedLocation == AppRoutes.register;
       final goingToLock = state.matchedLocation == AppRoutes.lock;
 
       // 1. Not authenticated → /login
@@ -88,6 +89,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.login,
         name: 'login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.register,
+        name: 'register',
+        builder: (context, state) => const LoginScreen(initialTab: AuthTab.createAccount),
       ),
       GoRoute(
         path: AppRoutes.lock,

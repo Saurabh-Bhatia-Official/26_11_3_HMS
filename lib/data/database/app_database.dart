@@ -22,6 +22,8 @@ class UserAuthRecord {
   final String email;
   final String? avatarPath;
   final String passwordHash;
+  final int? hospitalId;
+  final String? hospitalName;
   final int? failedAttempts;
   final String? lockedUntil;
   final bool isDeleted;
@@ -35,6 +37,8 @@ class UserAuthRecord {
     required this.email,
     this.avatarPath,
     required this.passwordHash,
+    this.hospitalId,
+    this.hospitalName,
     this.failedAttempts,
     this.lockedUntil,
     this.isDeleted = false,
@@ -218,6 +222,8 @@ class AppDatabase extends _$AppDatabase {
     required String fullName,
     required String role,
     required String email,
+    int? hospitalId,
+    String? hospitalName,
   }) async {
     final key = 'custom_user_${username.trim().toLowerCase()}';
     final payload = jsonEncode({
@@ -226,8 +232,18 @@ class AppDatabase extends _$AppDatabase {
       'fullName': fullName,
       'role': role,
       'email': email,
+      'hospitalId': hospitalId,
+      'hospitalName': hospitalName,
     });
     await saveSetting(key, payload);
+  }
+
+  /// Check whether a username is already taken by a demo user or custom user.
+  Future<bool> isUsernameTaken(String username) async {
+    final lower = username.trim().toLowerCase();
+    if (_demoUsers.containsKey(lower)) return true;
+    final customUserJson = await getSetting('custom_user_$lower');
+    return customUserJson != null;
   }
 
   /// Retrieve a user by username (checks database custom users first, then demo users).
@@ -247,6 +263,8 @@ class AppDatabase extends _$AppDatabase {
           role: map['role'] as String,
           email: map['email'] as String,
           passwordHash: map['passwordHash'] as String,
+          hospitalId: map['hospitalId'] as int?,
+          hospitalName: map['hospitalName'] as String?,
           isDeleted: false,
         );
       } catch (_) {}
