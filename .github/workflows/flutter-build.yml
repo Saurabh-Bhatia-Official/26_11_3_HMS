@@ -92,6 +92,9 @@ jobs:
     name: Build Web Application
     needs: version
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -124,7 +127,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: web-artifact
-          path: web-${{ needs.version.outputs.version }}.zip
+          path: frontend/web-${{ needs.version.outputs.version }}.zip
           if-no-files-found: error
 
   # ── 3. Android Build Job (APK & AAB) ────────────────────────────────────────
@@ -132,6 +135,9 @@ jobs:
     name: Build Android Application (APK & AAB)
     needs: version
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -182,15 +188,15 @@ jobs:
           flutter build appbundle --release \
             --build-name=${{ needs.version.outputs.version_number }} \
             --build-number=${{ needs.version.outputs.build_number }}
-          cp build/app/outputs/bundle/release/app-release.aab "android-${{ needs.version.outputs.version }}.aab"
+          cp build/app/outputs/bundle/release/app-release.aab "frontend/android-${{ needs.version.outputs.version }}.aab"
 
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: android-artifacts
           path: |
-            android-${{ needs.version.outputs.version }}.apk
-            android-${{ needs.version.outputs.version }}.aab
+            frontend/android-${{ needs.version.outputs.version }}.apk
+            frontend/android-${{ needs.version.outputs.version }}.aab
           if-no-files-found: error
 
   # ── 4. iOS Build Job (IPA) ──────────────────────────────────────────────────
@@ -198,6 +204,9 @@ jobs:
     name: Build iOS Application (IPA)
     needs: version
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -236,7 +245,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ios-artifact
-          path: ios-${{ needs.version.outputs.version }}.ipa
+          path: frontend/ios-${{ needs.version.outputs.version }}.ipa
           if-no-files-found: error
 
   # ── 5. macOS Build Job (DMG) ────────────────────────────────────────────────
@@ -244,6 +253,9 @@ jobs:
     name: Build macOS Application (DMG)
     needs: version
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -280,7 +292,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-artifact
-          path: macos-${{ needs.version.outputs.version }}.dmg
+          path: frontend/macos-${{ needs.version.outputs.version }}.dmg
           if-no-files-found: error
 
   # ── 6. Linux Build Job (DEB, ZIP, AppImage) ─────────────────────────────────
@@ -288,6 +300,9 @@ jobs:
     name: Build Linux Application (DEB, ZIP & AppImage)
     needs: version
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -318,7 +333,7 @@ jobs:
       - name: Package Linux ZIP Distribution
         run: |
           cd build/linux/x64/release/bundle
-          zip -r "../../../../../linux-${{ needs.version.outputs.version }}.zip" .
+          zip -r "../../../../../frontend/linux-${{ needs.version.outputs.version }}.zip" .
           cd ../../../../..
 
       - name: Package Linux Debian (.deb) Package
@@ -383,7 +398,7 @@ jobs:
           wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool || true
           if [ -f appimagetool ]; then
             chmod +x appimagetool
-            ./appimagetool --appimage-extract-and-run AppDir "linux-${{ needs.version.outputs.version }}.AppImage" || true
+            ./appimagetool --appimage-extract-and-run AppDir "frontend/linux-${{ needs.version.outputs.version }}.AppImage" || true
           fi
 
       - name: Upload Linux Artifacts
@@ -391,9 +406,9 @@ jobs:
         with:
           name: linux-artifacts
           path: |
-            linux-${{ needs.version.outputs.version }}.deb
-            linux-${{ needs.version.outputs.version }}.zip
-            linux-${{ needs.version.outputs.version }}.AppImage
+            frontend/linux-${{ needs.version.outputs.version }}.deb
+            frontend/linux-${{ needs.version.outputs.version }}.zip
+            frontend/linux-${{ needs.version.outputs.version }}.AppImage
           if-no-files-found: warn
 
   # ── 7. Windows Build Job (EXE Installer & ZIP) ──────────────────────────────
@@ -401,6 +416,9 @@ jobs:
     name: Build Windows Application (EXE & ZIP)
     needs: version
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -445,8 +463,8 @@ jobs:
         with:
           name: windows-artifacts
           path: |
-            windows-${{ needs.version.outputs.version }}.zip
-            windows-${{ needs.version.outputs.version }}.exe
+            frontend/windows-${{ needs.version.outputs.version }}.zip
+            frontend/windows-${{ needs.version.outputs.version }}.exe
           if-no-files-found: error
 
   # ── 8. Unified Release Publishing (Mandatory Empty Description Policy) ─────
@@ -478,10 +496,10 @@ jobs:
           echo "Checking required platform files..."
           test -f release-assets/web-${{ needs.version.outputs.version }}.zip
           test -f release-assets/android-${{ needs.version.outputs.version }}.apk
-          test -f release-assets/android-${{ needs.version.outputs.version }}.aab
+          test -f release-assets/frontend/android-${{ needs.version.outputs.version }}.aab
           test -f release-assets/ios-${{ needs.version.outputs.version }}.ipa
           test -f release-assets/macos-${{ needs.version.outputs.version }}.dmg
-          test -f release-assets/linux-${{ needs.version.outputs.version }}.zip
+          test -f release-assets/frontend/linux-${{ needs.version.outputs.version }}.zip
           test -f release-assets/linux-${{ needs.version.outputs.version }}.deb
           test -f release-assets/windows-${{ needs.version.outputs.version }}.zip
           echo "All required platform distribution packages verified successfully."

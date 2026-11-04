@@ -1,9 +1,58 @@
 # CareSync - Hospital Management System
 **Connecting Care. Simplifying Healthcare.**
 
-An offline-first, production-ready Hospital Management System (HMS) built with Flutter, Riverpod, Drift (SQLite), and Material Design 3.
+CareSync is a full-stack, offline-capable Hospital Management System (HMS) featuring a modern cross-platform Flutter frontend and a robust Spring Boot backend.
 
-## Features
+---
+
+## Project Structure
+
+```text
+hospital/
+├── frontend/                     # CareSync Flutter Client Application
+│   ├── lib/                      # Clean Architecture UI, State, Domain, and Data
+│   ├── assets/                   # CareSync branding, images, and fonts
+│   ├── test/                     # 66 comprehensive unit and widget test suites
+│   ├── android/                  # Android native project (APKs & AABs)
+│   ├── ios/                      # iOS native project (IPAs)
+│   ├── web/                      # Web platform (PWA)
+│   ├── macos/                    # macOS desktop project (DMG)
+│   ├── linux/                    # Linux desktop project (DEB, ZIP, AppImage)
+│   ├── windows/                  # Windows desktop project (EXE installer & ZIP)
+│   └── pubspec.yaml              # Flutter dependencies and configuration
+│
+├── backend/                      # CareSync Spring Boot Backend
+│   ├── src/main/java/            # Spring Boot application source code
+│   │   └── com/caresync/backend/ # Application classes, controllers, and services
+│   ├── src/main/resources/       # application.properties, schema & configurations
+│   ├── src/test/java/            # Spring Boot JUnit 5 test suites
+│   ├── pom.xml                   # Maven dependencies and build definition
+│   └── mvnw, mvnw.cmd            # Maven wrapper scripts
+│
+├── .github/                      # GitHub Actions CI/CD workflows
+│   └── workflows/
+│       └── flutter-build.yml     # Automated multi-platform build runner & release
+└── README.md                     # Monorepo documentation
+```
+
+---
+
+## 1. Frontend (Flutter)
+
+### Running the Frontend
+```bash
+cd frontend
+flutter pub get
+flutter run
+```
+
+### Running Frontend Tests
+```bash
+cd frontend
+flutter test
+```
+
+### Key Frontend Features
 - **CareSync Branding & Identity**: Clean, responsive design with official CareSync logo and branding.
 - **Super Admin & Multi-Hospital Management**: Super Admin account capable of managing, registering, and switching between multiple hospital entities and branches in real-time.
 - **Strict Role-Based Access Control (RBAC)**: Fine-grained permissions that dynamically enable and disable features, navigation items, and action buttons across Super Admin, Admin, Doctor, Nurse, Receptionist, Pharmacist, Lab Technician, Accounts, and Staff.
@@ -16,7 +65,7 @@ An offline-first, production-ready Hospital Management System (HMS) built with F
 - **Audit Logging & Security**: Session timeouts, auto-lock PIN security, and tamper-evident audit logs.
 - **Offline First**: Fully functional without internet connectivity using embedded local SQLite.
 
-## Default Credentials
+### Default Client Credentials
 - **Super Admin (Multi-Hospital)**: `superadmin` / `SuperAdmin@1234`
 - **Hospital Admin**: `admin` / `Admin@1234`
 - **Doctor**: `doctor` / `Doctor@1234`
@@ -26,3 +75,33 @@ An offline-first, production-ready Hospital Management System (HMS) built with F
 - **Laboratory**: `lab` / `Lab@1234`
 - **Accounts**: `accounts` / `Accounts@1234`
 - **Staff**: `user` / `User@1234`
+
+---
+
+## 2. Backend (Spring Boot)
+
+### Technologies
+- Spring Boot 4.x / Java 21+
+- Spring Web MVC, Spring Data JPA, Spring Security, Spring Validation, Spring Boot Actuator
+- In-memory H2 Database for local development (configurable to PostgreSQL / MySQL)
+
+### Running the Backend
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+*(On Windows: `mvnw.cmd spring-boot:run` or `mvn spring-boot:run`)*
+
+### Running Backend Tests
+```bash
+cd backend
+./mvnw clean test
+```
+
+### Backend Ports & Endpoints
+- **Server Port**: `http://localhost:8080`
+- **H2 Console**: `http://localhost:8080/h2-console`
+  - JDBC URL: `jdbc:h2:mem:caresyncdb`
+  - Username: `sa`
+  - Password: *(empty)*
+- **Actuator Health & Metrics**: `http://localhost:8080/actuator/health`
