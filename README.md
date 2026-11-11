@@ -31,7 +31,7 @@ hospital/
 │
 ├── .github/                      # GitHub Actions CI/CD workflows
 │   └── workflows/
-│       └── flutter-build.yml     # Automated multi-platform build runner & release
+│       └── build-release.yml     # Automated multi-platform build runner & release
 └── README.md                     # Monorepo documentation
 ```
 
