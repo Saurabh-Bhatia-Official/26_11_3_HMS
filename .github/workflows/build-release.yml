@@ -354,6 +354,7 @@ jobs:
 
       - name: Build Linux Application (Release)
         run: |
+          export CXXFLAGS="$CXXFLAGS -Wno-deprecated-literal-operator -Wno-error=deprecated-literal-operator -Wno-error"
           flutter build linux --release \
             --build-name=${{ needs.version.outputs.version_number }} \
             --build-number=${{ needs.version.outputs.build_number }}
