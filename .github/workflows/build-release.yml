@@ -75,24 +75,40 @@ jobs:
             fi
           fi
 
-          # Ensure uniqueness
-          while [ "$ALREADY_TAGGED" = "false" ] && git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; do
-            echo "Tag $TAG already exists on another ref. Incrementing..."
-            RAW="${TAG#v}"
-            MAJOR=$(echo "$RAW" | cut -d. -f1)
-            MINOR=$(echo "$RAW" | cut -d. -f2)
-            PATCH=$(echo "$RAW" | cut -d. -f3)
-            NEW_PATCH=$((PATCH + 1))
-            TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
-          done
+          # Ensure uniqueness & handle remote race conditions
+          while true; do
+            while [ "$ALREADY_TAGGED" = "false" ] && git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; do
+              echo "Tag $TAG already exists locally. Incrementing..."
+              RAW="${TAG#v}"
+              MAJOR=$(echo "$RAW" | cut -d. -f1)
+              MINOR=$(echo "$RAW" | cut -d. -f2)
+              PATCH=$(echo "$RAW" | cut -d. -f3)
+              NEW_PATCH=$((PATCH + 1))
+              TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+            done
 
-          if [ "$ALREADY_TAGGED" = "false" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag "$TAG"
-            git push origin "$TAG"
-            echo "Created and pushed new version tag: $TAG"
-          fi
+            if [ "$ALREADY_TAGGED" = "false" ]; then
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git tag "$TAG"
+              if git push origin "$TAG"; then
+                echo "Created and pushed new version tag: $TAG"
+                break
+              else
+                echo "Tag push for $TAG rejected by remote. Re-fetching remote tags and incrementing..."
+                git tag -d "$TAG" || true
+                git fetch --tags --force
+                RAW="${TAG#v}"
+                MAJOR=$(echo "$RAW" | cut -d. -f1)
+                MINOR=$(echo "$RAW" | cut -d. -f2)
+                PATCH=$(echo "$RAW" | cut -d. -f3)
+                NEW_PATCH=$((PATCH + 1))
+                TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+              fi
+            else
+              break
+            fi
+          done
 
           VER_NUM="${TAG#v}"
           echo "version=$TAG" >> $GITHUB_OUTPUT
