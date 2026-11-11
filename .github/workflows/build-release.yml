@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - Saurabh
   workflow_dispatch:
     inputs:
       custom_version:
