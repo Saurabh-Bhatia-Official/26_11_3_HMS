@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "CareSync Web (Chrome, port 5102)",
+      "type": "dart",
+      "request": "launch",
+      "program": "frontend/lib/main.dart",
+      "deviceId": "chrome",
+      "args": ["--web-port=5102"]
+    }
+  ]
+}
