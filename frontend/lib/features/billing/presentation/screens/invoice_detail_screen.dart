@@ -12,6 +12,31 @@ class InvoiceDetailScreen extends ConsumerWidget {
 
   final String invoiceId;
 
+  String _formatItemAmount(
+    Map<String, dynamic> item, {
+    required List<String> amountKeys,
+    List<String> paiseKeys = const [],
+  }) {
+    for (final key in amountKeys) {
+      final amount = _parseAmount(item[key]);
+      if (amount != null) return '₹${amount.toStringAsFixed(2)}';
+    }
+    for (final key in paiseKeys) {
+      final paise = _parseAmount(item[key]);
+      if (paise != null) return '₹${(paise / 100).toStringAsFixed(2)}';
+    }
+    return '—';
+  }
+
+  double? _parseAmount(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      final normalized = value.replaceAll(RegExp(r'[^0-9.-]'), '');
+      return double.tryParse(normalized);
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -250,13 +275,21 @@ class InvoiceDetailScreen extends ConsumerWidget {
                                 Padding(
                                   padding: const EdgeInsets.all(12),
                                   child: Text(
-                                    '₹${((item['rate'] ?? item['unit_price'] ?? item['total'] ?? 0.0) as num).toDouble().toStringAsFixed(2)}',
+                                    _formatItemAmount(
+                                      item,
+                                      amountKeys: const ['rate', 'unit_price', 'total'],
+                                      paiseKeys: const ['ratePaise', 'unit_price_paise'],
+                                    ),
                                   ),
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.all(12),
                                   child: Text(
-                                    '₹${((item['total'] ?? item['line_total'] ?? 0.0) as num).toDouble().toStringAsFixed(2)}',
+                                    _formatItemAmount(
+                                      item,
+                                      amountKeys: const ['total', 'line_total'],
+                                      paiseKeys: const ['amountPaise', 'totalPaise', 'amount_paise', 'total_paise'],
+                                    ),
                                   ),
                                 ),
                               ],

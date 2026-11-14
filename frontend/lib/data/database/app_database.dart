@@ -98,8 +98,14 @@ class AppDatabase extends _$AppDatabase {
 
   // ── Connection ────────────────────────────────────────────────────────────
 
-  static QueryExecutor _openConnection() {
-    return driftDatabase(name: 'hospital_hms.db');
+ static QueryExecutor _openConnection() {
+    return driftDatabase(
+      name: 'hospital_hms',
+      web: DriftWebOptions(
+        sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+        driftWorker: Uri.parse('drift_worker.dart.js'),
+      ),
+    );
   }
 
   late final HmsDao hmsDao = HmsDao(this);

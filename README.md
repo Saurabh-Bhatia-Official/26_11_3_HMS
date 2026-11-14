@@ -1,107 +1,178 @@
-# CareSync - Hospital Management System
+# CareSync – Hospital Management System
+
 **Connecting Care. Simplifying Healthcare.**
 
-CareSync is a full-stack, offline-capable Hospital Management System (HMS) featuring a modern cross-platform Flutter frontend and a robust Spring Boot backend.
-
----
+CareSync is a full-stack, offline-capable Hospital Management System (HMS) featuring a modern cross-platform Flutter frontend and a Spring Boot backend.
 
 ## Project Structure
 
 ```text
-hospital/
-├── frontend/                     # CareSync Flutter Client Application
-│   ├── lib/                      # Clean Architecture UI, State, Domain, and Data
-│   ├── assets/                   # CareSync branding, images, and fonts
-│   ├── test/                     # 66 comprehensive unit and widget test suites
-│   ├── android/                  # Android native project (APKs & AABs)
-│   ├── ios/                      # iOS native project (IPAs)
-│   ├── web/                      # Web platform (PWA)
-│   ├── macos/                    # macOS desktop project (DMG)
-│   ├── linux/                    # Linux desktop project (DEB, ZIP, AppImage)
-│   ├── windows/                  # Windows desktop project (EXE installer & ZIP)
-│   └── pubspec.yaml              # Flutter dependencies and configuration
+HMS_project_complex/
+├── frontend/                     # CareSync Flutter application
+│   ├── lib/                      # UI, State, Domain and Data layers
+│   ├── assets/                   # Images and branding
+│   ├── test/                     # Unit and widget tests
+│   ├── android/                  # Android platform
+│   ├── ios/                      # iOS platform
+│   ├── web/                      # Web application (PWA)
+│   ├── macos/                    # macOS platform
+│   ├── linux/                    # Linux platform
+│   ├── windows/                  # Windows platform
+│   └── pubspec.yaml              # Flutter dependencies
 │
-├── backend/                      # CareSync Spring Boot Backend
-│   ├── src/main/java/            # Spring Boot application source code
-│   │   └── com/caresync/backend/ # Application classes, controllers, and services
-│   ├── src/main/resources/       # application.properties, schema & configurations
-│   ├── src/test/java/            # Spring Boot JUnit 5 test suites
-│   ├── pom.xml                   # Maven dependencies and build definition
-│   └── mvnw, mvnw.cmd            # Maven wrapper scripts
+├── backend/                      # Spring Boot backend
+│   ├── src/main/java/            # Java application source
+│   ├── src/main/resources/       # Application configuration
+│   ├── src/test/java/            # Backend tests
+│   ├── pom.xml                   # Maven configuration
+│   ├── mvnw                      # Maven wrapper (Linux/macOS)
+│   └── mvnw.cmd                  # Maven wrapper (Windows)
 │
-├── .github/                      # GitHub Actions CI/CD workflows
-│   └── workflows/
-│       └── build-release.yml     # Automated multi-platform build runner & release
-└── README.md                     # Monorepo documentation
+├── .github/
+│   └── workflows/                # GitHub Actions workflows
+│       └── build-release.yml
+│
+├── .gitignore
+├── feature.md
+└── README.md
+
 ```
 
----
+## 1. Frontend – Flutter
 
-## 1. Frontend (Flutter)
+### Technologies
+- Flutter
+- Dart
+- SQLite
+- Cross-platform development
 
 ### Running the Frontend
+
+Open the VS Code terminal:
+
 ```bash
 cd frontend
 flutter pub get
-flutter run
 ```
 
+On Windows:
+
+```powershell
+.\run_web.bat
+```
+
+Alternatively, use VS Code Run and Debug and select the CareSync Web configuration.
+
 ### Running Frontend Tests
+
 ```bash
 cd frontend
 flutter test
 ```
 
-### Key Frontend Features
-- **CareSync Branding & Identity**: Clean, responsive design with official CareSync logo and branding.
-- **Super Admin & Multi-Hospital Management**: Super Admin account capable of managing, registering, and switching between multiple hospital entities and branches in real-time.
-- **Strict Role-Based Access Control (RBAC)**: Fine-grained permissions that dynamically enable and disable features, navigation items, and action buttons across Super Admin, Admin, Doctor, Nurse, Receptionist, Pharmacist, Lab Technician, Accounts, and Staff.
-- **Dynamic Bed & Ward Board**: Full CRUD bed management (Add Bed, Edit Bed, Delete Bed, Ward allocation, daily tariffs, and live occupancy status).
-- **OPD & IPD Management**: Outpatient queue, consultations, vitals, admissions, and ward bed allocations.
-- **Pharmacy & POS**: Medicine inventory management, low-stock warnings, dispensing, and sales checkout.
-- **Appointments & Queues**: Token generation, scheduling, status tracking, and doctor duty assignments.
-- **Billing & Invoicing**: Automated invoice calculation, itemized charges, and payment tracking.
-- **EMR & Patient Registry**: Complete patient demographics, medical history, allergies, and emergency contacts.
-- **Audit Logging & Security**: Session timeouts, auto-lock PIN security, and tamper-evident audit logs.
-- **Offline First**: Fully functional without internet connectivity using embedded local SQLite.
+### Key Features
 
-### Default Client Credentials
-- **Super Admin (Multi-Hospital)**: `superadmin` / `SuperAdmin@1234`
-- **Hospital Admin**: `admin` / `Admin@1234`
-- **Doctor**: `doctor` / `Doctor@1234`
-- **Nurse**: `nurse` / `Nurse@1234`
-- **Reception**: `reception` / `Reception@1234`
-- **Pharmacy**: `pharmacy` / `Pharmacy@1234`
-- **Laboratory**: `lab` / `Lab@1234`
-- **Accounts**: `accounts` / `Accounts@1234`
-- **Staff**: `user` / `User@1234`
+- **CareSync Branding:** Modern, responsive user interface.
+- **Multi-Hospital Management:** Super Admin can manage and switch between hospitals and branches.
+- **Role-Based Access Control (RBAC):** Permissions for Admin, Doctor, Nurse, Receptionist, Pharmacist, Lab Technician, Accounts and Staff.
+- **Patient Management:** Patient registration, demographics, medical history and allergies.
+- **OPD & IPD Management:** Outpatient queues, consultations, admissions and bed allocation.
+- **Appointment Management:** Scheduling, token generation and status tracking.
+- **Pharmacy Management:** Medicine inventory, dispensing and sales.
+- **Billing & Invoicing:** Itemized charges, invoice calculation and payment tracking.
+- **Bed & Ward Management:** Bed allocation, occupancy tracking and ward management.
+- **Audit Logging & Security:** Session timeout, auto-lock and audit logs.
+- **Offline Support:** Local SQLite database for offline functionality.
+
+## 2. Backend – Spring Boot
+
+### Technologies
+
+- Java 21+
+- Spring Boot 4.x
+- Spring Web MVC
+- Spring Data JPA
+- Spring Security
+- Spring Validation
+- Spring Boot Actuator
+- H2 Database
+- PostgreSQL / MySQL (configurable)
+
+### Running the Backend
+
+On Windows:
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+Alternatively:
+
+```bash
+mvn spring-boot:run
+```
+
+### Running Backend Tests
+
+```bash
+cd backend
+.\mvnw.cmd clean test
+```
+
+### Backend Endpoints
+
+| Service | URL |
+|---|---|
+| Backend Server | http://localhost:8080 |
+| H2 Database Console | http://localhost:8080/h2-console |
+| Health Check | http://localhost:8080/actuator/health |
+
+### H2 Database Configuration
+
+- JDBC URL: `jdbc:h2:file:./data/caresyncdb`
+- Username: `sa`
+- Password: Empty (local development default)
+
+Database files are stored in `backend/data/` when the backend is started from the backend directory.
+
+## 3. Development and Testing
+
+The project uses a modular architecture with separate frontend and backend components.
+
+Developers can run and test each component independently.
+
+**Frontend:**
+```bash
+cd frontend
+flutter pub get
+flutter test
+```
+
+**Backend:**
+```bash
+cd backend
+.\mvnw.cmd clean test
+```
+
+## 4. Security Notice
+
+Any sample credentials used for local development should be changed before deployment.
+
+Do not commit real passwords, API keys, database credentials or private configuration files to GitHub.
+
+## 5. Project Information
+
+**Project Name:** CareSync – Hospital Management System
+
+**Repository:** HMS_project_complex
+
+**Frontend:** Flutter
+
+**Backend:** Spring Boot
+
+**Database:** SQLite / H2 (with configurable database support)
 
 ---
 
-## 2. Backend (Spring Boot)
-
-### Technologies
-- Spring Boot 4.x / Java 21+
-- Spring Web MVC, Spring Data JPA, Spring Security, Spring Validation, Spring Boot Actuator
-- In-memory H2 Database for local development (configurable to PostgreSQL / MySQL)
-
-### Running the Backend
-```bash
-cd backend
-./mvnw spring-boot:run
-```
-*(On Windows: `mvnw.cmd spring-boot:run` or `mvn spring-boot:run`)*
-
-### Running Backend Tests
-```bash
-cd backend
-./mvnw clean test
-```
-
-### Backend Ports & Endpoints
-- **Server Port**: `http://localhost:8080`
-- **H2 Console**: `http://localhost:8080/h2-console`
-  - JDBC URL: `jdbc:h2:mem:caresyncdb`
-  - Username: `sa`
-  - Password: *(empty)*
-- **Actuator Health & Metrics**: `http://localhost:8080/actuator/health`
+**CareSync – Connecting Care. Simplifying Healthcare.**

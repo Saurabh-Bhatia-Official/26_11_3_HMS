@@ -69,9 +69,15 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
         actions: [
           if (checker.can(Modules.staff, AppActions.create)) ...[
             FilledButton.icon(
+              onPressed: () => context.go(AppRoutes.doctorNew),
+              icon: const Icon(Icons.medical_services_outlined, size: 18),
+              label: const Text('Register Doctor'),
+            ),
+            const Gap(8),
+            OutlinedButton.icon(
               onPressed: () => context.go(AppRoutes.staffNew),
               icon: const Icon(Icons.person_add_alt_1, size: 18),
-              label: const Text('Add Staff / Doctor'),
+              label: const Text('Add Staff'),
             ),
             const Gap(16),
           ],
@@ -88,22 +94,47 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                 side: BorderSide(color: colorScheme.outlineVariant),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
                     const Icon(Icons.badge_outlined),
                     const Gap(8),
-                    const Text('Role: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Role: ',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     DropdownButton<String>(
-                      value: const ['All Roles', 'Doctor', 'Nurse', 'Pharmacist'].contains(_roleFilter)
+                      value: const [
+                        'All Roles',
+                        'Doctor',
+                        'Nurse',
+                        'Pharmacist',
+                        'Lab Technician',
+                        'Receptionist',
+                        'Accounts',
+                        'Administrator',
+                      ].contains(_roleFilter)
                           ? _roleFilter
                           : 'All Roles',
                       underline: const SizedBox.shrink(),
                       items: const [
-                        DropdownMenuItem(value: 'All Roles', child: Text('All Roles')),
-                        DropdownMenuItem(value: 'Doctor', child: Text('Doctors')),
+                        DropdownMenuItem(
+                            value: 'All Roles', child: Text('All Roles')),
+                        DropdownMenuItem(
+                            value: 'Doctor', child: Text('Doctors')),
                         DropdownMenuItem(value: 'Nurse', child: Text('Nurses')),
-                        DropdownMenuItem(value: 'Pharmacist', child: Text('Pharmacists')),
+                        DropdownMenuItem(
+                            value: 'Pharmacist', child: Text('Pharmacists')),
+                        DropdownMenuItem(
+                            value: 'Lab Technician',
+                            child: Text('Lab Technicians')),
+                        DropdownMenuItem(
+                            value: 'Receptionist',
+                            child: Text('Receptionists')),
+                        DropdownMenuItem(
+                            value: 'Accounts', child: Text('Accounts')),
+                        DropdownMenuItem(
+                            value: 'Administrator',
+                            child: Text('Administrators')),
                       ],
                       onChanged: (v) {
                         if (v != null) setState(() => _roleFilter = v);
@@ -113,7 +144,9 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                     staffAsync.when(
                       data: (list) => Text(
                         'Total Staff: ${list.length}',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.onSurfaceVariant),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurfaceVariant),
                       ),
                       loading: () => const SizedBox.shrink(),
                       error: (_, __) => const SizedBox.shrink(),
@@ -130,10 +163,13 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                 data: (staff) {
                   final filtered = _roleFilter == 'All Roles'
                       ? staff
-                      : staff.where((s) => s.role.contains(_roleFilter)).toList();
+                      : staff
+                          .where((s) => s.role.contains(_roleFilter))
+                          .toList();
 
                   if (filtered.isEmpty) {
-                    return const Center(child: Text('No staff members registered.'));
+                    return const Center(
+                        child: Text('No staff members registered.'));
                   }
 
                   return Card(
@@ -147,31 +183,50 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                         final isDoctor = item.role.contains('Doctor');
 
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          onTap: () => context.go(AppRoutes.staffEdit(item.id), extra: item),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                          onTap: () => context.go(AppRoutes.staffEdit(item.id),
+                              extra: item),
                           leading: CircleAvatar(
                             radius: 22,
-                            backgroundColor: isDoctor ? Colors.blue.shade100 : colorScheme.primaryContainer,
+                            backgroundColor: isDoctor
+                                ? Colors.blue.shade100
+                                : colorScheme.primaryContainer,
                             child: Icon(
-                              isDoctor ? Icons.medical_services_rounded : Icons.person,
-                              color: isDoctor ? Colors.blue.shade900 : colorScheme.onPrimaryContainer,
+                              isDoctor
+                                  ? Icons.medical_services_rounded
+                                  : Icons.person,
+                              color: isDoctor
+                                  ? Colors.blue.shade900
+                                  : colorScheme.onPrimaryContainer,
                             ),
                           ),
                           title: Row(
                             children: [
-                              Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              Text(item.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16)),
                               const Gap(8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: Colors.blue.shade50,
                                   borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: Colors.blue.shade200),
+                                  border:
+                                      Border.all(color: Colors.blue.shade200),
                                 ),
-                                child: Text(item.role, style: TextStyle(fontSize: 12, color: Colors.blue.shade900)),
+                                child: Text(item.role,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.blue.shade900)),
                               ),
                               const Gap(8),
-                              Text('•  ${item.department}', style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant)),
+                              Text('•  ${item.department}',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: colorScheme.onSurfaceVariant)),
                               const Gap(12),
                               StatusChip(label: item.status),
                             ],
@@ -182,7 +237,8 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                               children: [
                                 Text('Reg: ${item.regNo}'),
                                 const Gap(16),
-                                const Icon(Icons.phone, size: 14, color: Colors.grey),
+                                const Icon(Icons.phone,
+                                    size: 14, color: Colors.grey),
                                 const Gap(4),
                                 Text(item.phone),
                                 const Gap(16),
@@ -197,17 +253,22 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined),
                                   tooltip: 'Edit Profile',
-                                  onPressed: () => context.go(AppRoutes.staffEdit(item.id), extra: item),
+                                  onPressed: () => context.go(
+                                      AppRoutes.staffEdit(item.id),
+                                      extra: item),
                                 ),
                               if (checker.canAccessModule(Modules.appointments))
                                 IconButton(
-                                  icon: const Icon(Icons.calendar_month_outlined),
+                                  icon:
+                                      const Icon(Icons.calendar_month_outlined),
                                   tooltip: 'Schedules',
-                                  onPressed: () => context.go(AppRoutes.appointments),
+                                  onPressed: () =>
+                                      context.go(AppRoutes.appointments),
                                 ),
                               if (checker.can(Modules.staff, AppActions.delete))
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.red),
                                   tooltip: 'Delete Staff Member',
                                   onPressed: () => _confirmDeleteStaff(item),
                                 ),

@@ -16,12 +16,14 @@ void main() {
   });
 
   group('HMS SQLite Database & Persistence Tests', () {
-    test('1. Database seeds tables on startup without hardcoded UI fallback', () async {
+    test('1. Database seeds tables on startup without hardcoded UI fallback',
+        () async {
       final staff = await db.hmsDao.getAllStaff();
       expect(staff, isEmpty);
 
       final beds = await db.hmsDao.getAllBeds();
-      expect(beds, isEmpty); // Beds table starts completely clean without hardcoded dummy entries
+      expect(beds,
+          isEmpty); // Beds table starts completely clean without hardcoded dummy entries
 
       final appointments = await db.hmsDao.getAllAppointments();
       expect(appointments, isEmpty);
@@ -60,14 +62,48 @@ void main() {
         email: 'test.cardio@hospital.local',
         feePaise: 75000,
         status: 'Active',
+        qualification: 'MBBS, MD',
       );
 
       await db.hmsDao.insertStaff(newStaff);
       final list = await db.hmsDao.getAllStaff();
-      expect(list.any((s) => s.name == 'Dr. Test Cardiologist'), isTrue);
+      final savedDoctor = list.singleWhere(
+        (staff) => staff.name == 'Dr. Test Cardiologist',
+      );
+      expect(savedDoctor.role, contains('Doctor'));
+      expect(savedDoctor.department, equals('Cardiology'));
+      expect(savedDoctor.regNo, equals('MCI-99999'));
+      expect(savedDoctor.email, equals('test.cardio@hospital.local'));
+      expect(savedDoctor.qualification, equals('MBBS, MD'));
+      expect(savedDoctor.isActive, isTrue);
     });
 
-    test('3. Bed creation, update, and status updates dynamically in SQLite', () async {
+    test('Receptionist staff records can be saved without a license number',
+        () async {
+      await db.hmsDao.insertStaff(const StaffModel(
+        id: 0,
+        uuid: 'staff-receptionist-001',
+        name: 'Test Receptionist',
+        role: 'Receptionist',
+        regNo: '',
+        department: 'Reception',
+        phone: '+91 98888 77777',
+        email: 'reception.test@hospital.local',
+        feePaise: 0,
+        status: 'Active',
+      ));
+
+      final staff = await db.hmsDao.getAllStaff();
+      final receptionist =
+          staff.singleWhere((member) => member.name == 'Test Receptionist');
+      expect(receptionist.role, equals('Receptionist'));
+      expect(receptionist.department, equals('Reception'));
+      expect(receptionist.regNo, isEmpty);
+      expect(receptionist.isActive, isTrue);
+    });
+
+    test('3. Bed creation, update, and status updates dynamically in SQLite',
+        () async {
       await db.hmsDao.insertBed(const BedModel(
         id: 0,
         bedNo: 'ICU-01',
@@ -76,7 +112,8 @@ void main() {
         tariffPaise: 350000,
         status: 'Available',
       ));
-      await db.hmsDao.updateBedStatus('ICU-01', 'Occupied', patientName: 'John Doe', uhid: 'UHID-999');
+      await db.hmsDao.updateBedStatus('ICU-01', 'Occupied',
+          patientName: 'John Doe', uhid: 'UHID-999');
       final beds = await db.hmsDao.getAllBeds();
       final updated = beds.firstWhere((b) => b.bedNo == 'ICU-01');
       expect(updated.status, equals('Occupied'));
@@ -152,7 +189,13 @@ void main() {
         weight: '68',
         height: '168',
         medications: const [
-          {'name': 'Tab. Paracetamol 650mg', 'dosage': '1 Tab', 'frequency': 'SOS', 'duration': '3 days', 'instructions': 'Take after food'}
+          {
+            'name': 'Tab. Paracetamol 650mg',
+            'dosage': '1 Tab',
+            'frequency': 'SOS',
+            'duration': '3 days',
+            'instructions': 'Take after food'
+          }
         ],
       );
 
@@ -189,7 +232,8 @@ void main() {
       expect(updatedAspirin.stockQty, equals(initialStock - 20));
     });
 
-    test('7. Dashboard & Reports aggregates reflect database data dynamically', () async {
+    test('7. Dashboard & Reports aggregates reflect database data dynamically',
+        () async {
       await db.hmsDao.insertBed(const BedModel(
         id: 0,
         bedNo: 'B-101',
@@ -252,7 +296,8 @@ void main() {
       expect((reports['departments'] as List).isNotEmpty, isTrue);
     });
 
-    test('8. Pharmacy 1-click restock increases stock quantity in SQLite', () async {
+    test('8. Pharmacy 1-click restock increases stock quantity in SQLite',
+        () async {
       final medId = await db.hmsDao.insertMedicine(const MedicineModel(
         id: 0,
         name: 'Tab. Restock Test',
@@ -278,7 +323,9 @@ void main() {
       expect(updated.stockQty, equals(stockBefore + 50));
     });
 
-    test('9. IPD nursing notes and quick discharge updates bed status to Cleaning', () async {
+    test(
+        '9. IPD nursing notes and quick discharge updates bed status to Cleaning',
+        () async {
       await db.hmsDao.insertBed(const BedModel(
         id: 0,
         bedNo: 'MG-01',
@@ -314,7 +361,10 @@ void main() {
       });
 
       final admWithNote = await db.hmsDao.getIpdAdmissionById(firstAdm.id);
-      expect(admWithNote?.notes.any((n) => n['note'] == 'Vitals checked, patient afebrile'), isTrue);
+      expect(
+          admWithNote?.notes
+              .any((n) => n['note'] == 'Vitals checked, patient afebrile'),
+          isTrue);
 
       await db.hmsDao.quickDischargePatient(firstAdm.id, firstAdm.bedNo);
       final dischargedAdm = await db.hmsDao.getIpdAdmissionById(firstAdm.id);
@@ -325,7 +375,9 @@ void main() {
       expect(bed.status, equals('Cleaning'));
     });
 
-    test('10. Laboratory order insertion persists to database and can be retrieved', () async {
+    test(
+        '10. Laboratory order insertion persists to database and can be retrieved',
+        () async {
       const newOrder = LabOrderModel(
         id: 0,
         orderNo: 'L-999',
@@ -338,7 +390,13 @@ void main() {
         status: 'Pending Collection',
         orderedAt: 'Today, 10:00 AM',
         parameters: [
-          {'param': 'Hemoglobin (Hb)', 'val': '14.5', 'unit': 'g/dL', 'refLow': 13.0, 'refHigh': 17.0},
+          {
+            'param': 'Hemoglobin (Hb)',
+            'val': '14.5',
+            'unit': 'g/dL',
+            'refLow': 13.0,
+            'refHigh': 17.0
+          },
         ],
       );
 
@@ -350,10 +408,41 @@ void main() {
       expect(retrieved?.testName, equals('Complete Blood Count (CBC)'));
       expect(retrieved?.priority, equals('STAT (Emergency)'));
       expect(retrieved?.parameters.length, equals(1));
+
+      final completedParameters = [
+        {
+          'param': 'Hemoglobin (Hb)',
+          'val': '14.5',
+          'unit': 'g/dL',
+          'refLow': 13.0,
+          'refHigh': 17.0,
+        },
+      ];
+      await db.hmsDao
+          .updateLabOrderResults('L-999', completedParameters, 'Completed');
+
+      final editedParameters = [
+        {
+          'param': 'Hemoglobin (Hb)',
+          'val': '15.2',
+          'unit': 'g/dL',
+          'refLow': 13.0,
+          'refHigh': 17.0,
+        },
+      ];
+      await db.hmsDao
+          .updateLabOrderResults('L-999', editedParameters, 'Completed');
+
+      final editedOrder = await db.hmsDao.getLabOrderById('L-999');
+      expect(editedOrder?.status, equals('Completed'));
+      expect(editedOrder?.parameters.single['val'], equals('15.2'));
     });
 
-    test('11. Hospital owner settings upsert and retrieval persists via SettingsDao', () async {
-      await db.settingsDao.upsertSetting('hospital_name', 'Sunrise Memorial Hospital');
+    test(
+        '11. Hospital owner settings upsert and retrieval persists via SettingsDao',
+        () async {
+      await db.settingsDao
+          .upsertSetting('hospital_name', 'Sunrise Memorial Hospital');
       await db.settingsDao.upsertSetting('opd_fee', '650');
       await db.settingsDao.upsertSetting('auto_bed_cleaning', 'true');
 
@@ -402,7 +491,9 @@ void main() {
       expect(afterDelete, isNull);
     });
 
-    test('13. Medicine insertion with batch and MRP, updating, and deletion in SQLite', () async {
+    test(
+        '13. Medicine insertion with batch and MRP, updating, and deletion in SQLite',
+        () async {
       const newMed = MedicineModel(
         id: 0,
         name: 'Tab. Metformin 500mg',
@@ -449,14 +540,16 @@ void main() {
       );
       await db.hmsDao.updateMedicine(updatedMed);
 
-      final afterUpdate = (await db.hmsDao.getAllMedicines()).firstWhere((m) => m.id == medId);
+      final afterUpdate =
+          (await db.hmsDao.getAllMedicines()).firstWhere((m) => m.id == medId);
       expect(afterUpdate.stockQty, equals(100));
       expect(afterUpdate.mrpPaise, equals(4500));
       expect(afterUpdate.mrpFormatted, equals('₹45.00'));
 
       // Delete medicine
       await db.hmsDao.deleteMedicine(medId, updatedMed.name);
-      final afterDelete = (await db.hmsDao.getAllMedicines()).where((m) => m.id == medId);
+      final afterDelete =
+          (await db.hmsDao.getAllMedicines()).where((m) => m.id == medId);
       expect(afterDelete, isEmpty);
     });
 
@@ -479,7 +572,8 @@ void main() {
 
       await db.hmsDao.updateAppointmentStatus(target.id, 'In Consultation');
       final updatedList = await db.hmsDao.getAllAppointments();
-      expect(updatedList.firstWhere((a) => a.id == target.id).status, equals('In Consultation'));
+      expect(updatedList.firstWhere((a) => a.id == target.id).status,
+          equals('In Consultation'));
 
       await db.hmsDao.deleteAppointment(target.id, target.patientName);
       final afterDelete = await db.hmsDao.getAllAppointments();
@@ -513,7 +607,8 @@ void main() {
       final admissions = await db.hmsDao.getAllIpdAdmissions();
       final target = admissions.first;
 
-      await db.hmsDao.deleteIpdAdmission(target.id, target.bedNo, target.patientName);
+      await db.hmsDao
+          .deleteIpdAdmission(target.id, target.bedNo, target.patientName);
       final afterDelete = await db.hmsDao.getAllIpdAdmissions();
       expect(afterDelete.any((a) => a.id == target.id), isFalse);
 
@@ -564,7 +659,8 @@ void main() {
       final invoices = await db.hmsDao.getAllInvoices();
       final target = invoices.first;
 
-      await db.hmsDao.updateInvoiceStatus(target.invoiceNo, 'Paid', target.totalPaise);
+      await db.hmsDao
+          .updateInvoiceStatus(target.invoiceNo, 'Paid', target.totalPaise);
       final updated = await db.hmsDao.getInvoiceById(target.invoiceNo);
       expect(updated?.status, equals('Paid'));
       expect(updated?.duePaise, equals(0));
@@ -574,7 +670,9 @@ void main() {
       expect(afterDelete, isNull);
     });
 
-    test('18. Pharmacy POS multi-item counter sale deducting inventory and creating invoice in SQLite', () async {
+    test(
+        '18. Pharmacy POS multi-item counter sale deducting inventory and creating invoice in SQLite',
+        () async {
       final aspId = await db.hmsDao.insertMedicine(const MedicineModel(
         id: 0,
         name: 'Tab. Aspirin 75mg',
@@ -613,11 +711,14 @@ void main() {
 
       // Sell 10 Aspirin and 5 Paracetamol via POS
       await db.hmsDao.dispenseMedicine(aspirin.id, 10, 'Walk-in POS Customer');
-      await db.hmsDao.dispenseMedicine(paracetamol.id, 5, 'Walk-in POS Customer');
+      await db.hmsDao
+          .dispenseMedicine(paracetamol.id, 5, 'Walk-in POS Customer');
 
       final medsAfter = await db.hmsDao.getAllMedicines();
-      expect(medsAfter.firstWhere((m) => m.id == aspirin.id).stockQty, equals(initialAspQty - 10));
-      expect(medsAfter.firstWhere((m) => m.id == paracetamol.id).stockQty, equals(initialPcmQty - 5));
+      expect(medsAfter.firstWhere((m) => m.id == aspirin.id).stockQty,
+          equals(initialAspQty - 10));
+      expect(medsAfter.firstWhere((m) => m.id == paracetamol.id).stockQty,
+          equals(initialPcmQty - 5));
 
       // Create POS Invoice
       final posInvoice = InvoiceModel(
@@ -635,8 +736,18 @@ void main() {
         status: 'Paid',
         dateTime: 'Today, 12:30',
         items: [
-          {'desc': 'Tab. Aspirin 75mg (10 Strips)', 'rate': '₹25.00', 'qty': '10', 'total': '₹250.00'},
-          {'desc': 'Tab. Paracetamol 650mg (5 Strips)', 'rate': '₹32.00', 'qty': '5', 'total': '₹160.00'},
+          {
+            'desc': 'Tab. Aspirin 75mg (10 Strips)',
+            'rate': '₹25.00',
+            'qty': '10',
+            'total': '₹250.00'
+          },
+          {
+            'desc': 'Tab. Paracetamol 650mg (5 Strips)',
+            'rate': '₹32.00',
+            'qty': '5',
+            'total': '₹160.00'
+          },
         ],
       );
 
@@ -665,10 +776,13 @@ void main() {
 
       await db.hmsDao.insertSupplier(newSupplier);
       final suppliersAfter = await db.hmsDao.getAllSuppliers();
-      expect(suppliersAfter.any((s) => s.name == 'Apex Pharma Distributors'), isTrue);
+      expect(suppliersAfter.any((s) => s.name == 'Apex Pharma Distributors'),
+          isTrue);
     });
 
-    test('20. Stock Inward GRN purchase consignment increments stock & creates batch', () async {
+    test(
+        '20. Stock Inward GRN purchase consignment increments stock & creates batch',
+        () async {
       final targetId = await db.hmsDao.insertMedicine(const MedicineModel(
         id: 0,
         name: 'Inj. Ceftriaxone 1g',
@@ -715,18 +829,23 @@ void main() {
 
       // Verify stock incremented by 150
       final medsAfter = await db.hmsDao.getAllMedicines();
-      expect(medsAfter.firstWhere((m) => m.id == targetMed.id).stockQty, equals(initialStock + 150));
+      expect(medsAfter.firstWhere((m) => m.id == targetMed.id).stockQty,
+          equals(initialStock + 150));
 
       // Verify batch created
       final batches = await db.hmsDao.getAllBatches();
-      expect(batches.any((b) => b.batchNo == 'GRN-BAT-101' && b.stockQty >= 150), isTrue);
+      expect(
+          batches.any((b) => b.batchNo == 'GRN-BAT-101' && b.stockQty >= 150),
+          isTrue);
 
       // Verify purchase order retrieved
       final purchases = await db.hmsDao.getAllPurchases();
       expect(purchases.any((p) => p.invoiceNo == 'INV-TEST-GRN-999'), isTrue);
     });
 
-    test('21. Batch insertion, update, and deletion with master stock synchronization', () async {
+    test(
+        '21. Batch insertion, update, and deletion with master stock synchronization',
+        () async {
       final targetId = await db.hmsDao.insertMedicine(const MedicineModel(
         id: 0,
         name: 'Tab. Batch Sync Test',
@@ -758,19 +877,25 @@ void main() {
 
       await db.hmsDao.insertBatch(batch);
       final medsAfterAdd = await db.hmsDao.getAllMedicines();
-      expect(medsAfterAdd.firstWhere((m) => m.id == target.id).stockQty, equals(initialStock + 80));
+      expect(medsAfterAdd.firstWhere((m) => m.id == target.id).stockQty,
+          equals(initialStock + 80));
 
       final batches = await db.hmsDao.getAllBatches();
-      final createdBatch = batches.firstWhere((b) => b.batchNo == 'TEST-BATCH-777');
+      final createdBatch =
+          batches.firstWhere((b) => b.batchNo == 'TEST-BATCH-777');
       expect(createdBatch.stockQty, equals(80));
 
       // Delete batch and verify master stock is deducted
-      await db.hmsDao.deleteBatch(createdBatch.id, createdBatch.batchNo, target.id);
+      await db.hmsDao
+          .deleteBatch(createdBatch.id, createdBatch.batchNo, target.id);
       final medsAfterDel = await db.hmsDao.getAllMedicines();
-      expect(medsAfterDel.firstWhere((m) => m.id == target.id).stockQty, equals(initialStock));
+      expect(medsAfterDel.firstWhere((m) => m.id == target.id).stockQty,
+          equals(initialStock));
     });
 
-    test('22. Stock adjustment for breakage / wastage logs audit and adjusts stock', () async {
+    test(
+        '22. Stock adjustment for breakage / wastage logs audit and adjusts stock',
+        () async {
       final targetId = await db.hmsDao.insertMedicine(const MedicineModel(
         id: 0,
         name: 'Tab. Adjustment Test',
@@ -800,11 +925,14 @@ void main() {
       );
 
       final medsAfter = await db.hmsDao.getAllMedicines();
-      expect(medsAfter.firstWhere((m) => m.id == target.id).stockQty, equals(initialStock - 5));
+      expect(medsAfter.firstWhere((m) => m.id == target.id).stockQty,
+          equals(initialStock - 5));
 
       final adjustments = await db.hmsDao.getAllStockAdjustments();
-      expect(adjustments.any((a) => a.reason.contains('Broken ampoules') && a.adjustmentQty == -5), isTrue);
+      expect(
+          adjustments.any((a) =>
+              a.reason.contains('Broken ampoules') && a.adjustmentQty == -5),
+          isTrue);
     });
   });
 }
-

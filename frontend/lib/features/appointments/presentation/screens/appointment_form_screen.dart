@@ -12,7 +12,8 @@ class AppointmentFormScreen extends ConsumerStatefulWidget {
   const AppointmentFormScreen({super.key});
 
   @override
-  ConsumerState<AppointmentFormScreen> createState() => _AppointmentFormScreenState();
+  ConsumerState<AppointmentFormScreen> createState() =>
+      _AppointmentFormScreenState();
 }
 
 class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
@@ -21,16 +22,23 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
   final _notesController = TextEditingController();
 
   DateTime _selectedDate = DateTime.now();
-  String _selectedDoctor = '';
-  String _selectedDepartment = '';
+  int? _selectedDoctorId;
   String _selectedSlot = '10:00 AM';
   String _visitType = 'Scheduled Consultation';
 
   final List<String> _slots = [
-    '09:00 AM', '09:20 AM', '09:40 AM',
-    '10:00 AM', '10:20 AM', '10:40 AM',
-    '11:00 AM', '11:20 AM', '11:40 AM',
-    '02:00 PM', '02:20 PM', '02:40 PM',
+    '09:00 AM',
+    '09:20 AM',
+    '09:40 AM',
+    '10:00 AM',
+    '10:20 AM',
+    '10:40 AM',
+    '11:00 AM',
+    '11:20 AM',
+    '11:40 AM',
+    '02:00 PM',
+    '02:20 PM',
+    '02:40 PM',
   ];
 
   @override
@@ -40,12 +48,32 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     super.dispose();
   }
 
+  List<StaffModel> _availableDoctors(List<StaffModel> staff) => staff
+      .where((member) =>
+          member.role.toLowerCase().contains('doctor') && member.isActive)
+      .toList();
+
   Future<void> _book() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    final doctors = _availableDoctors(ref.read(staffListProvider).value ?? []);
+    final doctor = _selectedDoctorId == null
+        ? doctors.firstOrNull
+        : doctors.where((member) => member.id == _selectedDoctorId).firstOrNull;
+    if (doctor == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Select an active doctor before booking.')),
+      );
+      return;
+    }
+
     final db = ref.read(appDatabaseProvider);
-    final countRes = await db.customSelect('SELECT count(*) as count FROM appointments').getSingle();
-    final token = ((countRes.data['count'] as int) + 1).toString().padLeft(2, '0');
+    final countRes = await db
+        .customSelect('SELECT count(*) as count FROM appointments')
+        .getSingle();
+    final token =
+        ((countRes.data['count'] as int) + 1).toString().padLeft(2, '0');
 
     final nameText = _patientSearchController.text.trim();
     String patientName = nameText;
@@ -60,8 +88,8 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
       tokenNo: token,
       patientName: patientName,
       uhid: uhid,
-      doctorName: _selectedDoctor,
-      department: _selectedDepartment,
+      doctorName: doctor.name,
+      department: doctor.department,
       date: '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
       timeSlot: _selectedSlot,
       status: 'Scheduled',
@@ -76,7 +104,8 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Appointment confirmed for $patientName at $_selectedSlot (Token #$token)'),
+          content: Text(
+              'Appointment confirmed for $patientName at $_selectedSlot (Token #$token)'),
           backgroundColor: Colors.green.shade700,
         ),
       );
@@ -93,21 +122,10 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     final staffList = staffAsync.value ?? [];
     final patients = patientsAsync.value ?? [];
 
-    final doctors = staffList
-        .where((s) => s.role.toLowerCase().contains('doctor'))
-        .map((s) => '${s.name} (${s.department})')
-        .toSet()
-        .toList();
-    if (doctors.isEmpty) {
-      doctors.add('Duty Doctor (General)');
-    }
-
-    if (_selectedDoctor.isEmpty || !doctors.contains(_selectedDoctor)) {
-      _selectedDoctor = doctors.first;
-      if (_selectedDoctor.contains('(') && _selectedDoctor.contains(')')) {
-        _selectedDepartment = _selectedDoctor.split('(').last.replaceAll(')', '').trim();
-      }
-    }
+    final doctors = _availableDoctors(staffList);
+    final selectedDoctor = _selectedDoctorId == null
+        ? doctors.firstOrNull
+        : doctors.where((member) => member.id == _selectedDoctorId).firstOrNull;
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
@@ -151,7 +169,8 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                           items: patients.map((p) {
                             return DropdownMenuItem<String>(
                               value: '${p.name} (${p.uhid})',
-                              child: Text('${p.name} (${p.uhid}) - ${p.phone ?? "-"}'),
+                              child: Text(
+                                  '${p.name} (${p.uhid}) - ${p.phone ?? "-"}'),
                             );
                           }).toList(),
                           onChanged: (val) {
@@ -180,26 +199,53 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                       const Gap(16),
 
                       // Doctor Selection
-                      DropdownButtonFormField<String>(
-                        value: doctors.contains(_selectedDoctor) ? _selectedDoctor : doctors.first,
-                        decoration: const InputDecoration(
-                          labelText: 'Consulting Doctor *',
-                          prefixIcon: Icon(Icons.medical_services_outlined),
+                      if (staffAsync.isLoading)
+                        const LinearProgressIndicator()
+                      else if (staffAsync.hasError)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                  'Unable to load doctors: ${staffAsync.error}'),
+                            ),
+                            TextButton(
+                              onPressed: () =>
+                                  ref.invalidate(staffListProvider),
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        )
+                      else if (doctors.isEmpty)
+                        Text(
+                          'No active doctors registered. Add an active doctor in the Staff Directory before booking.',
+                          style: TextStyle(color: colorScheme.error),
+                        )
+                      else
+                        DropdownButtonFormField<int>(
+                          initialValue: selectedDoctor?.id,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Consulting Doctor *',
+                            prefixIcon: Icon(Icons.medical_services_outlined),
+                          ),
+                          validator: (value) => value == null
+                              ? 'Select a consulting doctor'
+                              : null,
+                          items: doctors
+                              .map((doctor) => DropdownMenuItem(
+                                    value: doctor.id,
+                                    child: Text(
+                                      '${doctor.name} — ${doctor.department.isEmpty ? 'Specialty not set' : doctor.department}',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ))
+                              .toList(),
+                          onChanged: (id) {
+                            if (id != null) {
+                              setState(() => _selectedDoctorId = id);
+                            }
+                          },
                         ),
-                        items: doctors
-                            .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) {
-                            setState(() {
-                              _selectedDoctor = v;
-                              if (v.contains('(') && v.contains(')')) {
-                                _selectedDepartment = v.split('(').last.replaceAll(')', '').trim();
-                              }
-                            });
-                          }
-                        },
-                      ),
                       const Gap(16),
 
                       // Date Picker
@@ -208,7 +254,8 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 alignment: Alignment.centerLeft,
                               ),
                               icon: const Icon(Icons.calendar_today),
@@ -220,7 +267,8 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                                   context: context,
                                   initialDate: _selectedDate,
                                   firstDate: DateTime.now(),
-                                  lastDate: DateTime.now().add(const Duration(days: 60)),
+                                  lastDate: DateTime.now()
+                                      .add(const Duration(days: 60)),
                                 );
                                 if (picked != null) {
                                   setState(() => _selectedDate = picked);
@@ -293,7 +341,8 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                         maxLines: 2,
                         decoration: const InputDecoration(
                           labelText: 'Chief Complaint / Booking Notes',
-                          hintText: 'e.g. Chest pain for 2 days, previous ECG normal',
+                          hintText:
+                              'e.g. Chest pain for 2 days, previous ECG normal',
                           prefixIcon: Icon(Icons.notes),
                         ),
                       ),
@@ -303,9 +352,12 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                         width: double.infinity,
                         height: 48,
                         child: FilledButton.icon(
-                          onPressed: _book,
+                          onPressed: doctors.isNotEmpty && !staffAsync.isLoading
+                              ? _book
+                              : null,
                           icon: const Icon(Icons.check_circle_outline),
-                          label: const Text('Confirm Booking & Issue Token Slip'),
+                          label:
+                              const Text('Confirm Booking & Issue Token Slip'),
                         ),
                       ),
                     ],
@@ -319,4 +371,3 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     );
   }
 }
-
