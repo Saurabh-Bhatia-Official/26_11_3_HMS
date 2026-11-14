@@ -36,8 +36,13 @@ class HmsDao {
         updated_at TEXT
       );
     ''');
-    try { await db.customStatement('ALTER TABLE staff ADD COLUMN qualification TEXT;'); } catch (_) {}
-    try { await db.customStatement('ALTER TABLE staff ADD COLUMN updated_at TEXT;'); } catch (_) {}
+    try {
+      await db
+          .customStatement('ALTER TABLE staff ADD COLUMN qualification TEXT;');
+    } catch (_) {}
+    try {
+      await db.customStatement('ALTER TABLE staff ADD COLUMN updated_at TEXT;');
+    } catch (_) {}
 
     // 2. Beds Table
     await db.customStatement('''
@@ -76,6 +81,7 @@ class HmsDao {
     await db.customStatement('''
       CREATE TABLE IF NOT EXISTS opd_visits (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        appointment_id INTEGER UNIQUE,
         token_no TEXT,
         patient_name TEXT NOT NULL,
         uhid TEXT NOT NULL,
@@ -99,6 +105,18 @@ class HmsDao {
         created_at TEXT
       );
     ''');
+
+    try {
+      await db.customStatement(
+        'ALTER TABLE opd_visits ADD COLUMN appointment_id INTEGER;',
+      );
+    } catch (_) {}
+
+    await db.customStatement('''
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_opd_visits_appointment_id
+  ON opd_visits(appointment_id)
+  WHERE appointment_id IS NOT NULL;
+''');
 
     // 5. IPD Admissions Table
     await db.customStatement('''
@@ -161,15 +179,40 @@ class HmsDao {
         updated_at TEXT
       );
     ''');
-    try { await db.customStatement('ALTER TABLE medicines ADD COLUMN uuid TEXT;'); } catch (_) {}
-    try { await db.customStatement('ALTER TABLE medicines ADD COLUMN form TEXT;'); } catch (_) {}
-    try { await db.customStatement('ALTER TABLE medicines ADD COLUMN strength TEXT;'); } catch (_) {}
-    try { await db.customStatement('ALTER TABLE medicines ADD COLUMN manufacturer TEXT;'); } catch (_) {}
-    try { await db.customStatement('ALTER TABLE medicines ADD COLUMN tax_rate_pct REAL DEFAULT 0.0;'); } catch (_) {}
-    try { await db.customStatement('ALTER TABLE medicines ADD COLUMN hsn_code TEXT;'); } catch (_) {}
-    try { await db.customStatement('ALTER TABLE medicines ADD COLUMN rack_location TEXT;'); } catch (_) {}
-    try { await db.customStatement('ALTER TABLE medicines ADD COLUMN mrp_paise INTEGER DEFAULT 0;'); } catch (_) {}
-    try { await db.customStatement('ALTER TABLE medicines ADD COLUMN updated_at TEXT;'); } catch (_) {}
+    try {
+      await db.customStatement('ALTER TABLE medicines ADD COLUMN uuid TEXT;');
+    } catch (_) {}
+    try {
+      await db.customStatement('ALTER TABLE medicines ADD COLUMN form TEXT;');
+    } catch (_) {}
+    try {
+      await db
+          .customStatement('ALTER TABLE medicines ADD COLUMN strength TEXT;');
+    } catch (_) {}
+    try {
+      await db.customStatement(
+          'ALTER TABLE medicines ADD COLUMN manufacturer TEXT;');
+    } catch (_) {}
+    try {
+      await db.customStatement(
+          'ALTER TABLE medicines ADD COLUMN tax_rate_pct REAL DEFAULT 0.0;');
+    } catch (_) {}
+    try {
+      await db
+          .customStatement('ALTER TABLE medicines ADD COLUMN hsn_code TEXT;');
+    } catch (_) {}
+    try {
+      await db.customStatement(
+          'ALTER TABLE medicines ADD COLUMN rack_location TEXT;');
+    } catch (_) {}
+    try {
+      await db.customStatement(
+          'ALTER TABLE medicines ADD COLUMN mrp_paise INTEGER DEFAULT 0;');
+    } catch (_) {}
+    try {
+      await db
+          .customStatement('ALTER TABLE medicines ADD COLUMN updated_at TEXT;');
+    } catch (_) {}
 
     // 8. Medicine Batches Table
     await db.customStatement('''
@@ -291,7 +334,9 @@ class HmsDao {
     final now = DateTime.now().toIso8601String();
 
     // Hospitals Master if empty (Default Super Admin hospital)
-    final hospRes = await db.customSelect('SELECT count(*) as count FROM hospitals').getSingle();
+    final hospRes = await db
+        .customSelect('SELECT count(*) as count FROM hospitals')
+        .getSingle();
     if ((hospRes.data['count'] as int) == 0) {
       await db.customStatement('''
         INSERT INTO hospitals (uuid, name, code, type, address, phone, email, tax_id, status, created_at)
@@ -300,7 +345,9 @@ class HmsDao {
     }
 
     // System Audit Log if empty
-    final auditRes = await db.customSelect('SELECT count(*) as count FROM audit_logs').getSingle();
+    final auditRes = await db
+        .customSelect('SELECT count(*) as count FROM audit_logs')
+        .getSingle();
     if ((auditRes.data['count'] as int) == 0) {
       await db.customStatement('''
         INSERT INTO audit_logs (user_name, action, entity, details, timestamp, created_at)
@@ -313,7 +360,8 @@ class HmsDao {
 
   // Staff
   Future<List<StaffModel>> getAllStaff() async {
-    final rows = await db.customSelect('SELECT * FROM staff ORDER BY id ASC').get();
+    final rows =
+        await db.customSelect('SELECT * FROM staff ORDER BY id ASC').get();
     return rows.map((r) => StaffModel.fromMap(r.data)).toList();
   }
 
@@ -323,7 +371,8 @@ class HmsDao {
       INSERT INTO staff (uuid, name, role, reg_no, department, phone, email, consultation_fee, status, qualification, created_at, updated_at)
       VALUES ('${_esc(staff.uuid)}', '${_esc(staff.name)}', '${_esc(staff.role)}', '${_esc(staff.regNo)}', '${_esc(staff.department)}', '${_esc(staff.phone)}', '${_esc(staff.email)}', ${staff.feePaise}, '${_esc(staff.status)}', '${_esc(staff.qualification)}', '$now', '$now')
     ''');
-    await insertAuditLog('admin', 'CREATE', 'Staff #${staff.name}', 'Added staff member ${staff.name} (${staff.role})');
+    await insertAuditLog('admin', 'CREATE', 'Staff #${staff.name}',
+        'Added staff member ${staff.name} (${staff.role})');
   }
 
   Future<void> updateStaff(StaffModel staff) async {
@@ -342,35 +391,41 @@ class HmsDao {
         updated_at = '$now'
       WHERE id = ${staff.id}
     ''');
-    await insertAuditLog('admin', 'UPDATE', 'Staff #${staff.name}', 'Updated staff profile for ${staff.name} (${staff.role})');
+    await insertAuditLog('admin', 'UPDATE', 'Staff #${staff.name}',
+        'Updated staff profile for ${staff.name} (${staff.role})');
   }
 
   Future<void> deleteStaff(int id, String name) async {
     await db.customStatement('DELETE FROM staff WHERE id = $id');
-    await insertAuditLog('admin', 'DELETE', 'Staff #$name', 'Removed staff member $name (ID #$id)');
+    await insertAuditLog('admin', 'DELETE', 'Staff #$name',
+        'Removed staff member $name (ID #$id)');
   }
 
   Future<StaffModel?> getStaffById(int id) async {
-    final rows = await db.customSelect('SELECT * FROM staff WHERE id = $id').get();
+    final rows =
+        await db.customSelect('SELECT * FROM staff WHERE id = $id').get();
     if (rows.isEmpty) return null;
     return StaffModel.fromMap(rows.first.data);
   }
 
   // Beds
   Future<List<BedModel>> getAllBeds() async {
-    final rows = await db.customSelect('SELECT * FROM beds ORDER BY id ASC').get();
+    final rows =
+        await db.customSelect('SELECT * FROM beds ORDER BY id ASC').get();
     return rows.map((r) => BedModel.fromMap(r.data)).toList();
   }
 
   Future<int> insertBed(BedModel bed) async {
     final now = DateTime.now().toIso8601String();
-    final pName = bed.patientName != null ? "'${_esc(bed.patientName!)}'" : 'NULL';
+    final pName =
+        bed.patientName != null ? "'${_esc(bed.patientName!)}'" : 'NULL';
     final pUhid = bed.uhid != null ? "'${_esc(bed.uhid!)}'" : 'NULL';
     final id = await db.customInsert('''
       INSERT INTO beds (bed_no, ward, bed_type, tariff_paise, status, patient_name, uhid, created_at)
       VALUES ('${_esc(bed.bedNo)}', '${_esc(bed.ward)}', '${_esc(bed.type)}', ${bed.tariffPaise}, '${_esc(bed.status)}', $pName, $pUhid, '$now')
     ''');
-    await insertAuditLog('admin', 'CREATE', 'Bed #${bed.bedNo}', 'Added bed ${bed.bedNo} (${bed.ward} - ${bed.type})');
+    await insertAuditLog('admin', 'CREATE', 'Bed #${bed.bedNo}',
+        'Added bed ${bed.bedNo} (${bed.ward} - ${bed.type})');
     return id;
   }
 
@@ -384,39 +439,47 @@ class HmsDao {
         status = '${_esc(bed.status)}'
       WHERE id = ${bed.id}
     ''');
-    await insertAuditLog('admin', 'UPDATE', 'Bed #${bed.bedNo}', 'Updated bed details for ${bed.bedNo}');
+    await insertAuditLog('admin', 'UPDATE', 'Bed #${bed.bedNo}',
+        'Updated bed details for ${bed.bedNo}');
   }
 
   Future<void> deleteBed(int id, String bedNo) async {
     await db.customStatement('DELETE FROM beds WHERE id = $id');
-    await insertAuditLog('admin', 'DELETE', 'Bed #$bedNo', 'Deleted bed $bedNo');
+    await insertAuditLog(
+        'admin', 'DELETE', 'Bed #$bedNo', 'Deleted bed $bedNo');
   }
 
   Future<void> deleteAllBeds() async {
     await db.customStatement('DELETE FROM beds');
-    await insertAuditLog('admin', 'DELETE_ALL', 'Beds Master', 'Cleared all bed and ward records');
+    await insertAuditLog('admin', 'DELETE_ALL', 'Beds Master',
+        'Cleared all bed and ward records');
   }
 
   // Hospitals (Multi-Hospital Management for Super Admin)
   Future<List<HospitalModel>> getAllHospitals() async {
-    final rows = await db.customSelect('SELECT * FROM hospitals ORDER BY id ASC').get();
+    final rows =
+        await db.customSelect('SELECT * FROM hospitals ORDER BY id ASC').get();
     return rows.map((r) => HospitalModel.fromMap(r.data)).toList();
   }
 
   Future<HospitalModel?> getHospitalById(int id) async {
-    final rows = await db.customSelect('SELECT * FROM hospitals WHERE id = $id').get();
+    final rows =
+        await db.customSelect('SELECT * FROM hospitals WHERE id = $id').get();
     if (rows.isEmpty) return null;
     return HospitalModel.fromMap(rows.first.data);
   }
 
   Future<int> insertHospital(HospitalModel hospital) async {
     final now = DateTime.now().toIso8601String();
-    final uuid = hospital.uuid.isNotEmpty ? hospital.uuid : 'hosp-${DateTime.now().millisecondsSinceEpoch}';
+    final uuid = hospital.uuid.isNotEmpty
+        ? hospital.uuid
+        : 'hosp-${DateTime.now().millisecondsSinceEpoch}';
     final id = await db.customInsert('''
       INSERT INTO hospitals (uuid, name, code, type, address, phone, email, tax_id, status, created_at)
       VALUES ('${_esc(uuid)}', '${_esc(hospital.name)}', '${_esc(hospital.code)}', '${_esc(hospital.type)}', '${_esc(hospital.address)}', '${_esc(hospital.phone)}', '${_esc(hospital.email)}', '${_esc(hospital.taxId)}', '${_esc(hospital.status)}', '$now')
     ''');
-    await insertAuditLog('superadmin', 'CREATE', 'Hospital #${hospital.name}', 'Added hospital entity ${hospital.name} (${hospital.code})');
+    await insertAuditLog('superadmin', 'CREATE', 'Hospital #${hospital.name}',
+        'Added hospital entity ${hospital.name} (${hospital.code})');
     return id;
   }
 
@@ -433,75 +496,192 @@ class HmsDao {
         status = '${_esc(hospital.status)}'
       WHERE id = ${hospital.id}
     ''');
-    await insertAuditLog('superadmin', 'UPDATE', 'Hospital #${hospital.name}', 'Updated hospital profile for ${hospital.name}');
+    await insertAuditLog('superadmin', 'UPDATE', 'Hospital #${hospital.name}',
+        'Updated hospital profile for ${hospital.name}');
   }
 
   Future<void> deleteHospital(int id, String name) async {
     await db.customStatement('DELETE FROM hospitals WHERE id = $id');
-    await insertAuditLog('superadmin', 'DELETE', 'Hospital #$name', 'Deleted hospital entity $name');
+    await insertAuditLog('superadmin', 'DELETE', 'Hospital #$name',
+        'Deleted hospital entity $name');
   }
 
-  Future<void> updateBedStatus(String bedNo, String status, {String? patientName, String? uhid}) async {
+  Future<void> updateBedStatus(String bedNo, String status,
+      {String? patientName, String? uhid}) async {
     final pName = patientName != null ? "'${_esc(patientName)}'" : 'NULL';
     final pUhid = uhid != null ? "'${_esc(uhid)}'" : 'NULL';
     await db.customStatement('''
       UPDATE beds SET status = '${_esc(status)}', patient_name = $pName, uhid = $pUhid WHERE bed_no = '${_esc(bedNo)}'
     ''');
-    await insertAuditLog('admin', 'UPDATE', 'Bed #$bedNo', 'Changed bed status to $status');
+    await insertAuditLog(
+        'admin', 'UPDATE', 'Bed #$bedNo', 'Changed bed status to $status');
   }
 
   // Appointments
   Future<List<AppointmentModel>> getAllAppointments() async {
-    final rows = await db.customSelect('SELECT * FROM appointments ORDER BY id DESC').get();
+    final rows = await db
+        .customSelect('SELECT * FROM appointments ORDER BY id DESC')
+        .get();
     return rows.map((r) => AppointmentModel.fromMap(r.data)).toList();
   }
 
+  Future<void> _checkDuplicateAppointment(
+    AppointmentModel appointment, {
+    int excludeId = 0,
+  }) async {
+    final patientCondition = appointment.uhid.trim().toUpperCase() == 'WALK-IN'
+        ? '''
+            UPPER(TRIM(uhid)) = 'WALK-IN'
+            AND LOWER(TRIM(patient_name)) =
+                LOWER(TRIM('${_esc(appointment.patientName)}'))
+          '''
+        : '''
+            LOWER(TRIM(uhid)) =
+                LOWER(TRIM('${_esc(appointment.uhid)}'))
+          ''';
+
+    final rows = await db.customSelect('''
+    SELECT id
+    FROM appointments
+    WHERE LOWER(TRIM(doctor_name)) =
+          LOWER(TRIM('${_esc(appointment.doctorName)}'))
+      AND LOWER(TRIM(date)) =
+          LOWER(TRIM('${_esc(appointment.date)}'))
+      AND LOWER(TRIM(time_slot)) =
+          LOWER(TRIM('${_esc(appointment.timeSlot)}'))
+      AND $patientCondition
+      AND id != $excludeId
+    LIMIT 1
+  ''').get();
+
+    if (rows.isNotEmpty) {
+      throw StateError(
+        'This patient already has an appointment with this doctor '
+        'at the selected date and time.',
+      );
+    }
+  }
+
   Future<void> insertAppointment(AppointmentModel appointment) async {
+    await _checkDuplicateAppointment(appointment);
     final now = DateTime.now().toIso8601String();
     await db.customStatement('''
       INSERT INTO appointments (token_no, patient_name, uhid, doctor_name, department, date, time_slot, status, visit_type, notes, created_at)
       VALUES ('${_esc(appointment.tokenNo)}', '${_esc(appointment.patientName)}', '${_esc(appointment.uhid)}', '${_esc(appointment.doctorName)}', '${_esc(appointment.department)}', '${_esc(appointment.date)}', '${_esc(appointment.timeSlot)}', '${_esc(appointment.status)}', '${_esc(appointment.visitType)}', '${_esc(appointment.notes)}', '$now')
     ''');
-    await insertAuditLog('reception', 'BOOK', 'Appointment #${appointment.patientName}', 'Booked appointment for ${appointment.patientName} with ${appointment.doctorName}');
+    await insertAuditLog(
+        'reception',
+        'BOOK',
+        'Appointment #${appointment.patientName}',
+        'Booked appointment for ${appointment.patientName} with ${appointment.doctorName}');
   }
 
   Future<void> updateAppointmentStatus(int id, String status) async {
     await db.customStatement('''
       UPDATE appointments SET status = '${_esc(status)}' WHERE id = $id
     ''');
-    await insertAuditLog('reception', 'UPDATE', 'Appointment #$id', 'Changed appointment status to $status');
+    await insertAuditLog('reception', 'UPDATE', 'Appointment #$id',
+        'Changed appointment status to $status');
+  }
+
+  Future<int> startOpdForAppointment(AppointmentModel appointment) async {
+    if (appointment.id <= 0) {
+      throw ArgumentError('Invalid appointment ID');
+    }
+
+    // Prevent duplicate OPD visits for the same appointment.
+    final existing = await db
+        .customSelect(
+          'SELECT id FROM opd_visits WHERE appointment_id = ${appointment.id}',
+        )
+        .get();
+
+    if (existing.isNotEmpty) {
+      return existing.first.data['id'] as int;
+    }
+
+    final now = DateTime.now().toIso8601String();
+
+    // Create a new OPD queue entry.
+    final visitId = await db.customInsert('''
+    INSERT INTO opd_visits (
+      appointment_id, token_no, patient_name, uhid,
+      doctor_name, department, age_gender, status,
+      complaint, history, examination, diagnosis, advice,
+      bp_sys, bp_dia, pulse, temp, spo2, weight, height,
+      medications_json, created_at
+    ) VALUES (
+      ${appointment.id},
+      '${_esc(appointment.tokenNo)}',
+      '${_esc(appointment.patientName)}',
+      '${_esc(appointment.uhid)}',
+      '${_esc(appointment.doctorName)}',
+      '${_esc(appointment.department)}',
+      '',
+      'Waiting',
+      '', '', '', '', '',
+      '', '', '', '', '', '', '',
+      '[]',
+      '$now'
+    )
+  ''');
+
+    await updateAppointmentStatus(appointment.id, 'In Consultation');
+
+    await insertAuditLog(
+      'reception',
+      'CREATE',
+      'OPD Visit #$visitId',
+      'Started OPD for appointment #${appointment.id} (${appointment.patientName})',
+    );
+
+    return visitId;
   }
 
   Future<void> updateAppointment(AppointmentModel appointment) async {
+    await _checkDuplicateAppointment(
+      appointment,
+      excludeId: appointment.id,
+    );
+
     await db.customStatement('''
-      UPDATE appointments SET
-        patient_name = '${_esc(appointment.patientName)}',
-        uhid = '${_esc(appointment.uhid)}',
-        doctor_name = '${_esc(appointment.doctorName)}',
-        department = '${_esc(appointment.department)}',
-        date = '${_esc(appointment.date)}',
-        time_slot = '${_esc(appointment.timeSlot)}',
-        status = '${_esc(appointment.status)}',
-        visit_type = '${_esc(appointment.visitType)}',
-        notes = '${_esc(appointment.notes)}'
-      WHERE id = ${appointment.id}
-    ''');
-    await insertAuditLog('reception', 'UPDATE', 'Appointment #${appointment.patientName}', 'Updated appointment details for ${appointment.patientName}');
+    UPDATE appointments SET
+      patient_name = '${_esc(appointment.patientName)}',
+      uhid = '${_esc(appointment.uhid)}',
+      doctor_name = '${_esc(appointment.doctorName)}',
+      department = '${_esc(appointment.department)}',
+      date = '${_esc(appointment.date)}',
+      time_slot = '${_esc(appointment.timeSlot)}',
+      status = '${_esc(appointment.status)}',
+      visit_type = '${_esc(appointment.visitType)}',
+      notes = '${_esc(appointment.notes)}'
+    WHERE id = ${appointment.id}
+  ''');
+
+    await insertAuditLog(
+      'reception',
+      'UPDATE',
+      'Appointment #${appointment.patientName}',
+      'Updated appointment details for ${appointment.patientName}',
+    );
   }
 
   Future<void> deleteAppointment(int id, String patientName) async {
     await db.customStatement('DELETE FROM appointments WHERE id = $id');
-    await insertAuditLog('reception', 'CANCEL', 'Appointment #$id', 'Cancelled/Deleted appointment for $patientName');
+    await insertAuditLog('reception', 'CANCEL', 'Appointment #$id',
+        'Cancelled/Deleted appointment for $patientName');
   }
 
   // OPD Visits
   Future<List<OpdVisitModel>> getAllOpdVisits() async {
-    final rows = await db.customSelect('SELECT * FROM opd_visits ORDER BY id ASC').get();
+    final rows =
+        await db.customSelect('SELECT * FROM opd_visits ORDER BY id ASC').get();
     return rows.map((r) => OpdVisitModel.fromMap(r.data)).toList();
   }
 
   Future<OpdVisitModel?> getOpdVisitById(int id) async {
-    final rows = await db.customSelect('SELECT * FROM opd_visits WHERE id = $id').get();
+    final rows =
+        await db.customSelect('SELECT * FROM opd_visits WHERE id = $id').get();
     if (rows.isEmpty) return null;
     return OpdVisitModel.fromMap(rows.first.data);
   }
@@ -526,7 +706,8 @@ class HmsDao {
         medications_json = '${_esc(medsJson)}' 
       WHERE id = ${visit.id}
     ''');
-    await insertAuditLog('doctor', 'UPDATE', 'OPD Visit #${visit.id}', 'Consultation updated for ${visit.patientName}: ${visit.diagnosis}');
+    await insertAuditLog('doctor', 'UPDATE', 'OPD Visit #${visit.id}',
+        'Consultation updated for ${visit.patientName}: ${visit.diagnosis}');
   }
 
   Future<int> insertOpdVisit(OpdVisitModel visit) async {
@@ -543,25 +724,32 @@ class HmsDao {
         '${_esc(visit.bpSys)}', '${_esc(visit.bpDia)}', '${_esc(visit.pulse)}', '${_esc(visit.temp)}', '${_esc(visit.spo2)}', '${_esc(visit.weight)}', '${_esc(visit.height)}', '${_esc(medsJson)}', '$now'
       )
     ''');
-    final res = await db.customSelect('SELECT last_insert_rowid() as id').getSingle();
+    final res =
+        await db.customSelect('SELECT last_insert_rowid() as id').getSingle();
     final id = res.data['id'] as int;
-    await insertAuditLog('reception', 'CREATE', 'OPD Visit #$id', 'Registered OPD visit for ${visit.patientName} (${visit.uhid})');
+    await insertAuditLog('reception', 'CREATE', 'OPD Visit #$id',
+        'Registered OPD visit for ${visit.patientName} (${visit.uhid})');
     return id;
   }
 
   Future<void> deleteOpdVisit(int id, String patientName) async {
     await db.customStatement('DELETE FROM opd_visits WHERE id = $id');
-    await insertAuditLog('admin', 'DELETE', 'OPD Visit #$id', 'Deleted OPD visit for $patientName');
+    await insertAuditLog('admin', 'DELETE', 'OPD Visit #$id',
+        'Deleted OPD visit for $patientName');
   }
 
   // IPD Admissions
   Future<List<IpdAdmissionModel>> getAllIpdAdmissions() async {
-    final rows = await db.customSelect('SELECT * FROM ipd_admissions ORDER BY id DESC').get();
+    final rows = await db
+        .customSelect('SELECT * FROM ipd_admissions ORDER BY id DESC')
+        .get();
     return rows.map((r) => IpdAdmissionModel.fromMap(r.data)).toList();
   }
 
   Future<IpdAdmissionModel?> getIpdAdmissionById(int id) async {
-    final rows = await db.customSelect('SELECT * FROM ipd_admissions WHERE id = $id').get();
+    final rows = await db
+        .customSelect('SELECT * FROM ipd_admissions WHERE id = $id')
+        .get();
     if (rows.isEmpty) return null;
     return IpdAdmissionModel.fromMap(rows.first.data);
   }
@@ -575,11 +763,17 @@ class HmsDao {
       VALUES ('${_esc(admission.patientName)}', '${_esc(admission.uhid)}', '${_esc(admission.ward)}', '${_esc(admission.bedNo)}', '${_esc(admission.doctorName)}', '${_esc(admission.admitDate)}', ${admission.days}, '${_esc(admission.diagnosis)}', '${_esc(admission.status)}', ${admission.depositPaise}, '${_esc(notesJson)}', '${_esc(medsJson)}', '$now')
     ''');
     // Mark bed occupied
-    await updateBedStatus(admission.bedNo, 'Occupied', patientName: admission.patientName, uhid: admission.uhid);
-    await insertAuditLog('admin', 'ADMIT', 'Admission #${admission.patientName}', 'Admitted ${admission.patientName} to ${admission.ward} Bed ${admission.bedNo}');
+    await updateBedStatus(admission.bedNo, 'Occupied',
+        patientName: admission.patientName, uhid: admission.uhid);
+    await insertAuditLog(
+        'admin',
+        'ADMIT',
+        'Admission #${admission.patientName}',
+        'Admitted ${admission.patientName} to ${admission.ward} Bed ${admission.bedNo}');
   }
 
-  Future<void> updateIpdMedicationStatus(int admissionId, int medIndex, String status, String givenBy) async {
+  Future<void> updateIpdMedicationStatus(
+      int admissionId, int medIndex, String status, String givenBy) async {
     final adm = await getIpdAdmissionById(admissionId);
     if (adm == null) return;
     final meds = List<Map<String, dynamic>>.from(adm.medications);
@@ -590,11 +784,16 @@ class HmsDao {
       await db.customStatement('''
         UPDATE ipd_admissions SET medications_json = '${_esc(medsJson)}' WHERE id = $admissionId
       ''');
-      await insertAuditLog('nurse', 'ADMINISTER', 'Medication #${meds[medIndex]["medicine"]}', 'Administered ${meds[medIndex]["medicine"]} to ${adm.patientName}');
+      await insertAuditLog(
+          'nurse',
+          'ADMINISTER',
+          'Medication #${meds[medIndex]["medicine"]}',
+          'Administered ${meds[medIndex]["medicine"]} to ${adm.patientName}');
     }
   }
 
-  Future<void> addIpdNursingNote(int admissionId, Map<String, dynamic> note) async {
+  Future<void> addIpdNursingNote(
+      int admissionId, Map<String, dynamic> note) async {
     final adm = await getIpdAdmissionById(admissionId);
     if (adm == null) return;
     final notes = List<Map<String, dynamic>>.from(adm.notes);
@@ -603,27 +802,35 @@ class HmsDao {
     await db.customStatement('''
       UPDATE ipd_admissions SET notes_json = '${_esc(notesJson)}' WHERE id = $admissionId
     ''');
-    await insertAuditLog('nurse', 'NOTE', 'Inpatient Note', 'Added nursing note for ${adm.patientName}');
+    await insertAuditLog('nurse', 'NOTE', 'Inpatient Note',
+        'Added nursing note for ${adm.patientName}');
   }
 
   // Lab Orders
   Future<List<LabOrderModel>> getAllLabOrders() async {
-    final rows = await db.customSelect('SELECT * FROM lab_orders ORDER BY id DESC').get();
+    final rows = await db
+        .customSelect('SELECT * FROM lab_orders ORDER BY id DESC')
+        .get();
     return rows.map((r) => LabOrderModel.fromMap(r.data)).toList();
   }
 
   Future<LabOrderModel?> getLabOrderById(String orderNo) async {
-    final rows = await db.customSelect("SELECT * FROM lab_orders WHERE order_no = '${_esc(orderNo)}'").get();
+    final rows = await db
+        .customSelect(
+            "SELECT * FROM lab_orders WHERE order_no = '${_esc(orderNo)}'")
+        .get();
     if (rows.isEmpty) return null;
     return LabOrderModel.fromMap(rows.first.data);
   }
 
-  Future<void> updateLabOrderResults(String orderNo, List<Map<String, dynamic>> parameters, String status) async {
+  Future<void> updateLabOrderResults(String orderNo,
+      List<Map<String, dynamic>> parameters, String status) async {
     final paramsJson = jsonEncode(parameters);
     await db.customStatement('''
       UPDATE lab_orders SET status = '${_esc(status)}', params_json = '${_esc(paramsJson)}' WHERE order_no = '${_esc(orderNo)}'
     ''');
-    await insertAuditLog('lab', 'UPDATE', 'Lab Order #$orderNo', 'Results recorded, status set to $status');
+    await insertAuditLog('lab', 'UPDATE', 'Lab Order #$orderNo',
+        'Results recorded, status set to $status');
   }
 
   Future<void> insertLabOrder(LabOrderModel order) async {
@@ -633,42 +840,55 @@ class HmsDao {
       INSERT INTO lab_orders (order_no, patient_name, uhid, test_name, doctor_name, sample_type, priority, status, ordered_at, params_json, created_at)
       VALUES ('${_esc(order.orderNo)}', '${_esc(order.patientName)}', '${_esc(order.uhid)}', '${_esc(order.testName)}', '${_esc(order.doctorName)}', '${_esc(order.sampleType)}', '${_esc(order.priority)}', '${_esc(order.status)}', '${_esc(order.orderedAt)}', '${_esc(paramsJson)}', '$now')
     ''');
-    await insertAuditLog('lab', 'CREATE', 'Lab Order #${order.orderNo}', 'Ordered investigation ${order.testName} for ${order.patientName}');
+    await insertAuditLog('lab', 'CREATE', 'Lab Order #${order.orderNo}',
+        'Ordered investigation ${order.testName} for ${order.patientName}');
   }
 
   Future<void> deleteLabOrder(String orderNo, String testName) async {
-    await db.customStatement("DELETE FROM lab_orders WHERE order_no = '${_esc(orderNo)}'");
-    await insertAuditLog('lab', 'DELETE', 'Lab Order #$orderNo', 'Cancelled/Deleted lab order for $testName');
+    await db.customStatement(
+        "DELETE FROM lab_orders WHERE order_no = '${_esc(orderNo)}'");
+    await insertAuditLog('lab', 'DELETE', 'Lab Order #$orderNo',
+        'Cancelled/Deleted lab order for $testName');
   }
 
   // Pharmacy
   Future<List<MedicineModel>> getAllMedicines() async {
-    final rows = await db.customSelect('SELECT * FROM medicines ORDER BY name ASC').get();
+    final rows = await db
+        .customSelect('SELECT * FROM medicines ORDER BY name ASC')
+        .get();
     return rows.map((r) => MedicineModel.fromMap(r.data)).toList();
   }
 
   Future<List<MedicineModel>> getLowStockMedicines() async {
-    final rows = await db.customSelect('SELECT * FROM medicines WHERE stock_qty <= reorder_level ORDER BY stock_qty ASC').get();
+    final rows = await db
+        .customSelect(
+            'SELECT * FROM medicines WHERE stock_qty <= reorder_level ORDER BY stock_qty ASC')
+        .get();
     return rows.map((r) => MedicineModel.fromMap(r.data)).toList();
   }
 
   Future<List<MedicineBatchModel>> getNearExpiryBatches() async {
-    final rows = await db.customSelect('SELECT * FROM medicine_batches ORDER BY id ASC').get();
+    final rows = await db
+        .customSelect('SELECT * FROM medicine_batches ORDER BY id ASC')
+        .get();
     return rows.map((r) => MedicineBatchModel.fromMap(r.data)).toList();
   }
 
-  Future<void> dispenseMedicine(int medicineId, int quantity, String patientName) async {
+  Future<void> dispenseMedicine(
+      int medicineId, int quantity, String patientName) async {
     await db.customStatement('''
       UPDATE medicines SET stock_qty = MAX(0, stock_qty - $quantity) WHERE id = $medicineId
     ''');
-    await insertAuditLog('pharmacy', 'DISPENSE', 'Medicine #$medicineId', 'Dispensed $quantity units for patient $patientName');
+    await insertAuditLog('pharmacy', 'DISPENSE', 'Medicine #$medicineId',
+        'Dispensed $quantity units for patient $patientName');
   }
 
   Future<void> restockMedicine(int medicineId, int quantity) async {
     await db.customStatement('''
       UPDATE medicines SET stock_qty = stock_qty + $quantity WHERE id = $medicineId
     ''');
-    await insertAuditLog('pharmacy', 'RESTOCK', 'Medicine #$medicineId', 'Restocked $quantity units');
+    await insertAuditLog('pharmacy', 'RESTOCK', 'Medicine #$medicineId',
+        'Restocked $quantity units');
   }
 
   Future<int> insertMedicine(
@@ -711,10 +931,14 @@ class HmsDao {
       )
     ''');
 
-    final res = await db.customSelect('SELECT last_insert_rowid() as id').getSingle();
+    final res =
+        await db.customSelect('SELECT last_insert_rowid() as id').getSingle();
     final newId = res.data['id'] as int;
 
-    if (batchNo != null && batchNo.trim().isNotEmpty && expiryDate != null && expiryDate.trim().isNotEmpty) {
+    if (batchNo != null &&
+        batchNo.trim().isNotEmpty &&
+        expiryDate != null &&
+        expiryDate.trim().isNotEmpty) {
       final safeCost = costPaise ?? (effectiveMrp * 0.7).round();
       await db.customStatement('''
         INSERT INTO medicine_batches (medicine_id, medicine_name, batch_no, expiry_date, stock_qty, mrp_paise, cost_paise, created_at)
@@ -722,7 +946,8 @@ class HmsDao {
       ''');
     }
 
-    await insertAuditLog('pharmacy', 'CREATE', 'Medicine #${medicine.name}', 'Added new medicine ${medicine.name} to pharmacy inventory (${medicine.stockQty} ${medicine.unit}s)');
+    await insertAuditLog('pharmacy', 'CREATE', 'Medicine #${medicine.name}',
+        'Added new medicine ${medicine.name} to pharmacy inventory (${medicine.stockQty} ${medicine.unit}s)');
     return newId;
   }
 
@@ -745,18 +970,23 @@ class HmsDao {
         updated_at = '$now'
       WHERE id = ${medicine.id}
     ''');
-    await insertAuditLog('pharmacy', 'UPDATE', 'Medicine #${medicine.name}', 'Updated medicine information for ${medicine.name}');
+    await insertAuditLog('pharmacy', 'UPDATE', 'Medicine #${medicine.name}',
+        'Updated medicine information for ${medicine.name}');
   }
 
   Future<void> deleteMedicine(int id, String name) async {
     await db.customStatement('DELETE FROM medicines WHERE id = $id');
-    await db.customStatement('DELETE FROM medicine_batches WHERE medicine_id = $id');
-    await insertAuditLog('pharmacy', 'DELETE', 'Medicine #$name', 'Removed medicine #$id ($name) from inventory');
+    await db.customStatement(
+        'DELETE FROM medicine_batches WHERE medicine_id = $id');
+    await insertAuditLog('pharmacy', 'DELETE', 'Medicine #$name',
+        'Removed medicine #$id ($name) from inventory');
   }
 
   // Pharmacy Batches Management
   Future<List<MedicineBatchModel>> getAllBatches() async {
-    final rows = await db.customSelect('SELECT * FROM medicine_batches ORDER BY id DESC').get();
+    final rows = await db
+        .customSelect('SELECT * FROM medicine_batches ORDER BY id DESC')
+        .get();
     return rows.map((r) => MedicineBatchModel.fromMap(r.data)).toList();
   }
 
@@ -770,7 +1000,8 @@ class HmsDao {
     await db.customStatement('''
       UPDATE medicines SET stock_qty = stock_qty + ${batch.stockQty}, updated_at = '$now' WHERE id = ${batch.medicineId}
     ''');
-    await insertAuditLog('pharmacy', 'BATCH_ADD', 'Batch #${batch.batchNo}', 'Added new batch ${batch.batchNo} for ${batch.medicineName} (${batch.stockQty} units)');
+    await insertAuditLog('pharmacy', 'BATCH_ADD', 'Batch #${batch.batchNo}',
+        'Added new batch ${batch.batchNo} for ${batch.medicineName} (${batch.stockQty} units)');
   }
 
   Future<void> updateBatch(MedicineBatchModel batch) async {
@@ -783,41 +1014,54 @@ class HmsDao {
         cost_paise = ${batch.costPaise}
       WHERE id = ${batch.id}
     ''');
-    await insertAuditLog('pharmacy', 'BATCH_UPDATE', 'Batch #${batch.batchNo}', 'Updated batch details for ${batch.batchNo}');
+    await insertAuditLog('pharmacy', 'BATCH_UPDATE', 'Batch #${batch.batchNo}',
+        'Updated batch details for ${batch.batchNo}');
   }
 
   Future<void> deleteBatch(int id, String batchNo, int medicineId) async {
-    final rows = await db.customSelect('SELECT stock_qty FROM medicine_batches WHERE id = $id').get();
+    final rows = await db
+        .customSelect('SELECT stock_qty FROM medicine_batches WHERE id = $id')
+        .get();
     int qty = 0;
     if (rows.isNotEmpty) {
       qty = (rows.first.data['stock_qty'] as int?) ?? 0;
     }
     await db.customStatement('DELETE FROM medicine_batches WHERE id = $id');
     if (qty > 0 && medicineId > 0) {
-      await db.customStatement('UPDATE medicines SET stock_qty = MAX(0, stock_qty - $qty) WHERE id = $medicineId');
+      await db.customStatement(
+          'UPDATE medicines SET stock_qty = MAX(0, stock_qty - $qty) WHERE id = $medicineId');
     }
-    await insertAuditLog('pharmacy', 'BATCH_DELETE', 'Batch #$batchNo', 'Removed batch $batchNo (deducted $qty units from master stock)');
+    await insertAuditLog('pharmacy', 'BATCH_DELETE', 'Batch #$batchNo',
+        'Removed batch $batchNo (deducted $qty units from master stock)');
   }
 
   // Suppliers & Vendors
   Future<List<SupplierModel>> getAllSuppliers() async {
-    final rows = await db.customSelect('SELECT * FROM suppliers ORDER BY id ASC').get();
+    final rows =
+        await db.customSelect('SELECT * FROM suppliers ORDER BY id ASC').get();
     return rows.map((r) => SupplierModel.fromMap(r.data)).toList();
   }
 
   Future<void> insertSupplier(SupplierModel supplier) async {
     final now = DateTime.now().toIso8601String();
-    final uuid = supplier.uuid.isNotEmpty ? supplier.uuid : 'sup-${DateTime.now().millisecondsSinceEpoch}';
+    final uuid = supplier.uuid.isNotEmpty
+        ? supplier.uuid
+        : 'sup-${DateTime.now().millisecondsSinceEpoch}';
     await db.customStatement('''
       INSERT INTO suppliers (uuid, name, contact_person, phone, email, address, gst_no, created_at, updated_at)
       VALUES ('${_esc(uuid)}', '${_esc(supplier.name)}', '${_esc(supplier.contactPerson)}', '${_esc(supplier.phone)}', '${_esc(supplier.email)}', '${_esc(supplier.address)}', '${_esc(supplier.gstNo)}', '$now', '$now')
     ''');
-    await insertAuditLog('pharmacy', 'SUPPLIER_ADD', 'Supplier #${supplier.name}', 'Added pharmaceutical vendor ${supplier.name}');
+    await insertAuditLog(
+        'pharmacy',
+        'SUPPLIER_ADD',
+        'Supplier #${supplier.name}',
+        'Added pharmaceutical vendor ${supplier.name}');
   }
 
   // Purchases / Stock Inward (GRN)
   Future<List<PurchaseOrderModel>> getAllPurchases() async {
-    final rows = await db.customSelect('SELECT * FROM purchases ORDER BY id DESC').get();
+    final rows =
+        await db.customSelect('SELECT * FROM purchases ORDER BY id DESC').get();
     return rows.map((r) {
       final data = Map<String, dynamic>.from(r.data);
       if (data['items_json'] != null && data['items_json'] is String) {
@@ -845,7 +1089,10 @@ class HmsDao {
       ''');
 
       // 2. Insert or update batch
-      final batchRes = await db.customSelect("SELECT id, stock_qty FROM medicine_batches WHERE medicine_id = ${item.medicineId} AND batch_no = '${_esc(item.batchNo)}'").get();
+      final batchRes = await db
+          .customSelect(
+              "SELECT id, stock_qty FROM medicine_batches WHERE medicine_id = ${item.medicineId} AND batch_no = '${_esc(item.batchNo)}'")
+          .get();
       if (batchRes.isNotEmpty) {
         final batchId = batchRes.first.data['id'] as int;
         await db.customStatement('''
@@ -859,12 +1106,15 @@ class HmsDao {
       }
     }
 
-    await insertAuditLog('pharmacy', 'STOCK_INWARD', 'Inward #${po.invoiceNo}', 'Stock inward recorded from ${po.supplierName} (${po.items.length} lines, ${po.totalFormatted})');
+    await insertAuditLog('pharmacy', 'STOCK_INWARD', 'Inward #${po.invoiceNo}',
+        'Stock inward recorded from ${po.supplierName} (${po.items.length} lines, ${po.totalFormatted})');
   }
 
   // Stock Adjustments (Wastage / Breakage / Physical Count Audit)
   Future<List<StockAdjustmentModel>> getAllStockAdjustments() async {
-    final rows = await db.customSelect('SELECT * FROM stock_adjustments ORDER BY id DESC').get();
+    final rows = await db
+        .customSelect('SELECT * FROM stock_adjustments ORDER BY id DESC')
+        .get();
     return rows.map((r) => StockAdjustmentModel.fromMap(r.data)).toList();
   }
 
@@ -906,17 +1156,25 @@ class HmsDao {
       }
     }
 
-    await insertAuditLog('pharmacy', 'ADJUSTMENT', 'Stock Adjustment #$medicineName', 'Adjusted $adjustmentQty units of $medicineName (Batch: $batchNo). Reason: $reason');
+    await insertAuditLog(
+        'pharmacy',
+        'ADJUSTMENT',
+        'Stock Adjustment #$medicineName',
+        'Adjusted $adjustmentQty units of $medicineName (Batch: $batchNo). Reason: $reason');
   }
 
   // Billing
   Future<List<InvoiceModel>> getAllInvoices() async {
-    final rows = await db.customSelect('SELECT * FROM invoices ORDER BY id DESC').get();
+    final rows =
+        await db.customSelect('SELECT * FROM invoices ORDER BY id DESC').get();
     return rows.map((r) => InvoiceModel.fromMap(r.data)).toList();
   }
 
   Future<InvoiceModel?> getInvoiceById(String invoiceNo) async {
-    final rows = await db.customSelect("SELECT * FROM invoices WHERE invoice_no = '${_esc(invoiceNo)}' OR id = '${_esc(invoiceNo)}'").get();
+    final rows = await db
+        .customSelect(
+            "SELECT * FROM invoices WHERE invoice_no = '${_esc(invoiceNo)}' OR id = '${_esc(invoiceNo)}'")
+        .get();
     if (rows.isEmpty) return null;
     return InvoiceModel.fromMap(rows.first.data);
   }
@@ -928,7 +1186,8 @@ class HmsDao {
     if (bedNo.isNotEmpty) {
       await updateBedStatus(bedNo, 'Cleaning');
     }
-    await insertAuditLog('ipd', 'DISCHARGE', 'Admission #$admissionId', 'Patient discharged from bed $bedNo. Bed marked for cleaning.');
+    await insertAuditLog('ipd', 'DISCHARGE', 'Admission #$admissionId',
+        'Patient discharged from bed $bedNo. Bed marked for cleaning.');
   }
 
   Future<void> updateIpdAdmission(IpdAdmissionModel admission) async {
@@ -950,15 +1209,18 @@ class HmsDao {
         medications_json = '${_esc(medsJson)}'
       WHERE id = ${admission.id}
     ''');
-    await insertAuditLog('ipd', 'UPDATE', 'Admission #${admission.patientName}', 'Updated IPD admission record for ${admission.patientName}');
+    await insertAuditLog('ipd', 'UPDATE', 'Admission #${admission.patientName}',
+        'Updated IPD admission record for ${admission.patientName}');
   }
 
-  Future<void> deleteIpdAdmission(int id, String bedNo, String patientName) async {
+  Future<void> deleteIpdAdmission(
+      int id, String bedNo, String patientName) async {
     await db.customStatement('DELETE FROM ipd_admissions WHERE id = $id');
     if (bedNo.isNotEmpty) {
       await updateBedStatus(bedNo, 'Available');
     }
-    await insertAuditLog('ipd', 'DELETE', 'Admission #$id', 'Cancelled/Deleted admission for $patientName; released bed $bedNo');
+    await insertAuditLog('ipd', 'DELETE', 'Admission #$id',
+        'Cancelled/Deleted admission for $patientName; released bed $bedNo');
   }
 
   Future<void> insertInvoice(InvoiceModel invoice) async {
@@ -968,31 +1230,40 @@ class HmsDao {
       INSERT INTO invoices (invoice_no, patient_name, uhid, bill_type, subtotal_paise, tax_paise, total_paise, paid_paise, due_paise, payment_mode, status, date_time, items_json, created_at)
       VALUES ('${_esc(invoice.invoiceNo)}', '${_esc(invoice.patientName)}', '${_esc(invoice.uhid)}', '${_esc(invoice.billType)}', ${invoice.subtotalPaise}, ${invoice.taxPaise}, ${invoice.totalPaise}, ${invoice.paidPaise}, ${invoice.duePaise}, '${_esc(invoice.paymentMode)}', '${_esc(invoice.status)}', '${_esc(invoice.dateTime)}', '${_esc(itemsJson)}', '$now')
     ''');
-    await insertAuditLog('accounts', 'INVOICE', 'Invoice #${invoice.invoiceNo}', 'Generated invoice ${invoice.invoiceNo} for ${invoice.patientName} total ₹${(invoice.totalPaise / 100).toStringAsFixed(2)}');
+    await insertAuditLog('accounts', 'INVOICE', 'Invoice #${invoice.invoiceNo}',
+        'Generated invoice ${invoice.invoiceNo} for ${invoice.patientName} total ₹${(invoice.totalPaise / 100).toStringAsFixed(2)}');
   }
 
-  Future<void> updateInvoiceStatus(String invoiceNo, String status, int paidPaise) async {
+  Future<void> updateInvoiceStatus(
+      String invoiceNo, String status, int paidPaise) async {
     await db.customStatement('''
       UPDATE invoices SET status = '${_esc(status)}', paid_paise = $paidPaise, due_paise = MAX(0, total_paise - $paidPaise)
       WHERE invoice_no = '${_esc(invoiceNo)}'
     ''');
-    await insertAuditLog('accounts', 'UPDATE', 'Invoice #$invoiceNo', 'Updated payment status to $status (Paid ₹${(paidPaise / 100).toStringAsFixed(2)})');
+    await insertAuditLog('accounts', 'UPDATE', 'Invoice #$invoiceNo',
+        'Updated payment status to $status (Paid ₹${(paidPaise / 100).toStringAsFixed(2)})');
   }
 
   Future<void> deleteInvoice(int id, String invoiceNo) async {
-    await db.customStatement("DELETE FROM invoices WHERE id = $id OR invoice_no = '${_esc(invoiceNo)}'");
-    await insertAuditLog('accounts', 'VOID', 'Invoice #$invoiceNo', 'Voided/Deleted invoice $invoiceNo');
+    await db.customStatement(
+        "DELETE FROM invoices WHERE id = $id OR invoice_no = '${_esc(invoiceNo)}'");
+    await insertAuditLog('accounts', 'VOID', 'Invoice #$invoiceNo',
+        'Voided/Deleted invoice $invoiceNo');
   }
 
   // Audit Logs
   Future<List<AuditLogModel>> getAllAuditLogs() async {
-    final rows = await db.customSelect('SELECT * FROM audit_logs ORDER BY id DESC').get();
+    final rows = await db
+        .customSelect('SELECT * FROM audit_logs ORDER BY id DESC')
+        .get();
     return rows.map((r) => AuditLogModel.fromMap(r.data)).toList();
   }
 
-  Future<void> insertAuditLog(String user, String action, String entity, String details) async {
+  Future<void> insertAuditLog(
+      String user, String action, String entity, String details) async {
     final now = DateTime.now().toIso8601String();
-    final timeStr = 'Today, ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}';
+    final timeStr =
+        'Today, ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}';
     await db.customStatement('''
       INSERT INTO audit_logs (user_name, action, entity, details, timestamp, created_at)
       VALUES ('${_esc(user)}', '${_esc(action)}', '${_esc(entity)}', '${_esc(details)}', '${_esc(timeStr)}', '$now')
@@ -1001,14 +1272,33 @@ class HmsDao {
 
   // Dashboard Aggregates
   Future<Map<String, dynamic>> getDashboardStats() async {
-    final opdVisitsRow = await db.customSelect('SELECT count(*) as count FROM opd_visits').getSingle();
-    final appointmentsRow = await db.customSelect('SELECT count(*) as count FROM appointments').getSingle();
-    final admissionsRow = await db.customSelect("SELECT count(*) as count FROM ipd_admissions WHERE status = 'Admitted'").getSingle();
-    final revenueRow = await db.customSelect("SELECT sum(paid_paise) as sum_paid FROM invoices").getSingle();
-    final availableBedsRow = await db.customSelect("SELECT count(*) as count FROM beds WHERE status = 'Available'").getSingle();
-    final totalBedsRow = await db.customSelect('SELECT count(*) as count FROM beds').getSingle();
-    final pendingLabRow = await db.customSelect("SELECT count(*) as count FROM lab_orders WHERE status != 'Completed'").getSingle();
-    final lowStockRow = await db.customSelect('SELECT count(*) as count FROM medicines WHERE stock_qty <= reorder_level').getSingle();
+    final opdVisitsRow = await db
+        .customSelect('SELECT count(*) as count FROM opd_visits')
+        .getSingle();
+    final appointmentsRow = await db
+        .customSelect('SELECT count(*) as count FROM appointments')
+        .getSingle();
+    final admissionsRow = await db
+        .customSelect(
+            "SELECT count(*) as count FROM ipd_admissions WHERE status = 'Admitted'")
+        .getSingle();
+    final revenueRow = await db
+        .customSelect("SELECT sum(paid_paise) as sum_paid FROM invoices")
+        .getSingle();
+    final availableBedsRow = await db
+        .customSelect(
+            "SELECT count(*) as count FROM beds WHERE status = 'Available'")
+        .getSingle();
+    final totalBedsRow =
+        await db.customSelect('SELECT count(*) as count FROM beds').getSingle();
+    final pendingLabRow = await db
+        .customSelect(
+            "SELECT count(*) as count FROM lab_orders WHERE status != 'Completed'")
+        .getSingle();
+    final lowStockRow = await db
+        .customSelect(
+            'SELECT count(*) as count FROM medicines WHERE stock_qty <= reorder_level')
+        .getSingle();
 
     return {
       'todayOpdVisits': opdVisitsRow.data['count'] as int,
@@ -1024,9 +1314,16 @@ class HmsDao {
 
   // Reports Aggregates
   Future<Map<String, dynamic>> getReportsData() async {
-    final revenueRow = await db.customSelect('SELECT sum(total_paise) as total, sum(due_paise) as due FROM invoices').getSingle();
-    final opdVisitsRow = await db.customSelect('SELECT count(*) as count FROM opd_visits').getSingle();
-    final admissionsRow = await db.customSelect('SELECT count(*) as count FROM ipd_admissions').getSingle();
+    final revenueRow = await db
+        .customSelect(
+            'SELECT sum(total_paise) as total, sum(due_paise) as due FROM invoices')
+        .getSingle();
+    final opdVisitsRow = await db
+        .customSelect('SELECT count(*) as count FROM opd_visits')
+        .getSingle();
+    final admissionsRow = await db
+        .customSelect('SELECT count(*) as count FROM ipd_admissions')
+        .getSingle();
 
     final deptRows = await db.customSelect('''
       SELECT bill_type, count(*) as tx_count, sum(total_paise) as dept_total 
@@ -1034,11 +1331,13 @@ class HmsDao {
       GROUP BY bill_type
     ''').get();
 
-    final deptList = deptRows.map((r) => {
-      'name': r.data['bill_type'] as String,
-      'count': (r.data['tx_count'] as int).toString(),
-      'totalPaise': (r.data['dept_total'] as int?) ?? 0,
-    }).toList();
+    final deptList = deptRows
+        .map((r) => {
+              'name': r.data['bill_type'] as String,
+              'count': (r.data['tx_count'] as int).toString(),
+              'totalPaise': (r.data['dept_total'] as int?) ?? 0,
+            })
+        .toList();
 
     return {
       'totalRevenuePaise': (revenueRow.data['total'] as int?) ?? 0,
@@ -1061,7 +1360,9 @@ class HmsDao {
     await db.customStatement('DELETE FROM purchases');
     await db.customStatement('DELETE FROM patients');
     await db.customStatement('DELETE FROM patient_allergies');
-    await db.customStatement("UPDATE beds SET status = 'Available', patient_name = '', uhid = ''");
-    await insertAuditLog('admin', 'RESET', 'Database', 'All operational and clinical data cleared.');
+    await db.customStatement(
+        "UPDATE beds SET status = 'Available', patient_name = '', uhid = ''");
+    await insertAuditLog('admin', 'RESET', 'Database',
+        'All operational and clinical data cleared.');
   }
 }

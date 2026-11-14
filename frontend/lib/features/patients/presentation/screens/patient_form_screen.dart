@@ -36,7 +36,16 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   bool get _isEditing => widget.patientId != null && widget.patientId! > 0;
 
   final List<String> _genders = ['Male', 'Female', 'Other'];
-  final List<String> _bloodGroups = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+  final List<String> _bloodGroups = [
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'O+',
+    'O-',
+    'AB+',
+    'AB-'
+  ];
 
   @override
   void initState() {
@@ -111,7 +120,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Patient records updated: ${updated.name} (${updated.uhid})'),
+            content: Text(
+                'Patient records updated: ${updated.name} (${updated.uhid})'),
             backgroundColor: Colors.teal.shade700,
           ),
         );
@@ -142,7 +152,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Patient registered successfully: ${created.name} (${created.uhid})'),
+            content: Text(
+                'Patient registered successfully: ${created.name} (${created.uhid})'),
             backgroundColor: Colors.green.shade700,
           ),
         );
@@ -167,7 +178,9 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
 
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: Text(_isEditing ? 'Edit Patient Profile' : 'Patient Registration')),
+        appBar: AppBar(
+            title: Text(
+                _isEditing ? 'Edit Patient Profile' : 'Patient Registration')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -175,16 +188,22 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Patient Profile (${_loadedPatient?.uhid ?? ""})' : 'Patient Registration'),
+        title: Text(_isEditing
+            ? 'Edit Patient Profile (${_loadedPatient?.uhid ?? ""})'
+            : 'Patient Registration'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go(_isEditing ? '/patients/${widget.patientId}' : AppRoutes.patients),
+          onPressed: () => context.go(_isEditing
+              ? '/patients/${widget.patientId}'
+              : AppRoutes.patients),
         ),
         actions: [
           FilledButton.icon(
             onPressed: _isSaving ? null : _save,
             icon: Icon(_isEditing ? Icons.save : Icons.check, size: 18),
-            label: Text(_isSaving ? 'Saving…' : (_isEditing ? 'Update Records' : 'Save Patient')),
+            label: Text(_isSaving
+                ? 'Saving…'
+                : (_isEditing ? 'Update Records' : 'Save Patient')),
           ),
           const Gap(16),
         ],
@@ -219,9 +238,22 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                           hintText: 'e.g. Patient Full Name',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Patient name is required'
-                            : null,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'Patient name is required';
+                          }
+
+                          final name = v.trim();
+
+                          if (!RegExp(
+                            r"^[\p{L}\p{M}]+(?:[ .'-][\p{L}\p{M}]+)*$",
+                            unicode: true,
+                          ).hasMatch(name)) {
+                            return 'Enter a valid name without numbers or symbols';
+                          }
+
+                          return null;
+                        },
                       ),
                       const Gap(16),
 
@@ -230,13 +262,16 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _genders.contains(_gender) ? _gender : _genders.first,
+                              value: _genders.contains(_gender)
+                                  ? _gender
+                                  : _genders.first,
                               decoration: const InputDecoration(
                                 labelText: 'Gender *',
                                 prefixIcon: Icon(Icons.wc_outlined),
                               ),
                               items: _genders
-                                  .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                                  .map((g) => DropdownMenuItem(
+                                      value: g, child: Text(g)))
                                   .toList(),
                               onChanged: (v) {
                                 if (v != null) setState(() => _gender = v);
@@ -252,21 +287,38 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                                 labelText: 'Age (Years) *',
                                 prefixIcon: Icon(Icons.cake_outlined),
                               ),
-                              validator: (v) => (v == null || v.trim().isEmpty)
-                                  ? 'Age is required'
-                                  : null,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Age is required';
+                                }
+
+                                final age = int.tryParse(v.trim());
+
+                                if (age == null) {
+                                  return 'Enter a valid whole number';
+                                }
+
+                                if (age < 0 || age > 120) {
+                                  return 'Age must be between 0 and 120';
+                                }
+
+                                return null;
+                              },
                             ),
                           ),
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _bloodGroups.contains(_bloodGroup) ? _bloodGroup : _bloodGroups.first,
+                              value: _bloodGroups.contains(_bloodGroup)
+                                  ? _bloodGroup
+                                  : _bloodGroups.first,
                               decoration: const InputDecoration(
                                 labelText: 'Blood Group',
                                 prefixIcon: Icon(Icons.bloodtype_outlined),
                               ),
                               items: _bloodGroups
-                                  .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+                                  .map((b) => DropdownMenuItem(
+                                      value: b, child: Text(b)))
                                   .toList(),
                               onChanged: (v) {
                                 if (v != null) setState(() => _bloodGroup = v);
@@ -289,9 +341,18 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                                 hintText: '10-digit mobile number',
                                 prefixIcon: Icon(Icons.phone_outlined),
                               ),
-                              validator: (v) => (v == null || v.trim().isEmpty)
-                                  ? 'Phone number is required'
-                                  : null,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Phone number is required';
+                                }
+
+                                if (!RegExp(r'^[6-9]\d{9}$')
+                                    .hasMatch(v.trim())) {
+                                  return 'Enter a valid 10-digit Indian mobile number';
+                                }
+
+                                return null;
+                              },
                             ),
                           ),
                           const Gap(16),
@@ -302,6 +363,22 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                                 labelText: 'City / District',
                                 prefixIcon: Icon(Icons.location_city_outlined),
                               ),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'City / District is required';
+                                }
+
+                                final city = v.trim();
+
+                                if (!RegExp(
+                                  r"^[\p{L}\p{M}]+(?:[ '\-][\p{L}\p{M}]+)*$",
+                                  unicode: true,
+                                ).hasMatch(city)) {
+                                  return 'Enter a valid city or district name';
+                                }
+
+                                return null;
+                              },
                             ),
                           ),
                         ],
@@ -323,9 +400,10 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
 
                       Text(
                         'Emergency Contact',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                       const Gap(16),
                       Row(
@@ -337,6 +415,22 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                                 labelText: 'Contact Person Name',
                                 prefixIcon: Icon(Icons.contact_phone_outlined),
                               ),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return null;
+                                }
+
+                                final name = v.trim();
+
+                                if (!RegExp(
+                                  r"^[\p{L}\p{M}]+(?:[ .'-][\p{L}\p{M}]+)*$",
+                                  unicode: true,
+                                ).hasMatch(name)) {
+                                  return 'Enter a valid contact name';
+                                }
+
+                                return null;
+                              },
                             ),
                           ),
                           const Gap(16),
@@ -346,8 +440,21 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                               keyboardType: TextInputType.phone,
                               decoration: const InputDecoration(
                                 labelText: 'Contact Phone Number',
+                                hintText: '10-digit mobile number',
                                 prefixIcon: Icon(Icons.phone_in_talk_outlined),
                               ),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Emergency contact number is required';
+                                }
+
+                                if (!RegExp(r'^[6-9]\d{9}$')
+                                    .hasMatch(v.trim())) {
+                                  return 'Enter a valid 10-digit Indian mobile number';
+                                }
+
+                                return null;
+                              },
                             ),
                           ),
                         ],
@@ -358,7 +465,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Priority / VIP Patient Status'),
-                        subtitle: const Text('Highlights record across queue and admissions'),
+                        subtitle: const Text(
+                            'Highlights record across queue and admissions'),
                         value: _isVip,
                         onChanged: (val) => setState(() => _isVip = val),
                       ),
@@ -370,7 +478,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                         maxLines: 2,
                         decoration: const InputDecoration(
                           labelText: 'Known Allergies / Clinical Notes',
-                          hintText: 'e.g. Penicillin allergy, diabetic on insulin',
+                          hintText:
+                              'e.g. Penicillin allergy, diabetic on insulin',
                           prefixIcon: Icon(Icons.medical_information_outlined),
                         ),
                       ),
@@ -381,11 +490,15 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                         height: 48,
                         child: FilledButton.icon(
                           onPressed: _isSaving ? null : _save,
-                          icon: Icon(_isEditing ? Icons.save_rounded : Icons.person_add_rounded),
+                          icon: Icon(_isEditing
+                              ? Icons.save_rounded
+                              : Icons.person_add_rounded),
                           label: Text(
                             _isSaving
                                 ? 'Saving…'
-                                : (_isEditing ? 'Save Changes to Patient Record' : 'Register Patient & Open File'),
+                                : (_isEditing
+                                    ? 'Save Changes to Patient Record'
+                                    : 'Register Patient & Open File'),
                           ),
                         ),
                       ),
@@ -400,4 +513,3 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     );
   }
 }
-
