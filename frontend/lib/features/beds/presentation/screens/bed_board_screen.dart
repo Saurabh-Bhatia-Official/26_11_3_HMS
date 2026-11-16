@@ -44,7 +44,7 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
+                color: statusColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(Icons.hotel, color: statusColor),
@@ -303,7 +303,7 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                   ),
                   const Gap(12),
                   DropdownButtonFormField<String>(
-                    value: const ['General', 'ICU', 'Private AC', 'Semi-Private', 'Emergency', 'Pediatric'].contains(typeController.text)
+                    initialValue: const ['General', 'ICU', 'Private AC', 'Semi-Private', 'Emergency', 'Pediatric'].contains(typeController.text)
                         ? typeController.text
                         : 'General',
                     decoration: const InputDecoration(labelText: 'Bed Type'),
@@ -332,7 +332,7 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                   ),
                   const Gap(12),
                   DropdownButtonFormField<String>(
-                    value: status,
+                    initialValue: status,
                     decoration: const InputDecoration(labelText: 'Initial Status'),
                     items: const [
                       DropdownMenuItem(value: 'Available', child: Text('Available')),
@@ -538,7 +538,7 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                         elevation: 1.5,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: statusColor.withOpacity(0.4), width: 1.5),
+                          side: BorderSide(color: statusColor.withValues(alpha: 0.4), width: 1.5),
                         ),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
@@ -560,7 +560,7 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: statusColor.withOpacity(0.15),
+                                          color: statusColor.withValues(alpha: 0.15),
                                           borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: Text(

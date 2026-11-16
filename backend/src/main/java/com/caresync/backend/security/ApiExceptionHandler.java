@@ -3,16 +3,25 @@ package com.caresync.backend.security;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.validation.BindException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+
+import jakarta.validation.ConstraintViolationException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<AuthDtos.ErrorResponse> validation(MethodArgumentNotValidException exception) {
+    @ExceptionHandler({
+            MethodArgumentNotValidException.class,
+            BindException.class,
+            HandlerMethodValidationException.class,
+            ConstraintViolationException.class
+    })
+    public ResponseEntity<AuthDtos.ErrorResponse> validation(Exception exception) {
         return ResponseEntity.badRequest().body(new AuthDtos.ErrorResponse("Invalid request"));
     }
 

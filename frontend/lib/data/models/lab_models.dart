@@ -2,24 +2,6 @@ import 'dart:convert';
 
 /// Laboratory Order model for investigations, tests and pathology reports.
 class LabOrderModel {
-  final int id;
-  final String orderNo;
-  final String patientName;
-  final String uhid;
-  final String testName;
-  final String doctorName;
-  final String sampleType;
-  final String priority;
-  final String status;
-  final String orderedAt;
-  final List<Map<String, dynamic>> parameters;
-  final int patientId;
-  final int testId;
-  final String sampleCollectedAt;
-  final String resultDate;
-  final String technicianNotes;
-  final String createdAt;
-  final String updatedAt;
 
   const LabOrderModel({
     required this.id,
@@ -41,14 +23,6 @@ class LabOrderModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  bool get isPendingCollection =>
-      status.toLowerCase() == 'pending collection' ||
-      status.toLowerCase() == 'pending';
-  bool get isCollected => status.toLowerCase() == 'collected';
-  bool get isProcessing => status.toLowerCase() == 'processing';
-  bool get isResulted => status.toLowerCase() == 'resulted';
-  bool get isVerified => status.toLowerCase() == 'verified';
 
   factory LabOrderModel.fromMap(Map<String, dynamic> map) {
     List<Map<String, dynamic>> parsedParams = [];
@@ -84,6 +58,35 @@ class LabOrderModel {
     );
   }
 
+  factory LabOrderModel.fromJson(String source) =>
+      LabOrderModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String orderNo;
+  final String patientName;
+  final String uhid;
+  final String testName;
+  final String doctorName;
+  final String sampleType;
+  final String priority;
+  final String status;
+  final String orderedAt;
+  final List<Map<String, dynamic>> parameters;
+  final int patientId;
+  final int testId;
+  final String sampleCollectedAt;
+  final String resultDate;
+  final String technicianNotes;
+  final String createdAt;
+  final String updatedAt;
+
+  bool get isPendingCollection =>
+      status.toLowerCase() == 'pending collection' ||
+      status.toLowerCase() == 'pending';
+  bool get isCollected => status.toLowerCase() == 'collected';
+  bool get isProcessing => status.toLowerCase() == 'processing';
+  bool get isResulted => status.toLowerCase() == 'resulted';
+  bool get isVerified => status.toLowerCase() == 'verified';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'order_no': orderNo,
@@ -106,9 +109,6 @@ class LabOrderModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory LabOrderModel.fromJson(String source) =>
-      LabOrderModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   LabOrderModel copyWith({
     int? id,
@@ -170,16 +170,6 @@ class LabOrderModel {
 
 /// Master Lab Test catalogue item
 class LabTestModel {
-  final int id;
-  final String uuid;
-  final String name;
-  final String category;
-  final String sampleType;
-  final int pricePaise;
-  final int turnaroundHours;
-  final bool isOutsourced;
-  final String createdAt;
-  final String updatedAt;
 
   const LabTestModel({
     required this.id,
@@ -193,9 +183,6 @@ class LabTestModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  String get priceFormatted =>
-      pricePaise > 0 ? '₹${(pricePaise / 100).toStringAsFixed(2)}' : 'Free';
 
   factory LabTestModel.fromMap(Map<String, dynamic> map) {
     return LabTestModel(
@@ -214,6 +201,22 @@ class LabTestModel {
     );
   }
 
+  factory LabTestModel.fromJson(String source) =>
+      LabTestModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final String name;
+  final String category;
+  final String sampleType;
+  final int pricePaise;
+  final int turnaroundHours;
+  final bool isOutsourced;
+  final String createdAt;
+  final String updatedAt;
+
+  String get priceFormatted =>
+      pricePaise > 0 ? '₹${(pricePaise / 100).toStringAsFixed(2)}' : 'Free';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -228,21 +231,10 @@ class LabTestModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory LabTestModel.fromJson(String source) =>
-      LabTestModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Parameter within a Lab Test (e.g. Hemoglobin, RBC)
 class LabTestParameterModel {
-  final int id;
-  final String uuid;
-  final int testId;
-  final String parameterName;
-  final String unit;
-  final double? rangeLow;
-  final double? rangeHigh;
-  final String? referenceText;
 
   const LabTestParameterModel({
     required this.id,
@@ -254,14 +246,6 @@ class LabTestParameterModel {
     this.rangeHigh,
     this.referenceText,
   });
-
-  String get referenceRangeDisplay {
-    if (referenceText != null && referenceText!.isNotEmpty) return referenceText!;
-    if (rangeLow != null && rangeHigh != null) return '$rangeLow - $rangeHigh $unit';
-    if (rangeLow != null) return '> $rangeLow $unit';
-    if (rangeHigh != null) return '< $rangeHigh $unit';
-    return '-';
-  }
 
   factory LabTestParameterModel.fromMap(Map<String, dynamic> map) {
     return LabTestParameterModel(
@@ -276,6 +260,25 @@ class LabTestParameterModel {
     );
   }
 
+  factory LabTestParameterModel.fromJson(String source) =>
+      LabTestParameterModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int testId;
+  final String parameterName;
+  final String unit;
+  final double? rangeLow;
+  final double? rangeHigh;
+  final String? referenceText;
+
+  String get referenceRangeDisplay {
+    if (referenceText != null && referenceText!.isNotEmpty) return referenceText!;
+    if (rangeLow != null && rangeHigh != null) return '$rangeLow - $rangeHigh $unit';
+    if (rangeLow != null) return '> $rangeLow $unit';
+    if (rangeHigh != null) return '< $rangeHigh $unit';
+    return '-';
+  }
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -288,19 +291,10 @@ class LabTestParameterModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory LabTestParameterModel.fromJson(String source) =>
-      LabTestParameterModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Package of multiple lab tests (e.g. Executive Health Check)
 class LabPackageModel {
-  final int id;
-  final String uuid;
-  final String name;
-  final String description;
-  final int pricePaise;
-  final List<int> testIds;
 
   const LabPackageModel({
     required this.id,
@@ -310,9 +304,6 @@ class LabPackageModel {
     this.pricePaise = 0,
     this.testIds = const [],
   });
-
-  String get priceFormatted =>
-      pricePaise > 0 ? '₹${(pricePaise / 100).toStringAsFixed(2)}' : 'Free';
 
   factory LabPackageModel.fromMap(Map<String, dynamic> map) {
     List<int> tests = [];
@@ -334,6 +325,18 @@ class LabPackageModel {
     );
   }
 
+  factory LabPackageModel.fromJson(String source) =>
+      LabPackageModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final String name;
+  final String description;
+  final int pricePaise;
+  final List<int> testIds;
+
+  String get priceFormatted =>
+      pricePaise > 0 ? '₹${(pricePaise / 100).toStringAsFixed(2)}' : 'Free';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -344,19 +347,10 @@ class LabPackageModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory LabPackageModel.fromJson(String source) =>
-      LabPackageModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Specific test result value for a single parameter
-class LabParameterResultModel {
-  final String parameterName;
-  final String value;
-  final String unit;
-  final String referenceRange;
-  final bool isAbnormal;
-  final String flag; // Normal, High, Low, Critical
+class LabParameterResultModel { // Normal, High, Low, Critical
 
   const LabParameterResultModel({
     required this.parameterName,
@@ -378,6 +372,15 @@ class LabParameterResultModel {
     );
   }
 
+  factory LabParameterResultModel.fromJson(String source) =>
+      LabParameterResultModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final String parameterName;
+  final String value;
+  final String unit;
+  final String referenceRange;
+  final bool isAbnormal;
+  final String flag;
+
   Map<String, dynamic> toMap() => {
         'name': parameterName,
         'value': value,
@@ -388,8 +391,5 @@ class LabParameterResultModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory LabParameterResultModel.fromJson(String source) =>
-      LabParameterResultModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 

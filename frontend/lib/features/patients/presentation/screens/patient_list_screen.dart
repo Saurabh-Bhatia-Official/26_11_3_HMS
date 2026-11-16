@@ -5,8 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/empty_state.dart';
-import 'package:hospital_management/features/patients/patients_provider.dart';
 import 'package:hospital_management/domain/entities/patient.dart';
+import 'package:hospital_management/features/patients/patients_provider.dart';
 
 class PatientListScreen extends ConsumerStatefulWidget {
   const PatientListScreen({super.key});

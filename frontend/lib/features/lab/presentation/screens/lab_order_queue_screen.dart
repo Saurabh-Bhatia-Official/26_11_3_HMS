@@ -122,7 +122,7 @@ class _LabOrderQueueScreenState extends ConsumerState<LabOrderQueueScreen> {
                     const Gap(8),
                     if (uniquePatients.isNotEmpty)
                       DropdownButtonFormField<String>(
-                        value: uniquePatients.containsKey(selectedUhid) ? selectedUhid : uniquePatients.keys.first,
+                        initialValue: uniquePatients.containsKey(selectedUhid) ? selectedUhid : uniquePatients.keys.first,
                         isExpanded: true,
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.person_outline),
@@ -161,7 +161,7 @@ class _LabOrderQueueScreenState extends ConsumerState<LabOrderQueueScreen> {
                     const Text('Referring / Consulting Doctor', style: TextStyle(fontWeight: FontWeight.bold)),
                     const Gap(8),
                     DropdownButtonFormField<String>(
-                      value: doctorList.contains(selectedDoctor) ? selectedDoctor : doctorList.first,
+                      initialValue: doctorList.contains(selectedDoctor) ? selectedDoctor : doctorList.first,
                       isExpanded: true,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.medical_services_outlined),
@@ -184,7 +184,7 @@ class _LabOrderQueueScreenState extends ConsumerState<LabOrderQueueScreen> {
                     const Text('Investigation / Test Catalog', style: TextStyle(fontWeight: FontWeight.bold)),
                     const Gap(8),
                     DropdownButtonFormField<String>(
-                      value: _testTemplates.containsKey(selectedTest) ? selectedTest : _testTemplates.keys.first,
+                      initialValue: _testTemplates.containsKey(selectedTest) ? selectedTest : _testTemplates.keys.first,
                       isExpanded: true,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.biotech),
@@ -222,7 +222,7 @@ class _LabOrderQueueScreenState extends ConsumerState<LabOrderQueueScreen> {
                               const Text('Sample Type', style: TextStyle(fontWeight: FontWeight.bold)),
                               const Gap(8),
                               DropdownButtonFormField<String>(
-                                value: const [
+                                initialValue: const [
                                   'Blood / Serum',
                                   'Whole Blood (EDTA)',
                                   'Urine (Midstream)',
@@ -257,7 +257,7 @@ class _LabOrderQueueScreenState extends ConsumerState<LabOrderQueueScreen> {
                               const Text('Priority Level', style: TextStyle(fontWeight: FontWeight.bold)),
                               const Gap(8),
                               DropdownButtonFormField<String>(
-                                value: const ['Routine', 'Urgent', 'STAT (Emergency)'].contains(priority)
+                                initialValue: const ['Routine', 'Urgent', 'STAT (Emergency)'].contains(priority)
                                     ? priority
                                     : 'Routine',
                                 decoration: const InputDecoration(

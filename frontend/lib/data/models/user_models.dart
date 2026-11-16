@@ -2,19 +2,6 @@ import 'dart:convert';
 
 /// System User account model for authentication, roles and authorization.
 class UserModel {
-  final int id;
-  final String uuid;
-  final String username;
-  final String fullName;
-  final String role;
-  final String email;
-  final String phone;
-  final String status;
-  final String? lastLoginAt;
-  final String? avatarPath;
-  final bool isDeleted;
-  final String createdAt;
-  final String updatedAt;
 
   const UserModel({
     required this.id,
@@ -31,8 +18,6 @@ class UserModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  bool get isActive => status.toLowerCase() == 'active' && !isDeleted;
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
@@ -54,6 +39,24 @@ class UserModel {
     );
   }
 
+  factory UserModel.fromJson(String source) =>
+      UserModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final String username;
+  final String fullName;
+  final String role;
+  final String email;
+  final String phone;
+  final String status;
+  final String? lastLoginAt;
+  final String? avatarPath;
+  final bool isDeleted;
+  final String createdAt;
+  final String updatedAt;
+
+  bool get isActive => status.toLowerCase() == 'active' && !isDeleted;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -71,9 +74,6 @@ class UserModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory UserModel.fromJson(String source) =>
-      UserModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   UserModel copyWith({
     int? id,
@@ -125,10 +125,6 @@ class UserModel {
 
 /// Role-based access control rule definition
 class RolePermissionModel {
-  final String role;
-  final String module;
-  final String action;
-  final bool isAllowed;
 
   const RolePermissionModel({
     required this.role,
@@ -148,6 +144,13 @@ class RolePermissionModel {
     );
   }
 
+  factory RolePermissionModel.fromJson(String source) =>
+      RolePermissionModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final String role;
+  final String module;
+  final String action;
+  final bool isAllowed;
+
   Map<String, dynamic> toMap() => {
         'role': role,
         'module': module,
@@ -156,8 +159,5 @@ class RolePermissionModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory RolePermissionModel.fromJson(String source) =>
-      RolePermissionModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 

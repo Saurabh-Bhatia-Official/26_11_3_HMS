@@ -2,34 +2,6 @@ import 'dart:convert';
 
 /// OPD Visit record model including patient vitals, diagnosis and clinical notes.
 class OpdVisitModel {
-  final int id;
-  final String tokenNo;
-  final String patientName;
-  final String uhid;
-  final String doctorName;
-  final String department;
-  final String ageGender;
-  final String status;
-  final String complaint;
-  final String history;
-  final String examination;
-  final String diagnosis;
-  final String advice;
-  final String bpSys;
-  final String bpDia;
-  final String pulse;
-  final String temp;
-  final String spo2;
-  final String weight;
-  final String height;
-  final List<Map<String, String>> medications;
-  final int patientId;
-  final int doctorId;
-  final String visitDate;
-  final String icdCode;
-  final String followUpDate;
-  final String createdAt;
-  final String updatedAt;
 
   const OpdVisitModel({
     required this.id,
@@ -61,23 +33,6 @@ class OpdVisitModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  String get vitalsSummary =>
-      'BP $bpSys/$bpDia, Pulse $pulse, Temp $temp°F, SpO2 $spo2%';
-
-  double? get bmi {
-    final w = double.tryParse(weight);
-    final h = double.tryParse(height);
-    if (w != null && h != null && h > 0) {
-      final hm = h / 100.0;
-      return w / (hm * hm);
-    }
-    return null;
-  }
-
-  bool get isWaitingForVitals => status == 'Waiting for Vitals';
-  bool get isInConsultation => status == 'In Consultation';
-  bool get isCompleted => status == 'Completed';
 
   factory OpdVisitModel.fromMap(Map<String, dynamic> map) {
     List<Map<String, String>> parsedMeds = [];
@@ -123,6 +78,54 @@ class OpdVisitModel {
     );
   }
 
+  factory OpdVisitModel.fromJson(String source) =>
+      OpdVisitModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String tokenNo;
+  final String patientName;
+  final String uhid;
+  final String doctorName;
+  final String department;
+  final String ageGender;
+  final String status;
+  final String complaint;
+  final String history;
+  final String examination;
+  final String diagnosis;
+  final String advice;
+  final String bpSys;
+  final String bpDia;
+  final String pulse;
+  final String temp;
+  final String spo2;
+  final String weight;
+  final String height;
+  final List<Map<String, String>> medications;
+  final int patientId;
+  final int doctorId;
+  final String visitDate;
+  final String icdCode;
+  final String followUpDate;
+  final String createdAt;
+  final String updatedAt;
+
+  String get vitalsSummary =>
+      'BP $bpSys/$bpDia, Pulse $pulse, Temp $temp°F, SpO2 $spo2%';
+
+  double? get bmi {
+    final w = double.tryParse(weight);
+    final h = double.tryParse(height);
+    if (w != null && h != null && h > 0) {
+      final hm = h / 100.0;
+      return w / (hm * hm);
+    }
+    return null;
+  }
+
+  bool get isWaitingForVitals => status == 'Waiting for Vitals';
+  bool get isInConsultation => status == 'In Consultation';
+  bool get isCompleted => status == 'Completed';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'token_no': tokenNo,
@@ -155,9 +158,6 @@ class OpdVisitModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory OpdVisitModel.fromJson(String source) =>
-      OpdVisitModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   OpdVisitModel copyWith({
     int? id,
@@ -240,20 +240,6 @@ class OpdVisitModel {
 
 /// Clinical Vitals record model
 class VitalsModel {
-  final int id;
-  final String uuid;
-  final int visitId;
-  final int? bpSystolic;
-  final int? bpDiastolic;
-  final int? pulse;
-  final double? temperatureC;
-  final int? spo2;
-  final double? weightKg;
-  final double? heightCm;
-  final double? bmi;
-  final String recordedAt;
-  final String recordedBy;
-  final String notes;
 
   const VitalsModel({
     required this.id,
@@ -271,15 +257,6 @@ class VitalsModel {
     this.recordedBy = '',
     this.notes = '',
   });
-
-  String get bpDisplay => (bpSystolic != null && bpDiastolic != null)
-      ? '$bpSystolic/$bpDiastolic mmHg'
-      : '-';
-
-  String get pulseDisplay => pulse != null ? '$pulse bpm' : '-';
-  String get tempDisplay => temperatureC != null ? '${temperatureC!.toStringAsFixed(1)} °C' : '-';
-  String get spo2Display => spo2 != null ? '$spo2%' : '-';
-  String get bmiDisplay => bmi != null ? bmi!.toStringAsFixed(1) : '-';
 
   factory VitalsModel.fromMap(Map<String, dynamic> map) {
     return VitalsModel(
@@ -300,6 +277,32 @@ class VitalsModel {
     );
   }
 
+  factory VitalsModel.fromJson(String source) =>
+      VitalsModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int visitId;
+  final int? bpSystolic;
+  final int? bpDiastolic;
+  final int? pulse;
+  final double? temperatureC;
+  final int? spo2;
+  final double? weightKg;
+  final double? heightCm;
+  final double? bmi;
+  final String recordedAt;
+  final String recordedBy;
+  final String notes;
+
+  String get bpDisplay => (bpSystolic != null && bpDiastolic != null)
+      ? '$bpSystolic/$bpDiastolic mmHg'
+      : '-';
+
+  String get pulseDisplay => pulse != null ? '$pulse bpm' : '-';
+  String get tempDisplay => temperatureC != null ? '${temperatureC!.toStringAsFixed(1)} °C' : '-';
+  String get spo2Display => spo2 != null ? '$spo2%' : '-';
+  String get bmiDisplay => bmi != null ? bmi!.toStringAsFixed(1) : '-';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -318,27 +321,10 @@ class VitalsModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory VitalsModel.fromJson(String source) =>
-      VitalsModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Clinical Consultation model
 class ConsultationModel {
-  final int id;
-  final String uuid;
-  final int visitId;
-  final String chiefComplaint;
-  final String history;
-  final String examination;
-  final String diagnosisText;
-  final String? icdCode;
-  final String? icdDescription;
-  final String advice;
-  final String? followUpDate;
-  final int version;
-  final String createdAt;
-  final String updatedAt;
 
   const ConsultationModel({
     required this.id,
@@ -376,6 +362,23 @@ class ConsultationModel {
     );
   }
 
+  factory ConsultationModel.fromJson(String source) =>
+      ConsultationModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int visitId;
+  final String chiefComplaint;
+  final String history;
+  final String examination;
+  final String diagnosisText;
+  final String? icdCode;
+  final String? icdDescription;
+  final String advice;
+  final String? followUpDate;
+  final int version;
+  final String createdAt;
+  final String updatedAt;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -394,8 +397,5 @@ class ConsultationModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory ConsultationModel.fromJson(String source) =>
-      ConsultationModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 

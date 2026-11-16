@@ -5,9 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
-import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/domain/entities/patient.dart';
-import 'package:hospital_management/features/patients/patients_provider.dart';
 
 class PatientProfileScreen extends ConsumerWidget {
   const PatientProfileScreen({super.key, required this.patientId});

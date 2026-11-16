@@ -181,7 +181,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
 
                       // Doctor Selection
                       DropdownButtonFormField<String>(
-                        value: doctors.contains(_selectedDoctor) ? _selectedDoctor : doctors.first,
+                        initialValue: doctors.contains(_selectedDoctor) ? _selectedDoctor : doctors.first,
                         decoration: const InputDecoration(
                           labelText: 'Consulting Doctor *',
                           prefixIcon: Icon(Icons.medical_services_outlined),
@@ -231,7 +231,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: const [
+                              initialValue: const [
                                 'Scheduled Consultation',
                                 'Walk-in Token',
                                 'Follow-up Visit',

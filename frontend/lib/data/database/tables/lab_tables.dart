@@ -3,9 +3,9 @@
 
 import 'package:drift/drift.dart';
 
-import 'patients_tables.dart';
-import 'staff_tables.dart';
-import 'visits_tables.dart';
+import 'package:hospital_management/data/database/tables/patients_tables.dart';
+import 'package:hospital_management/data/database/tables/staff_tables.dart';
+import 'package:hospital_management/data/database/tables/visits_tables.dart';
 
 // ---------------------------------------------------------------------------
 // LabTests

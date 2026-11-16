@@ -78,7 +78,7 @@ void main() {
     test('8. Regular user accounts can be registered and authenticate successfully', () async {
       const username = 'testdoctor';
       const plainPassword = 'CustomSecurePassword!2026';
-      final salt = 'salt_${username}_reg';
+      const salt = 'salt_${username}_reg';
       final hash = hashPassword(plainPassword, salt);
 
       await db.createRegularUser(

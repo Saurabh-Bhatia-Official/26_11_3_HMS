@@ -4,6 +4,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.caresync.backend.hospital.entity.HospitalStatus;
+import com.caresync.backend.hospital.repository.HospitalRepository;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -27,6 +29,7 @@ public class AuthService {
     private static final String ACCOUNT_DEACTIVATED = "ACCOUNT_DEACTIVATED";
 
     private final AuthAccountRepository accounts;
+    private final HospitalRepository hospitals;
     private final RefreshTokenRepository refreshTokens;
     private final SecurityAuditEventRepository auditEvents;
     private final PasswordEncoder passwordEncoder;
@@ -34,10 +37,11 @@ public class AuthService {
     private final String timingHash;
     private final SecureRandom random = new SecureRandom();
 
-    public AuthService(AuthAccountRepository accounts, RefreshTokenRepository refreshTokens,
+    public AuthService(AuthAccountRepository accounts, HospitalRepository hospitals, RefreshTokenRepository refreshTokens,
                        SecurityAuditEventRepository auditEvents, PasswordEncoder passwordEncoder,
                        AccessTokenService accessTokens) {
         this.accounts = accounts;
+        this.hospitals = hospitals;
         this.refreshTokens = refreshTokens;
         this.auditEvents = auditEvents;
         this.passwordEncoder = passwordEncoder;
@@ -47,25 +51,54 @@ public class AuthService {
 
     @Transactional
     public Optional<AuthDtos.TokenResponse> login(AuthDtos.LoginRequest request) {
-        String username = request.username().trim().toLowerCase();
+        return authenticateLogin(request.username(), request.password(), null, false);
+    }
+
+    @Transactional
+    public Optional<AuthDtos.TokenResponse> hospitalLogin(AuthDtos.HospitalLoginRequest request) {
+        return authenticateLogin(request.username(), request.password(), Long.parseLong(request.hospitalId()), true);
+    }
+
+    private Optional<AuthDtos.TokenResponse> authenticateLogin(String rawUsername, String rawPassword,
+                                                                Long selectedHospitalId, boolean requireHospitalMatch) {
+        String username = rawUsername.trim().toLowerCase();
         AuthAccount account = accounts.findByUsernameForUpdate(username).orElse(null);
         Instant now = Instant.now();
         if (account == null) {
-            passwordEncoder.matches(request.password(), timingHash);
+            passwordEncoder.matches(rawPassword, timingHash);
             audit(LOGIN_FAILED, null, now);
             return Optional.empty();
         }
         account.resetExpiredLockout(now);
         if (!account.isActive() || !account.hasValidHospitalScope() || !SecurityRole.supports(account.getRole())
                 || (account.getLockedUntil() != null && account.getLockedUntil().isAfter(now))) {
-            passwordEncoder.matches(request.password(), timingHash);
+            passwordEncoder.matches(rawPassword, timingHash);
             audit(LOGIN_FAILED, account.getId(), now);
             return Optional.empty();
         }
-        if (!passwordEncoder.matches(request.password(), account.getPasswordHash())) {
+        if (!passwordEncoder.matches(rawPassword, account.getPasswordHash())) {
             account.recordFailure(now);
             audit(LOGIN_FAILED, account.getId(), now);
             if (account.getFailedLoginAttempts() == 5) audit(ACCOUNT_LOCKED, account.getId(), now);
+            return Optional.empty();
+        }
+        if ("SUPER_ADMIN".equals(account.getRole())) {
+            if (requireHospitalMatch || account.getHospitalId() != null) {
+                audit(LOGIN_FAILED, account.getId(), now);
+                return Optional.empty();
+            }
+        } else if (!requireHospitalMatch) {
+            // Hospital-scoped accounts must use the explicit 12-digit Hospital ID login contract.
+            audit(LOGIN_FAILED, account.getId(), now);
+            return Optional.empty();
+        } else if (account.getHospitalId() == null
+                || !java.util.Objects.equals(account.getHospitalId(), selectedHospitalId)) {
+            account.recordFailure(now);
+            audit(LOGIN_FAILED, account.getId(), now);
+            if (account.getFailedLoginAttempts() == 5) audit(ACCOUNT_LOCKED, account.getId(), now);
+            return Optional.empty();
+        } else if (hospitals.findByHospitalIdAndStatus(account.getHospitalId(), HospitalStatus.APPROVED).isEmpty()) {
+            audit(LOGIN_FAILED, account.getId(), now);
             return Optional.empty();
         }
         account.recordSuccess();
@@ -96,10 +129,19 @@ public class AuthService {
         }
         if (!old.getExpiresAt().isAfter(now) || !account.isActive() || !account.hasValidHospitalScope()
                 || !SecurityRole.supports(account.getRole())) {
+            old.revoke();
+            revokeFamily(old.getFamilyId());
             audit(REFRESH_FAILED, account.getId(), now);
             return Optional.empty();
         }
         if (!java.util.Objects.equals(account.getHospitalId(), old.getHospitalId())) {
+            old.revoke();
+            revokeFamily(old.getFamilyId());
+            audit(REFRESH_FAILED, account.getId(), now);
+            return Optional.empty();
+        }
+        if (account.getHospitalId() != null
+                && hospitals.findByHospitalIdAndStatus(account.getHospitalId(), HospitalStatus.APPROVED).isEmpty()) {
             old.revoke();
             revokeFamily(old.getFamilyId());
             audit(REFRESH_FAILED, account.getId(), now);
@@ -122,6 +164,7 @@ public class AuthService {
         accounts.findByIdForUpdate(accountId);
         refreshTokens.findByTokenHashForUpdate(tokenHash).ifPresent(token -> {
             token.revoke();
+            revokeFamily(token.getFamilyId());
             audit(LOGOUT, token.getAccount().getId(), Instant.now());
         });
     }
@@ -139,6 +182,14 @@ public class AuthService {
         Long claimHospital = hospitalValue instanceof Number number ? number.longValue() : null;
         if (!java.util.Objects.equals(account.getHospitalId(), claimHospital)) return Optional.empty();
         if (!account.getRole().equals(jwt.getClaimAsString("role"))) return Optional.empty();
+        String sessionId = jwt.getClaimAsString("sid");
+        if (sessionId != null && !refreshTokens.existsByFamilyIdAndRevokedFalseAndExpiresAtAfter(sessionId, Instant.now())) {
+            return Optional.empty();
+        }
+        if (account.getHospitalId() != null
+                && hospitals.findByHospitalIdAndStatus(account.getHospitalId(), HospitalStatus.APPROVED).isEmpty()) {
+            return Optional.empty();
+        }
         return Optional.of(new BearerTokenFilter.AuthPrincipal(account.getId(), account.getUsername(), account.getFullName(),
                 account.getRole(), account.getHospitalId()));
     }
@@ -163,7 +214,7 @@ public class AuthService {
         random.nextBytes(bytes);
         String refresh = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         refreshTokens.save(new RefreshToken(account, hash(refresh), Instant.now().plusSeconds(REFRESH_LIFETIME_SECONDS), hospitalId, familyId));
-        return new AuthDtos.TokenResponse(accessTokens.issue(account, hospitalId), refresh, "Bearer", AccessTokenService.LIFETIME_SECONDS,
+        return new AuthDtos.TokenResponse(accessTokens.issue(account, hospitalId, familyId), refresh, "Bearer", AccessTokenService.LIFETIME_SECONDS,
                 new AuthDtos.UserResponse(account.getId(), account.getUsername(), account.getFullName(), account.getRole(), hospitalId));
     }
 

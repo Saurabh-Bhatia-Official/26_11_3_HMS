@@ -90,7 +90,7 @@ void main() {
       expect(initialHospitals.first.code, equals('CS-CENTRAL'));
 
       // 2. Add second hospital branch
-      final secondHospital = HospitalModel(
+      const secondHospital = HospitalModel(
         id: 0,
         uuid: '00000000-0000-0000-0000-000000000002',
         name: 'CareSync City Branch',

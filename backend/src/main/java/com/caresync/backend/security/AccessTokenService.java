@@ -51,6 +51,7 @@ public class AccessTokenService {
             Object subject = jwt.getClaims().get("sub");
             Object name = jwt.getClaims().get("name");
             Object role = jwt.getClaims().get("role");
+            Object sessionId = jwt.getClaims().get("sid");
             boolean valid = jwt.getAudience().contains(AUDIENCE)
                     && subject instanceof String subjectValue && !subjectValue.isBlank()
                     && name instanceof String nameValue && !nameValue.isBlank()
@@ -58,6 +59,7 @@ public class AccessTokenService {
                     && isInteger(userId) && ((Number) userId).longValue() > 0
                     && isInteger(version) && ((Number) version).longValue() >= 0
                     && (hospital == null || isInteger(hospital) && ((Number) hospital).longValue() > 0)
+                    && (sessionId == null || sessionId instanceof String id && isUuid(id))
                     && issued != null && expires != null && expires.isAfter(issued)
                     && Duration.between(issued, expires).compareTo(Duration.ofSeconds(LIFETIME_SECONDS)) <= 0
                     && !issued.isAfter(Instant.now().plusSeconds(30));
@@ -75,6 +77,10 @@ public class AccessTokenService {
     }
 
     public String issue(AuthAccount account, Long effectiveHospitalId) {
+        return issue(account, effectiveHospitalId, null);
+    }
+
+    public String issue(AuthAccount account, Long effectiveHospitalId, String sessionId) {
         Instant now = Instant.now();
         var claimsBuilder = org.springframework.security.oauth2.jwt.JwtClaimsSet.builder()
                 .issuer(ISSUER)
@@ -86,6 +92,7 @@ public class AccessTokenService {
                 .claim("name", account.getFullName())
                 .claim("role", account.getRole())
                 .claim("ver", account.getTokenVersion());
+        if (sessionId != null) claimsBuilder.claim("sid", sessionId);
         if (effectiveHospitalId != null) claimsBuilder.claim("hospitalId", effectiveHospitalId);
         var claims = claimsBuilder.build();
         return encoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).type("JWT").build(), claims))
@@ -108,5 +115,13 @@ public class AccessTokenService {
             catch (ArithmeticException ignored) { return false; }
         }
         return false;
+    }
+
+    private static boolean isUuid(String value) {
+        try {
+            return java.util.UUID.fromString(value).toString().equalsIgnoreCase(value);
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 }

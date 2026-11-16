@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
-import 'package:hospital_management/core/widgets/kpi_card.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
+import 'package:hospital_management/core/widgets/kpi_card.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});

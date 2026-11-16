@@ -230,7 +230,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _genders.contains(_gender) ? _gender : _genders.first,
+                              initialValue: _genders.contains(_gender) ? _gender : _genders.first,
                               decoration: const InputDecoration(
                                 labelText: 'Gender *',
                                 prefixIcon: Icon(Icons.wc_outlined),
@@ -260,7 +260,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _bloodGroups.contains(_bloodGroup) ? _bloodGroup : _bloodGroups.first,
+                              initialValue: _bloodGroups.contains(_bloodGroup) ? _bloodGroup : _bloodGroups.first,
                               decoration: const InputDecoration(
                                 labelText: 'Blood Group',
                                 prefixIcon: Icon(Icons.bloodtype_outlined),

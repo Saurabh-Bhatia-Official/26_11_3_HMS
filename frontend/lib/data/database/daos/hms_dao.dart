@@ -7,9 +7,9 @@ import 'package:hospital_management/data/models/hms_models.dart';
 /// Uses direct SQLite operations via Drift to provide persistent storage
 /// across desktop sessions without hardcoded mock data.
 class HmsDao {
-  final AppDatabase db;
 
   HmsDao(this.db);
+  final AppDatabase db;
 
   String _esc(String? s) {
     if (s == null) return '';
@@ -1004,7 +1004,7 @@ class HmsDao {
     final opdVisitsRow = await db.customSelect('SELECT count(*) as count FROM opd_visits').getSingle();
     final appointmentsRow = await db.customSelect('SELECT count(*) as count FROM appointments').getSingle();
     final admissionsRow = await db.customSelect("SELECT count(*) as count FROM ipd_admissions WHERE status = 'Admitted'").getSingle();
-    final revenueRow = await db.customSelect("SELECT sum(paid_paise) as sum_paid FROM invoices").getSingle();
+    final revenueRow = await db.customSelect('SELECT sum(paid_paise) as sum_paid FROM invoices').getSingle();
     final availableBedsRow = await db.customSelect("SELECT count(*) as count FROM beds WHERE status = 'Available'").getSingle();
     final totalBedsRow = await db.customSelect('SELECT count(*) as count FROM beds').getSingle();
     final pendingLabRow = await db.customSelect("SELECT count(*) as count FROM lab_orders WHERE status != 'Completed'").getSingle();

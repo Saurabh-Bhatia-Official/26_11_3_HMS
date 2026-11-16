@@ -1,5 +1,7 @@
 package com.caresync.backend.security;
 
+import com.caresync.backend.hospital.entity.Hospital;
+import com.caresync.backend.hospital.repository.HospitalRepository;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,9 +39,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 })
 @AutoConfigureMockMvc
 class AuthControllerTests {
+    private static final long TEST_HOSPITAL_ID = 123_456_789_042L;
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
     @Autowired AuthAccountRepository accounts;
+    @Autowired HospitalRepository hospitals;
     @Autowired RefreshTokenRepository refreshTokens;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired SecurityAuditEventRepository auditEvents;
@@ -53,8 +57,13 @@ class AuthControllerTests {
         refreshTokens.deleteAll();
         auditEvents.deleteAll();
         accounts.deleteAll();
+        hospitals.deleteAll();
+        Hospital activeHospital = new Hospital(java.util.UUID.randomUUID(), "Auth Test Hospital", "AUTH-TEST",
+                "Clinic", null, null, null, null, Instant.now());
+        activeHospital.approve(TEST_HOSPITAL_ID);
+        hospitals.saveAndFlush(activeHospital);
         accounts.save(new AuthAccount("doctor1", passwordEncoder.encode("CorrectHorseBattery9!"),
-                "Test Doctor", "DOCTOR", 42L));
+                "Test Doctor", "DOCTOR", TEST_HOSPITAL_ID));
     }
 
     @Test
@@ -69,6 +78,19 @@ class AuthControllerTests {
     void badPasswordIsGenericAndAccountLocksAfterFiveFailures() throws Exception {
         for (int i = 0; i < 5; i++) loginStatus("doctor1", "wrong-password", 401);
         loginStatus("doctor1", "CorrectHorseBattery9!", 401);
+    }
+
+    @Test
+    void hospitalAccountsRequireExplicitHospitalSelectionWhileCentralAdminUsesLegacyLogin() throws Exception {
+        loginStatus("doctor1", "CorrectHorseBattery9!", 401);
+        accounts.save(new AuthAccount("platform-admin", passwordEncoder.encode("CentralPassword9!"),
+                "Platform Admin", "SUPER_ADMIN", null));
+        loginStatus("platform-admin", "CentralPassword9!", 200);
+        mvc.perform(post("/api/auth/hospital-login").contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(java.util.Map.of(
+                                "username", "platform-admin", "password", "CentralPassword9!",
+                                "hospitalId", Long.toString(TEST_HOSPITAL_ID)))))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -307,7 +329,7 @@ class AuthControllerTests {
     void expiredRefreshIsDeniedAndCleanupRemovesOnlyExpiredRows() throws Exception {
         AuthAccount account = accounts.findByUsername("doctor1").orElseThrow();
         String token = "expired-test-refresh-token";
-        refreshTokens.save(new RefreshToken(account, sha256(token), Instant.now().minusSeconds(1), 42L, "test-family"));
+        refreshTokens.save(new RefreshToken(account, sha256(token), Instant.now().minusSeconds(1), TEST_HOSPITAL_ID, "test-family"));
         mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(java.util.Map.of("refreshToken", token))))
                 .andExpect(status().isUnauthorized());
@@ -315,14 +337,20 @@ class AuthControllerTests {
     }
 
     private JsonNode login(String username, String password) throws Exception {
-        return mapper.readTree(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(java.util.Map.of("username", username, "password", password))))
+        return mapper.readTree(mvc.perform(post("/api/auth/hospital-login").contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(java.util.Map.of("username", username, "password", password,
+                                "hospitalId", Long.toString(TEST_HOSPITAL_ID)))))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
     }
 
     private void loginStatus(String username, String password, int status) throws Exception {
-        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(java.util.Map.of("username", username, "password", password))))
+        String path = accounts.findByUsername(username).map(account -> account.getRole().equals("SUPER_ADMIN"))
+                .orElse(false) ? "/api/auth/login" : "/api/auth/hospital-login";
+        java.util.Map<String, String> body = new java.util.HashMap<>();
+        body.put("username", username);
+        body.put("password", password);
+        if (!path.equals("/api/auth/login")) body.put("hospitalId", Long.toString(TEST_HOSPITAL_ID));
+        mvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(body)))
                 .andExpect(status().is(status));
     }
 
@@ -346,7 +374,7 @@ class AuthControllerTests {
     private String jwt(String issuer, String audience, Instant issuedAt, Instant expiresAt) {
         var claims = JwtClaimsSet.builder().issuer(issuer).audience(List.of(audience)).subject("doctor1")
                 .issuedAt(issuedAt).expiresAt(expiresAt).claim("uid", accounts.findByUsername("doctor1").orElseThrow().getId())
-                .claim("name", "Test Doctor").claim("role", "DOCTOR").claim("hospitalId", 42L).claim("ver", 0L).build();
+                .claim("name", "Test Doctor").claim("role", "DOCTOR").claim("hospitalId", TEST_HOSPITAL_ID).claim("ver", 0L).build();
         return jwtEncoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).type("JWT").build(), claims))
                 .getTokenValue();
     }
@@ -354,7 +382,7 @@ class AuthControllerTests {
     private String jwtMissingRequiredClaim() {
         var claims = JwtClaimsSet.builder().issuer("caresync").audience(List.of("caresync-api"))
                 .subject("doctor1").issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(300))
-                .claim("name", "Test Doctor").claim("role", "DOCTOR").claim("hospitalId", 42L).claim("ver", 0L).build();
+                .claim("name", "Test Doctor").claim("role", "DOCTOR").claim("hospitalId", TEST_HOSPITAL_ID).claim("ver", 0L).build();
         return jwtEncoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).type("JWT").build(), claims))
                 .getTokenValue();
     }
@@ -363,7 +391,7 @@ class AuthControllerTests {
         var claims = JwtClaimsSet.builder().issuer("caresync").audience(List.of("caresync-api"))
                 .subject("doctor1").issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(300))
                 .claim("uid", "not-an-integer").claim("name", "Test Doctor").claim("role", "DOCTOR")
-                .claim("hospitalId", 42L).claim("ver", 0L).build();
+                .claim("hospitalId", TEST_HOSPITAL_ID).claim("ver", 0L).build();
         return jwtEncoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).type("JWT").build(), claims))
                 .getTokenValue();
     }
@@ -373,7 +401,7 @@ class AuthControllerTests {
                 .subject("doctor1").issueTime(java.util.Date.from(Instant.now()))
                 .expirationTime(java.util.Date.from(Instant.now().plusSeconds(300)))
                 .claim("uid", accounts.findByUsername("doctor1").orElseThrow().getId())
-                .claim("name", "Test Doctor").claim("role", "DOCTOR").claim("hospitalId", 42L).claim("ver", 0L).build();
+                .claim("name", "Test Doctor").claim("role", "DOCTOR").claim("hospitalId", TEST_HOSPITAL_ID).claim("ver", 0L).build();
         var signed = new com.nimbusds.jwt.SignedJWT(
                 new com.nimbusds.jose.JWSHeader(com.nimbusds.jose.JWSAlgorithm.HS384), claims);
         signed.sign(new com.nimbusds.jose.crypto.MACSigner(

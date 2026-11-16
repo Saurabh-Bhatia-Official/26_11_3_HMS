@@ -5,7 +5,7 @@ import 'package:hospital_management/domain/entities/patient.dart';
 void main() {
   group('HMS Models Completeness & Serialization Tests', () {
     test('1. StaffModel & DepartmentModel & DoctorModel serialization', () {
-      final staff = StaffModel(
+      const staff = StaffModel(
         id: 1,
         uuid: 'staff-uuid-1',
         name: 'Dr. Jane Doe',
@@ -33,7 +33,7 @@ void main() {
       expect(copy.feePaise, equals(90000));
       expect(copy.name, equals(staff.name));
 
-      final dept = DepartmentModel(
+      const dept = DepartmentModel(
         id: 1,
         uuid: 'dept-1',
         name: 'Cardiology',
@@ -41,7 +41,7 @@ void main() {
       );
       expect(DepartmentModel.fromJson(dept.toJson()).name, equals('Cardiology'));
 
-      final doc = DoctorModel(
+      const doc = DoctorModel(
         id: 1,
         uuid: 'doc-1',
         staffId: 1,
@@ -53,7 +53,7 @@ void main() {
     });
 
     test('2. BedModel, WardModel, RoomModel, BedTransferModel serialization', () {
-      final bed = BedModel(
+      const bed = BedModel(
         id: 1,
         bedNo: 'ICU-01',
         ward: 'ICU',
@@ -75,7 +75,7 @@ void main() {
       final cleared = bed.copyWith(clearPatient: true);
       expect(cleared.patientName, isNull);
 
-      final ward = WardModel(
+      const ward = WardModel(
         id: 1,
         uuid: 'w-1',
         name: 'General Male Ward',
@@ -85,7 +85,7 @@ void main() {
       expect(ward.availableBeds, equals(5));
       expect(ward.occupancyRate, equals(75.0));
 
-      final transfer = BedTransferModel(
+      const transfer = BedTransferModel(
         id: 1,
         uuid: 'bt-1',
         admissionId: 10,
@@ -99,7 +99,7 @@ void main() {
     });
 
     test('3. AppointmentModel, AppointmentSlotModel, QueueTokenModel serialization', () {
-      final apt = AppointmentModel(
+      const apt = AppointmentModel(
         id: 1,
         tokenNo: '05',
         patientName: 'Sunita Devi',
@@ -119,7 +119,7 @@ void main() {
       expect(fromJson.patientName, equals('Sunita Devi'));
       expect(fromJson.tokenNo, equals('05'));
 
-      final token = QueueTokenModel(
+      const token = QueueTokenModel(
         tokenNo: '09',
         patientName: 'Vikram Patel',
         uhid: 'UHID-000003',
@@ -132,7 +132,7 @@ void main() {
     });
 
     test('4. OpdVisitModel, VitalsModel, ConsultationModel serialization', () {
-      final opd = OpdVisitModel(
+      const opd = OpdVisitModel(
         id: 1,
         tokenNo: '01',
         patientName: 'Ramesh Kumar',
@@ -167,7 +167,7 @@ void main() {
       expect(fromJson.diagnosis, contains('Angina'));
       expect(fromJson.medications.length, equals(1));
 
-      final vitals = VitalsModel(
+      const vitals = VitalsModel(
         id: 1,
         uuid: 'vit-1',
         visitId: 1,
@@ -183,7 +183,7 @@ void main() {
     });
 
     test('5. IpdAdmissionModel, NursingNoteModel, MedicationAdministrationModel serialization', () {
-      final ipd = IpdAdmissionModel(
+      const ipd = IpdAdmissionModel(
         id: 1,
         patientName: 'Sunita Devi',
         uhid: 'UHID-000002',
@@ -211,7 +211,7 @@ void main() {
       expect(fromJson.patientName, equals('Sunita Devi'));
       expect(fromJson.notes.length, equals(1));
 
-      final emar = MedicationAdministrationModel(
+      const emar = MedicationAdministrationModel(
         id: 1,
         uuid: 'emar-1',
         admissionId: 1,
@@ -228,7 +228,7 @@ void main() {
     });
 
     test('6. LabOrderModel, LabTestModel, LabParameterResultModel serialization', () {
-      final labOrder = LabOrderModel(
+      const labOrder = LabOrderModel(
         id: 1,
         orderNo: 'LAB-2026-0001',
         patientName: 'Ramesh Kumar',
@@ -250,7 +250,7 @@ void main() {
       expect(fromJson.orderNo, equals('LAB-2026-0001'));
       expect(fromJson.parameters.first['name'], equals('Hemoglobin'));
 
-      final labTest = LabTestModel(
+      const labTest = LabTestModel(
         id: 1,
         uuid: 'test-1',
         name: 'Lipid Profile',
@@ -260,7 +260,7 @@ void main() {
     });
 
     test('7. MedicineModel, MedicineBatchModel, SupplierModel, PurchaseOrderModel serialization', () {
-      final med = MedicineModel(
+      const med = MedicineModel(
         id: 1,
         name: 'Paracetamol',
         genericName: 'Acetaminophen',
@@ -279,7 +279,7 @@ void main() {
       expect(fromJson.name, equals('Paracetamol'));
       expect(fromJson.strength, equals('650mg'));
 
-      final batch = MedicineBatchModel(
+      const batch = MedicineBatchModel(
         id: 1,
         medicineId: 1,
         medicineName: 'Paracetamol 650mg',
@@ -295,7 +295,7 @@ void main() {
     });
 
     test('8. InvoiceModel, InvoiceItemModel, PaymentModel, ServiceModel serialization', () {
-      final inv = InvoiceModel(
+      const inv = InvoiceModel(
         id: 1,
         invoiceNo: 'INV-2026-001',
         patientName: 'Ramesh Kumar',
@@ -323,7 +323,7 @@ void main() {
       expect(fromJson.invoiceNo, equals('INV-2026-001'));
       expect(fromJson.items.length, equals(1));
 
-      final payment = PaymentModel(
+      const payment = PaymentModel(
         id: 1,
         uuid: 'pay-1',
         invoiceId: 1,
@@ -337,7 +337,7 @@ void main() {
     });
 
     test('9. PrescriptionModel & PrescriptionItemModel serialization', () {
-      final rx = PrescriptionModel(
+      const rx = PrescriptionModel(
         id: 1,
         uuid: 'rx-1',
         visitId: 1,

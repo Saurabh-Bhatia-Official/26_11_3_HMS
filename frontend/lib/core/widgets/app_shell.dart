@@ -13,11 +13,6 @@ import 'package:hospital_management/data/models/hms_models.dart';
 import 'package:hospital_management/features/patients/patients_provider.dart';
 
 class NavDestination {
-  final String label;
-  final IconData icon;
-  final IconData selectedIcon;
-  final String route;
-  final String module;
 
   const NavDestination({
     required this.label,
@@ -26,6 +21,11 @@ class NavDestination {
     required this.route,
     required this.module,
   });
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final String route;
+  final String module;
 }
 
 const List<NavDestination> kNavDestinations = [
@@ -283,7 +283,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ),
                 const Gap(10),
                 DropdownButtonFormField<String>(
-                  value: const [
+                  initialValue: const [
                     'Multispeciality Hospital',
                     'Trauma & Emergency Center',
                     'General Hospital',
@@ -457,9 +457,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: colorScheme.secondaryContainer.withOpacity(0.7),
+                        color: colorScheme.secondaryContainer.withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: colorScheme.secondary.withOpacity(0.3)),
+                        border: Border.all(color: colorScheme.secondary.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -798,9 +798,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                   ),
                 ),
                 const PopupMenuDivider(),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'lock',
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(Icons.lock_clock_outlined, size: 18),
                       Gap(10),

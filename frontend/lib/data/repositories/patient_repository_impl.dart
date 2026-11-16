@@ -1,10 +1,9 @@
 import 'package:drift/drift.dart';
-import 'package:uuid/uuid.dart';
-
 import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/domain/entities/patient.dart';
 import 'package:hospital_management/domain/entities/patient_allergy.dart';
 import 'package:hospital_management/domain/repositories/patient_repository.dart';
+import 'package:uuid/uuid.dart';
 
 /// Drift-backed implementation of [PatientRepository].
 class PatientRepositoryImpl implements PatientRepository {

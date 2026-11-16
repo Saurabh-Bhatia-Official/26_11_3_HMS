@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:hospital_management/data/database/app_database.dart';
-import 'package:hospital_management/data/database/tables/patients_table.dart';
 import 'package:hospital_management/data/database/tables/patient_allergies_table.dart';
+import 'package:hospital_management/data/database/tables/patients_table.dart';
 
 part 'patients_dao.g.dart';
 

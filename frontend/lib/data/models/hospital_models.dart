@@ -2,17 +2,6 @@ import 'dart:convert';
 
 /// Typed representation of a hospital branch / entity managed in CareSync.
 class HospitalModel {
-  final int id;
-  final String uuid;
-  final String name;
-  final String code;
-  final String type;
-  final String address;
-  final String phone;
-  final String email;
-  final String taxId;
-  final String status;
-  final String createdAt;
 
   const HospitalModel({
     this.id = 0,
@@ -27,6 +16,36 @@ class HospitalModel {
     this.status = 'Active',
     this.createdAt = '',
   });
+
+  factory HospitalModel.fromMap(Map<String, dynamic> map) {
+    return HospitalModel(
+      id: map['id'] as int? ?? 0,
+      uuid: map['uuid'] as String? ?? '',
+      name: map['name'] as String? ?? '',
+      code: map['code'] as String? ?? '',
+      type: map['type'] as String? ?? 'Multispeciality Hospital',
+      address: map['address'] as String? ?? '',
+      phone: map['phone'] as String? ?? '',
+      email: map['email'] as String? ?? '',
+      taxId: map['tax_id'] as String? ?? '',
+      status: map['status'] as String? ?? 'Active',
+      createdAt: map['created_at'] as String? ?? '',
+    );
+  }
+
+  factory HospitalModel.fromJson(String source) =>
+      HospitalModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final String name;
+  final String code;
+  final String type;
+  final String address;
+  final String phone;
+  final String email;
+  final String taxId;
+  final String status;
+  final String createdAt;
 
   HospitalModel copyWith({
     int? id,
@@ -56,22 +75,6 @@ class HospitalModel {
     );
   }
 
-  factory HospitalModel.fromMap(Map<String, dynamic> map) {
-    return HospitalModel(
-      id: map['id'] as int? ?? 0,
-      uuid: map['uuid'] as String? ?? '',
-      name: map['name'] as String? ?? '',
-      code: map['code'] as String? ?? '',
-      type: map['type'] as String? ?? 'Multispeciality Hospital',
-      address: map['address'] as String? ?? '',
-      phone: map['phone'] as String? ?? '',
-      email: map['email'] as String? ?? '',
-      taxId: map['tax_id'] as String? ?? '',
-      status: map['status'] as String? ?? 'Active',
-      createdAt: map['created_at'] as String? ?? '',
-    );
-  }
-
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -89,8 +92,5 @@ class HospitalModel {
   }
 
   String toJson() => jsonEncode(toMap());
-
-  factory HospitalModel.fromJson(String source) =>
-      HospitalModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 

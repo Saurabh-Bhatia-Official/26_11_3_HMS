@@ -24,6 +24,17 @@ public class AuthController {
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new AuthDtos.ErrorResponse("Invalid username or password")));
     }
 
+    /** Additive hospital-scoped login; the existing /login request/response contract is unchanged. */
+    @PostMapping("/hospital-login")
+    public ResponseEntity<?> hospitalLogin(@RequestBody(required = false) AuthDtos.HospitalLoginRequest request) {
+        if (request == null || !request.isValid()) {
+            return ResponseEntity.badRequest().body(new AuthDtos.ErrorResponse("Invalid request"));
+        }
+        return authService.hospitalLogin(request).<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new AuthDtos.ErrorResponse("Invalid username or password")));
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(@RequestBody(required = false) AuthDtos.RefreshRequest request) {
         if (request == null || !request.isValid()) {

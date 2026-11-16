@@ -267,7 +267,7 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _roles.contains(_role) ? _role : _roles.first,
+                              initialValue: _roles.contains(_role) ? _role : _roles.first,
                               decoration: const InputDecoration(
                                 labelText: 'Hospital Role *',
                                 prefixIcon: Icon(Icons.badge_outlined),
@@ -281,7 +281,7 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _departments.contains(_department) ? _department : _departments.first,
+                              initialValue: _departments.contains(_department) ? _department : _departments.first,
                               decoration: const InputDecoration(
                                 labelText: 'Primary Department *',
                                 prefixIcon: Icon(Icons.apartment_outlined),
@@ -352,7 +352,7 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _statuses.contains(_status) ? _status : _statuses.first,
+                              initialValue: _statuses.contains(_status) ? _status : _statuses.first,
                               decoration: const InputDecoration(
                                 labelText: 'Employment Status *',
                                 prefixIcon: Icon(Icons.toggle_on_outlined),

@@ -66,3 +66,26 @@ frontend/.pub/
 frontend/build/
 frontend/coverage/
 
+
+
+
+# JVM crash and replay logs
+hs_err_pid*.log
+replay_pid*.log
+
+# Local machine configuration
+frontend/android/local.properties
+
+# Flutter generated ephemeral files
+frontend/ios/Flutter/Generated.xcconfig
+frontend/ios/Flutter/flutter_export_environment.sh
+frontend/**/ephemeral/
+
+# Temporary generated source list
+backend/sources.txt
+
+# Temporary/unidentified file
+erstrupt26_11_3_HMS
+
+# Local IDE settings (exclude if not needed)
+.vscode/

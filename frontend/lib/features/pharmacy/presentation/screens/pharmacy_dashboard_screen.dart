@@ -23,7 +23,7 @@ class _PharmacyDashboardScreenState extends ConsumerState<PharmacyDashboardScree
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedCategoryFilter = 'All';
-  String _stockStatusFilter = 'All'; // 'All', 'In Stock', 'Low Stock', 'Out of Stock'
+  final String _stockStatusFilter = 'All'; // 'All', 'In Stock', 'Low Stock', 'Out of Stock'
 
   // Batch search and filter
   final _batchSearchController = TextEditingController();
@@ -244,7 +244,7 @@ class _PharmacyDashboardScreenState extends ConsumerState<PharmacyDashboardScree
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: categories.contains(category) ? category : categories.first,
+                            initialValue: categories.contains(category) ? category : categories.first,
                             isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Therapeutic Category *',
@@ -259,7 +259,7 @@ class _PharmacyDashboardScreenState extends ConsumerState<PharmacyDashboardScree
                         const Gap(12),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: forms.contains(form) ? form : forms.first,
+                            initialValue: forms.contains(form) ? form : forms.first,
                             isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Dosage Form *',
@@ -289,7 +289,7 @@ class _PharmacyDashboardScreenState extends ConsumerState<PharmacyDashboardScree
                         const Gap(12),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: units.contains(unit) ? unit : units.first,
+                            initialValue: units.contains(unit) ? unit : units.first,
                             isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Packaging Unit *',
@@ -571,7 +571,7 @@ class _PharmacyDashboardScreenState extends ConsumerState<PharmacyDashboardScree
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<int>(
-                      value: selectedMedId,
+                      initialValue: selectedMedId,
                       isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Select Medicine *',
@@ -753,7 +753,7 @@ class _PharmacyDashboardScreenState extends ConsumerState<PharmacyDashboardScree
                         Expanded(
                           flex: 3,
                           child: DropdownButtonFormField<String>(
-                            value: suppliers.any((s) => s.name == selectedSupplier) ? selectedSupplier : (suppliers.isNotEmpty ? suppliers.first.name : selectedSupplier),
+                            initialValue: suppliers.any((s) => s.name == selectedSupplier) ? selectedSupplier : (suppliers.isNotEmpty ? suppliers.first.name : selectedSupplier),
                             isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Distributor / Supplier *',
@@ -788,7 +788,7 @@ class _PharmacyDashboardScreenState extends ConsumerState<PharmacyDashboardScree
                     const Text('Received Medicine & Batch Details', style: TextStyle(fontWeight: FontWeight.bold)),
                     const Gap(8),
                     DropdownButtonFormField<int>(
-                      value: selectedMedId,
+                      initialValue: selectedMedId,
                       isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Select Received Medicine *',
@@ -965,7 +965,7 @@ class _PharmacyDashboardScreenState extends ConsumerState<PharmacyDashboardScree
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<int>(
-                      value: selectedMedId,
+                      initialValue: selectedMedId,
                       isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Select Medicine *', prefixIcon: Icon(Icons.medication)),
                       items: medicines.map((m) => DropdownMenuItem(value: m.id, child: Text('${m.name} • Stock: ${m.stockQty} ${m.unit}s'))).toList(),
@@ -975,7 +975,7 @@ class _PharmacyDashboardScreenState extends ConsumerState<PharmacyDashboardScree
                     ),
                     const Gap(12),
                     DropdownButtonFormField<String>(
-                      value: reasons.contains(reason) ? reason : reasons.first,
+                      initialValue: reasons.contains(reason) ? reason : reasons.first,
                       isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Adjustment Reason *', prefixIcon: Icon(Icons.report_problem_outlined)),
                       items: reasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),

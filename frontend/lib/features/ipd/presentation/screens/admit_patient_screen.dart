@@ -182,7 +182,7 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: wards.contains(_ward) ? _ward : wards.first,
+                              initialValue: wards.contains(_ward) ? _ward : wards.first,
                               decoration: const InputDecoration(
                                 labelText: 'Ward *',
                                 prefixIcon: Icon(Icons.apartment),
@@ -200,7 +200,7 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: filteredBeds.any((b) => b.bedNo == _bed) ? _bed : (filteredBeds.isNotEmpty ? filteredBeds.first.bedNo : null),
+                              initialValue: filteredBeds.any((b) => b.bedNo == _bed) ? _bed : (filteredBeds.isNotEmpty ? filteredBeds.first.bedNo : null),
                               decoration: const InputDecoration(
                                 labelText: 'Available Bed *',
                                 prefixIcon: Icon(Icons.hotel),
@@ -219,7 +219,7 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                       const Gap(16),
 
                       DropdownButtonFormField<String>(
-                        value: doctors.contains(_doctor) ? _doctor : (doctors.isNotEmpty ? doctors.first : null),
+                        initialValue: doctors.contains(_doctor) ? _doctor : (doctors.isNotEmpty ? doctors.first : null),
                         decoration: const InputDecoration(
                           labelText: 'Admitting / Attending Doctor *',
                           prefixIcon: Icon(Icons.person_pin),
@@ -268,7 +268,7 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: const ['Cash', 'UPI / QR', 'Card (POS)', 'Bank Transfer (NEFT)'].contains(_paymentMode)
+                              initialValue: const ['Cash', 'UPI / QR', 'Card (POS)', 'Bank Transfer (NEFT)'].contains(_paymentMode)
                                   ? _paymentMode
                                   : 'Cash',
                               decoration: const InputDecoration(

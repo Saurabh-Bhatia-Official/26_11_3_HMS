@@ -13,6 +13,16 @@ public final class AuthDtos {
         }
         @Override public String toString() { return "LoginRequest[credentials=<redacted>]"; }
     }
+    public record HospitalLoginRequest(@NotBlank @Size(max = 64) String username,
+                                       @NotBlank @Size(max = 256) String password,
+                                       @NotBlank @jakarta.validation.constraints.Pattern(regexp = "[0-9]{12}") String hospitalId) {
+        public boolean isValid() {
+            return username != null && !username.isBlank() && username.length() <= 64
+                    && password != null && !password.isBlank() && password.length() <= 256
+                    && hospitalId != null && hospitalId.matches("[0-9]{12}");
+        }
+        @Override public String toString() { return "HospitalLoginRequest[credentials=<redacted>, hospitalId=<redacted>]"; }
+    }
     public record RefreshRequest(@NotBlank @Size(max = 128) String refreshToken) {
         public boolean isValid() { return refreshToken != null && !refreshToken.isBlank() && refreshToken.length() <= 128; }
         @Override public String toString() { return "RefreshRequest[refreshToken=<redacted>]"; }

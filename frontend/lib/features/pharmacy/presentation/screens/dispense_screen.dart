@@ -10,15 +10,6 @@ import 'package:hospital_management/data/models/hms_models.dart';
 import 'package:hospital_management/features/patients/patients_provider.dart';
 
 class PosCartItem {
-  final int medicineId;
-  final String medicineName;
-  final String genericName;
-  final String unit;
-  final String form;
-  final String batchNo;
-  final double unitPrice;
-  int quantity;
-  final int maxStock;
 
   PosCartItem({
     required this.medicineId,
@@ -31,6 +22,15 @@ class PosCartItem {
     required this.quantity,
     required this.maxStock,
   });
+  final int medicineId;
+  final String medicineName;
+  final String genericName;
+  final String unit;
+  final String form;
+  final String batchNo;
+  final double unitPrice;
+  int quantity;
+  final int maxStock;
 
   double get lineTotal => unitPrice * quantity;
 }
@@ -259,11 +259,11 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 28),
-            const Gap(10),
-            const Text('Sale Complete - Receipt Printed'),
+            Icon(Icons.check_circle, color: Colors.green, size: 28),
+            Gap(10),
+            Text('Sale Complete - Receipt Printed'),
           ],
         ),
         content: ConstrainedBox(
@@ -472,7 +472,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                                 }
                                 final hasMatch = uniquePatients.containsKey(_customerUhid);
                                 return DropdownButtonFormField<String>(
-                                  value: hasMatch ? _customerUhid : null,
+                                  initialValue: hasMatch ? _customerUhid : null,
                                   decoration: const InputDecoration(
                                     labelText: 'Select Registered Patient *',
                                     prefixIcon: Icon(Icons.person_search),
@@ -540,7 +540,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                               final hasSelected = medicines.any((m) => m.id == _selectedMedicineId);
                               return DropdownButtonFormField<int>(
                                 isExpanded: true,
-                                value: hasSelected ? _selectedMedicineId : null,
+                                initialValue: hasSelected ? _selectedMedicineId : null,
                                 decoration: const InputDecoration(
                                   labelText: 'Select Medicine from Stock *',
                                   hintText: 'Choose medicine from pharmacy inventory',
@@ -791,7 +791,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                         const Gap(24),
 
                         DropdownButtonFormField<String>(
-                          value: _paymentModes.contains(_paymentMode) ? _paymentMode : _paymentModes.first,
+                          initialValue: _paymentModes.contains(_paymentMode) ? _paymentMode : _paymentModes.first,
                           decoration: const InputDecoration(
                             labelText: 'Select Payment Method *',
                             prefixIcon: Icon(Icons.payment),

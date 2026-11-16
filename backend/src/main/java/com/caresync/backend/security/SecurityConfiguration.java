@@ -79,7 +79,11 @@ public class SecurityConfiguration {
                 .httpBasic(basic -> basic.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/actuator/health").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/hospital-login", "/api/auth/refresh", "/api/auth/logout",
+                                "/api/v1/hospital-registrations", "/api/v1/hospitals", "/api/v1/hospitals/lookup/**",
+                                "/actuator/health").permitAll()
+                        .requestMatchers("/api/v1/hospitals/me").hasAnyAuthority(SecurityRole.allAuthorities())
+                        .requestMatchers("/api/v1/platform/hospital-registrations/**").hasAuthority(SecurityRole.SUPER_ADMIN.authority())
                         .requestMatchers("/api/auth/me").hasAnyAuthority(SecurityRole.allAuthorities())
                         .anyRequest().denyAll())
                 .headers(headers -> headers

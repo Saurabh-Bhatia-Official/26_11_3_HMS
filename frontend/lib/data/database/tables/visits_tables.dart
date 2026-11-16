@@ -3,9 +3,9 @@
 
 import 'package:drift/drift.dart';
 
-import 'appointments_tables.dart';
-import 'patients_tables.dart';
-import 'staff_tables.dart';
+import 'package:hospital_management/data/database/tables/appointments_tables.dart';
+import 'package:hospital_management/data/database/tables/patients_tables.dart';
+import 'package:hospital_management/data/database/tables/staff_tables.dart';
 
 // ---------------------------------------------------------------------------
 // Visits

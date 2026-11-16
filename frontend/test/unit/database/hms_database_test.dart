@@ -620,7 +620,7 @@ void main() {
       expect(medsAfter.firstWhere((m) => m.id == paracetamol.id).stockQty, equals(initialPcmQty - 5));
 
       // Create POS Invoice
-      final posInvoice = InvoiceModel(
+      const posInvoice = InvoiceModel(
         id: 0,
         invoiceNo: 'PINV-TEST-001',
         patientName: 'Walk-in POS Customer',

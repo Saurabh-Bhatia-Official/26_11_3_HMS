@@ -539,7 +539,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: _normalizedCurrency,
+                          initialValue: _normalizedCurrency,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'System Currency',
@@ -560,7 +560,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                       const Gap(16),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: _normalizedUhidPrefix,
+                          initialValue: _normalizedUhidPrefix,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Patient UHID Prefix',
@@ -667,7 +667,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                   ),
                   const Gap(16),
                   DropdownButtonFormField<String>(
-                    value: _normalizedSlotDuration,
+                    initialValue: _normalizedSlotDuration,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Standard Appointment Slot Duration',
@@ -740,7 +740,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                       const Gap(16),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: _normalizedBedTariffCutoff,
+                          initialValue: _normalizedBedTariffCutoff,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Daily Bed Charge Cutoff Time',
@@ -860,7 +860,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: _normalizedTaxRate,
+                          initialValue: _normalizedTaxRate,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Healthcare GST / Tax Rate',
@@ -965,7 +965,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _normalizedAutoLockTime,
+                              initialValue: _normalizedAutoLockTime,
                               isExpanded: true,
                               decoration: const InputDecoration(
                                 labelText: 'Inactivity Screen Lock Timeout',
@@ -1348,7 +1348,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                   children: [
                     if (hospitals.isNotEmpty) ...[
                       DropdownButtonFormField<HospitalModel>(
-                        value: selectedHospital,
+                        initialValue: selectedHospital,
                         isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'Assigned Hospital Branch *',
@@ -1396,7 +1396,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                         const Gap(12),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: selectedRole,
+                            initialValue: selectedRole,
                             isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'System Role *',
