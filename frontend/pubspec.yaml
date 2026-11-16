@@ -27,6 +27,7 @@ dependencies:
 
   # ── Secure storage & Encryption ──────────────────────────────────────────────
   flutter_secure_storage: ^9.2.2
+  http: ^1.2.2
   encrypt: ^5.0.3
   crypto: ^3.0.3
 

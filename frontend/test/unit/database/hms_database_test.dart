@@ -16,6 +16,29 @@ void main() {
   });
 
   group('HMS SQLite Database & Persistence Tests', () {
+    test('Sync outbox deduplicates operations and completes them durably',
+        () async {
+      const operationId = 'patient-sync-001';
+      await db.hmsDao.enqueueSyncOperation(
+        operationId: operationId,
+        resourceType: 'patient',
+        method: 'POST',
+        path: '/api/patients',
+        payloadJson: '{"uuid":"patient-sync-001"}',
+      );
+      await db.hmsDao.enqueueSyncOperation(
+        operationId: operationId,
+        resourceType: 'patient',
+        method: 'POST',
+        path: '/api/patients',
+        payloadJson: '{"uuid":"patient-sync-001"}',
+      );
+
+      expect(await db.hmsDao.getPendingSyncOperations(), hasLength(1));
+      await db.hmsDao.markSyncOperationComplete(operationId);
+      expect(await db.hmsDao.getPendingSyncOperations(), isEmpty);
+    });
+
     test('1. Database seeds tables on startup without hardcoded UI fallback',
         () async {
       final staff = await db.hmsDao.getAllStaff();
@@ -138,6 +161,40 @@ void main() {
       await db.hmsDao.insertAppointment(newApt);
       final list = await db.hmsDao.getAllAppointments();
       expect(list.any((a) => a.patientName == 'Jane Smith'), isTrue);
+    });
+
+    test('Appointment duplicates are rejected and OPD starts only once',
+        () async {
+      const appointment = AppointmentModel(
+        id: 0,
+        tokenNo: '11',
+        patientName: 'Alex Morgan',
+        uhid: 'UHID-000011',
+        doctorName: 'Dr. Patel',
+        department: 'Cardiology',
+        date: '16/11/2026',
+        timeSlot: '11:20 AM',
+        status: 'Scheduled',
+        visitType: 'Scheduled',
+        notes: '',
+      );
+
+      await db.hmsDao.insertAppointment(appointment);
+      await expectLater(
+        db.hmsDao.insertAppointment(appointment),
+        throwsA(isA<StateError>()),
+      );
+
+      final saved = (await db.hmsDao.getAllAppointments()).single;
+      final visitId = await db.hmsDao.startOpdForAppointment(saved);
+      final resumedVisitId = await db.hmsDao.startOpdForAppointment(saved);
+
+      expect(resumedVisitId, equals(visitId));
+      expect((await db.hmsDao.getAllOpdVisits()).length, equals(1));
+      expect(
+        (await db.hmsDao.getAllAppointments()).single.status,
+        equals('In Consultation'),
+      );
     });
 
     test('5. OPD visit diagnosis & vitals persist to database', () async {
@@ -721,7 +778,7 @@ void main() {
           equals(initialPcmQty - 5));
 
       // Create POS Invoice
-      final posInvoice = InvoiceModel(
+      const posInvoice = InvoiceModel(
         id: 0,
         invoiceNo: 'PINV-TEST-001',
         patientName: 'Walk-in POS Customer',

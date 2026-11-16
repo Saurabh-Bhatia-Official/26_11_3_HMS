@@ -1,5 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hospital_management/core/auth/session_service.dart';
 import 'package:hospital_management/data/database/app_database.dart';
+import 'package:hospital_management/data/remote/backend_api_client.dart';
+import 'package:hospital_management/data/remote/hms_sync_service.dart';
 import 'package:hospital_management/data/repositories/patient_repository_impl.dart';
 import 'package:hospital_management/domain/entities/patient.dart';
 import 'package:hospital_management/domain/entities/patient_allergy.dart';
@@ -69,6 +74,23 @@ class PatientMutationNotifier extends AsyncNotifier<void> {
     state = const AsyncLoading();
     try {
       final created = await _repo.create(patient);
+      if (ref.read(sessionProvider).user?.isRemote ?? false) {
+        await AppDatabase.instance.hmsDao.enqueueSyncOperation(
+          operationId: created.uuid,
+          resourceType: 'patient',
+          method: 'POST',
+          path: '/api/patients',
+          payloadJson: jsonEncode({
+            'uuid': created.uuid,
+            'uhid': created.uhid,
+            'name': created.name,
+          }),
+        );
+        final errors = await ref.read(hmsSyncServiceProvider).syncPending();
+        if (errors.isNotEmpty) {
+          throw BackendApiException(errors.first);
+        }
+      }
       state = const AsyncData(null);
       ref.invalidate(patientListProvider);
       return created;

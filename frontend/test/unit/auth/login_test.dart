@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hospital_management/core/auth/session_service.dart';
 import 'package:hospital_management/data/database/app_database.dart';
+import 'package:hospital_management/data/remote/backend_api_client.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -11,7 +12,7 @@ void main() {
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    sessionNotifier = SessionNotifier(db);
+    sessionNotifier = SessionNotifier(db, BackendApiClient(baseUrl: ''));
   });
 
   tearDown(() async {
@@ -78,7 +79,7 @@ void main() {
     test('8. Regular user accounts can be registered and authenticate successfully', () async {
       const username = 'testdoctor';
       const plainPassword = 'CustomSecurePassword!2026';
-      final salt = 'salt_${username}_reg';
+      const salt = 'salt_${username}_reg';
       final hash = hashPassword(plainPassword, salt);
 
       await db.createRegularUser(

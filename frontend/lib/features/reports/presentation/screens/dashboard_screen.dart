@@ -2,24 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/auth/session_service.dart';
 import 'package:hospital_management/core/permissions/permission_service.dart';
+import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/kpi_card.dart';
 import 'package:hospital_management/core/widgets/section_header.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
 import 'package:hospital_management/data/database/app_database.dart';
-import 'package:hospital_management/core/providers/hms_providers.dart';
+import 'package:hospital_management/data/remote/backend_api_client.dart';
+import 'package:hospital_management/data/remote/hms_remote_repository.dart';
 
 class DashboardStats {
-  final int todayOpdVisits;
-  final int todayAppointments;
-  final int currentAdmissions;
-  final int todayRevenuePaise;
-  final int availableBeds;
-  final int totalBeds;
-  final int pendingLabOrders;
-  final int lowStockMedicines;
-
   const DashboardStats({
     required this.todayOpdVisits,
     required this.todayAppointments,
@@ -31,6 +25,15 @@ class DashboardStats {
     required this.lowStockMedicines,
   });
 
+  final int todayOpdVisits;
+  final int todayAppointments;
+  final int currentAdmissions;
+  final int todayRevenuePaise;
+  final int availableBeds;
+  final int totalBeds;
+  final int pendingLabOrders;
+  final int lowStockMedicines;
+
   double get bedOccupancyRate =>
       totalBeds == 0 ? 0 : ((totalBeds - availableBeds) / totalBeds) * 100;
 }
@@ -38,6 +41,19 @@ class DashboardStats {
 final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
   final db = ref.watch(appDatabaseProvider);
   final data = await db.hmsDao.getDashboardStats();
+  if (ref.watch(backendApiClientProvider).isConfigured &&
+      (ref.watch(sessionProvider).user?.isRemote ?? false)) {
+    try {
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final remote = await HmsRemoteRepository(ref.read(backendApiClientProvider))
+          .reportSummary(from: today, to: today);
+      data['todayRevenuePaise'] = remote['revenuePaise'];
+      data['lowStockMedicines'] = remote['lowStockMedicines'];
+      data['pendingLabOrders'] = remote['pendingLabOrders'];
+    } on BackendConnectionException {
+      // Local dashboard totals remain available when the backend is offline.
+    }
+  }
 
   return DashboardStats(
     todayOpdVisits: data['todayOpdVisits'] as int,
