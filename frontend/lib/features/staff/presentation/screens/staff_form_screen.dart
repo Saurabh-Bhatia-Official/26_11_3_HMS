@@ -12,10 +12,12 @@ class StaffFormScreen extends ConsumerStatefulWidget {
     super.key,
     this.staffId,
     this.existingStaff,
+    this.doctorOnly = false,
   });
 
   final int? staffId;
   final StaffModel? existingStaff;
+  final bool doctorOnly;
 
   @override
   ConsumerState<StaffFormScreen> createState() => _StaffFormScreenState();
@@ -25,6 +27,7 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _qualificationController = TextEditingController();
   final _regNoController = TextEditingController();
   final _feeController = TextEditingController();
@@ -33,6 +36,7 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
   String _department = 'General Medicine';
   String _status = 'Active';
   bool _isLoading = true;
+  bool _isSaving = false;
   StaffModel? _loadedStaff;
 
   final List<String> _roles = [
@@ -52,14 +56,32 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
     'Pediatrics',
     'Obstetrics & Gynaecology',
     'Emergency / Casualty',
+    'Nursing',
+    'Reception',
     'Laboratory Services',
     'Pharmacy',
+    'Accounts',
     'Administration',
   ];
 
   final List<String> _statuses = ['Active', 'On Leave', 'Inactive'];
 
   bool get _isEditing => widget.staffId != null || widget.existingStaff != null;
+  bool get _isDoctorRegistration =>
+      widget.doctorOnly || _role.toLowerCase().startsWith('doctor');
+  bool get _requiresRegistrationNumber =>
+      const {'doctor', 'nurse', 'pharmacist'}.contains(_role.toLowerCase());
+  String get _registrationLabel => switch (_role.toLowerCase()) {
+        'doctor' => 'Medical Registration No.',
+        'nurse' => 'Nursing Registration No.',
+        'pharmacist' => 'Pharmacy License No.',
+        _ => 'Employee / Registration No.',
+      };
+  String get _formTitle => widget.doctorOnly
+      ? 'Doctor Registration'
+      : _isEditing
+          ? 'Edit ${_isDoctorRegistration ? 'Doctor' : 'Staff'} Profile'
+          : 'Add Practitioner / Staff Member';
 
   @override
   void initState() {
@@ -70,7 +92,7 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
   Future<void> _initData() async {
     if (widget.existingStaff != null) {
       _applyStaff(widget.existingStaff!);
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
 
@@ -80,17 +102,18 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
       if (staff != null) {
         _applyStaff(staff);
       }
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
 
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
   void _applyStaff(StaffModel s) {
     _loadedStaff = s;
     _nameController.text = s.name;
     _phoneController.text = s.phone;
+    _emailController.text = s.email;
     _regNoController.text = s.regNo;
     _qualificationController.text = s.qualification;
     _feeController.text = (s.feePaise / 100).toStringAsFixed(0);
@@ -117,6 +140,7 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     _qualificationController.dispose();
     _regNoController.dispose();
     _feeController.dispose();
@@ -126,76 +150,90 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final db = ref.read(appDatabaseProvider);
-    final fee = (int.tryParse(_feeController.text.trim()) ?? 0) * 100;
-    final now = DateTime.now();
+    setState(() => _isSaving = true);
+    try {
+      final db = ref.read(appDatabaseProvider);
+      final fee = (int.tryParse(_feeController.text.trim()) ?? 0) * 100;
+      final now = DateTime.now();
+      final qual = _qualificationController.text.trim();
+      final roleString = qual.isNotEmpty ? '$_role ($qual)' : _role;
+      final enteredEmail = _emailController.text.trim();
+      final email = enteredEmail.isNotEmpty
+          ? enteredEmail
+          : '${_nameController.text.trim().toLowerCase().replaceAll(' ', '.')}@hospital.local';
 
-    final qual = _qualificationController.text.trim();
-    final roleString = qual.isNotEmpty ? '$_role ($qual)' : '$_role ($_department)';
+      if (_isEditing) {
+        final existing = widget.existingStaff ?? _loadedStaff;
+        final staffId = widget.staffId ?? existing?.id ?? 0;
+        final updatedStaff = StaffModel(
+          id: staffId,
+          uuid: existing?.uuid ?? 'staff-${now.microsecondsSinceEpoch}',
+          name: _nameController.text.trim(),
+          role: roleString,
+          regNo: _regNoController.text.trim(),
+          department: _department,
+          phone: _phoneController.text.trim(),
+          email: email,
+          feePaise: fee,
+          status: _status,
+          qualification: qual,
+          updatedAt: now.toIso8601String(),
+        );
 
-    if (_isEditing) {
-      final existing = widget.existingStaff ?? _loadedStaff;
-      final staffId = widget.staffId ?? existing?.id ?? 0;
+        await db.hmsDao.updateStaff(updatedStaff);
+        ref.invalidate(staffListProvider);
+        ref.invalidate(dashboardStatsProvider);
 
-      final updatedStaff = StaffModel(
-        id: staffId,
-        uuid: existing?.uuid ?? 'staff-${now.millisecondsSinceEpoch}',
-        name: _nameController.text.trim(),
-        role: roleString,
-        regNo: _regNoController.text.trim(),
-        department: _department,
-        phone: _phoneController.text.trim(),
-        email: existing?.email.isNotEmpty == true
-            ? existing!.email
-            : '${_nameController.text.trim().toLowerCase().replaceAll(' ', '.')}@hospital.local',
-        feePaise: fee,
-        status: _status,
-        qualification: qual,
-        updatedAt: now.toIso8601String(),
-      );
-
-      await db.hmsDao.updateStaff(updatedStaff);
-      ref.invalidate(staffListProvider);
-      ref.invalidate(dashboardStatsProvider);
-
-      if (mounted) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Staff profile for ${_nameController.text} updated successfully.'),
+            content: Text(
+                '${_isDoctorRegistration ? 'Doctor' : 'Staff'} profile for ${updatedStaff.name} updated successfully.'),
             backgroundColor: Colors.teal.shade700,
           ),
         );
-        context.go(AppRoutes.staff);
-      }
-    } else {
-      final staff = StaffModel(
-        id: 0,
-        uuid: '00000000-0000-0000-0003-${now.millisecondsSinceEpoch.toString().padLeft(12, '0')}',
-        name: _nameController.text.trim(),
-        role: roleString,
-        regNo: _regNoController.text.trim(),
-        department: _department,
-        phone: _phoneController.text.trim(),
-        email: '${_nameController.text.trim().toLowerCase().replaceAll(' ', '.')}@hospital.local',
-        feePaise: fee,
-        status: _status,
-        qualification: qual,
-        createdAt: now.toIso8601String(),
-      );
+      } else {
+        final staff = StaffModel(
+          id: 0,
+          uuid: 'staff-${now.microsecondsSinceEpoch}',
+          name: _nameController.text.trim(),
+          role: roleString,
+          regNo: _regNoController.text.trim(),
+          department: _department,
+          phone: _phoneController.text.trim(),
+          email: email,
+          feePaise: fee,
+          status: _status,
+          qualification: qual,
+          createdAt: now.toIso8601String(),
+        );
 
-      await db.hmsDao.insertStaff(staff);
-      ref.invalidate(staffListProvider);
-      ref.invalidate(dashboardStatsProvider);
+        await db.hmsDao.insertStaff(staff);
+        ref.invalidate(staffListProvider);
+        ref.invalidate(dashboardStatsProvider);
 
-      if (mounted) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Staff record for ${_nameController.text} saved to database.'),
+            content: Text(
+                '${_isDoctorRegistration ? 'Doctor' : 'Staff'} profile for ${staff.name} saved successfully.'),
             backgroundColor: Colors.green.shade700,
           ),
         );
-        context.go(AppRoutes.staff);
       }
+
+      if (mounted) context.go(AppRoutes.staff);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Error saving ${_isDoctorRegistration ? 'doctor' : 'staff'} profile: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -205,7 +243,7 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
 
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: Text(_isEditing ? 'Edit Staff Profile' : 'Add Practitioner / Staff Member')),
+        appBar: AppBar(title: Text(_formTitle)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -213,7 +251,7 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Staff Profile' : 'Add Practitioner / Staff Member'),
+        title: Text(_formTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(AppRoutes.staff),
@@ -239,19 +277,27 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
                             radius: 20,
                             backgroundColor: colorScheme.primaryContainer,
                             child: Icon(
-                              _isEditing ? Icons.manage_accounts : Icons.person_add,
+                              _isEditing
+                                  ? Icons.manage_accounts
+                                  : Icons.person_add,
                               color: colorScheme.onPrimaryContainer,
                             ),
                           ),
                           const Gap(12),
                           Text(
-                            _isEditing ? 'Edit Staff Credentials & Department' : 'New Staff Credentials & Department',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                            _isEditing
+                                ? 'Edit ${_isDoctorRegistration ? 'Doctor' : 'Staff'} Profile'
+                                : _isDoctorRegistration
+                                    ? 'Doctor Registration'
+                                    : 'New Staff Profile',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
                       const Gap(24),
-
                       TextFormField(
                         controller: _nameController,
                         decoration: const InputDecoration(
@@ -259,34 +305,56 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
                           hintText: 'e.g. Dr. Rajesh Kulkarni',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                        validator: (v) =>
+                            v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
                       const Gap(16),
-
                       Row(
                         children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: _roles.contains(_role) ? _role : _roles.first,
-                              decoration: const InputDecoration(
-                                labelText: 'Hospital Role *',
-                                prefixIcon: Icon(Icons.badge_outlined),
+                          if (widget.doctorOnly)
+                            const Expanded(
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: 'Hospital Role',
+                                  prefixIcon:
+                                      Icon(Icons.medical_services_outlined),
+                                ),
+                                child: Text('Doctor'),
                               ),
-                              items: _roles.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-                              onChanged: (v) {
-                                if (v != null) setState(() => _role = v);
-                              },
+                            )
+                          else
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _roles.contains(_role)
+                                    ? _role
+                                    : _roles.first,
+                                decoration: const InputDecoration(
+                                  labelText: 'Hospital Role *',
+                                  prefixIcon: Icon(Icons.badge_outlined),
+                                ),
+                                items: _roles
+                                    .map((r) => DropdownMenuItem(
+                                        value: r, child: Text(r)))
+                                    .toList(),
+                                onChanged: (v) {
+                                  if (v != null) setState(() => _role = v);
+                                },
+                              ),
                             ),
-                          ),
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _departments.contains(_department) ? _department : _departments.first,
+                              value: _departments.contains(_department)
+                                  ? _department
+                                  : _departments.first,
                               decoration: const InputDecoration(
-                                labelText: 'Primary Department *',
+                                labelText: 'Specialization / Department *',
                                 prefixIcon: Icon(Icons.apartment_outlined),
                               ),
-                              items: _departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                              items: _departments
+                                  .map((d) => DropdownMenuItem(
+                                      value: d, child: Text(d)))
+                                  .toList(),
                               onChanged: (v) {
                                 if (v != null) setState(() => _department = v);
                               },
@@ -295,18 +363,26 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
                         ],
                       ),
                       const Gap(16),
-
                       Row(
                         children: [
                           Expanded(
                             child: TextFormField(
                               controller: _regNoController,
-                              decoration: const InputDecoration(
-                                labelText: 'Medical / Nursing Reg. No. *',
-                                hintText: 'e.g. MCI-2020-91823',
-                                prefixIcon: Icon(Icons.verified_outlined),
+                              decoration: InputDecoration(
+                                labelText:
+                                    '$_registrationLabel${_requiresRegistrationNumber ? ' *' : ''}',
+                                hintText: _requiresRegistrationNumber
+                                    ? 'Enter the professional registration number'
+                                    : 'Optional',
+                                prefixIcon: const Icon(Icons.verified_outlined),
                               ),
-                              validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                              validator: (value) {
+                                if (_requiresRegistrationNumber &&
+                                    (value == null || value.trim().isEmpty)) {
+                                  return '$_registrationLabel is required';
+                                }
+                                return null;
+                              },
                             ),
                           ),
                           const Gap(16),
@@ -323,7 +399,24 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
                         ],
                       ),
                       const Gap(16),
-
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email Address',
+                          prefixIcon: Icon(Icons.email_outlined),
+                        ),
+                        validator: (value) {
+                          final email = value?.trim() ?? '';
+                          if (email.isNotEmpty &&
+                              !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                                  .hasMatch(email)) {
+                            return 'Enter a valid email address';
+                          }
+                          return null;
+                        },
+                      ),
+                      const Gap(16),
                       Row(
                         children: [
                           Expanded(
@@ -335,7 +428,9 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
                                 hintText: '+91 98XXX XXXXX',
                                 prefixIcon: Icon(Icons.phone_outlined),
                               ),
-                              validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? 'Required'
+                                  : null,
                             ),
                           ),
                           const Gap(16),
@@ -352,12 +447,17 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _statuses.contains(_status) ? _status : _statuses.first,
+                              value: _statuses.contains(_status)
+                                  ? _status
+                                  : _statuses.first,
                               decoration: const InputDecoration(
                                 labelText: 'Employment Status *',
                                 prefixIcon: Icon(Icons.toggle_on_outlined),
                               ),
-                              items: _statuses.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                              items: _statuses
+                                  .map((s) => DropdownMenuItem(
+                                      value: s, child: Text(s)))
+                                  .toList(),
                               onChanged: (v) {
                                 if (v != null) setState(() => _status = v);
                               },
@@ -366,7 +466,6 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
                         ],
                       ),
                       const Gap(32),
-
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -376,9 +475,14 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
                           ),
                           const Gap(12),
                           FilledButton.icon(
-                            onPressed: _save,
-                            icon: Icon(_isEditing ? Icons.save : Icons.check, size: 18),
-                            label: Text(_isEditing ? 'Update Staff Profile' : 'Save Staff Member'),
+                            onPressed: _isSaving ? null : _save,
+                            icon: Icon(_isEditing ? Icons.save : Icons.check,
+                                size: 18),
+                            label: Text(_isSaving
+                                ? 'Saving…'
+                                : _isEditing
+                                    ? 'Update ${_isDoctorRegistration ? 'Doctor' : 'Staff'} Profile'
+                                    : 'Register ${_isDoctorRegistration ? 'Doctor' : 'Staff Member'}'),
                           ),
                         ],
                       ),

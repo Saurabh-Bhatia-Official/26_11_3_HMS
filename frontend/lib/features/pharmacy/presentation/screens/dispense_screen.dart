@@ -66,7 +66,12 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   String _paymentMode = 'Cash';
   bool _isProcessing = false;
 
-  final List<String> _paymentModes = ['Cash', 'UPI / QR Code', 'Debit / Credit Card', 'Hospital Credit / Due'];
+  final List<String> _paymentModes = [
+    'Cash',
+    'UPI / QR Code',
+    'Debit / Credit Card',
+    'Hospital Credit / Due'
+  ];
   final List<double> _taxRates = [0.0, 5.0, 12.0, 18.0];
 
   @override
@@ -106,7 +111,8 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
 
   double get _subtotal => _cart.fold(0.0, (sum, item) => sum + item.lineTotal);
   double get _taxAmount => (_subtotal * _taxRatePct) / 100.0;
-  double get _grandTotal => (_subtotal + _taxAmount - _discountAmount).clamp(0.0, double.infinity);
+  double get _grandTotal =>
+      (_subtotal + _taxAmount - _discountAmount).clamp(0.0, double.infinity);
 
   void _addItemToCart() {
     if (_selectedMedicineId == null) {
@@ -117,10 +123,12 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
     }
 
     final medicines = ref.read(medicinesListProvider).value ?? [];
-    final selectedMed = medicines.where((m) => m.id == _selectedMedicineId).firstOrNull;
+    final selectedMed =
+        medicines.where((m) => m.id == _selectedMedicineId).firstOrNull;
     if (selectedMed == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selected medicine was not found in stock.')),
+        const SnackBar(
+            content: Text('Selected medicine was not found in stock.')),
       );
       return;
     }
@@ -136,20 +144,23 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
     if (qty > selectedMed.stockQty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Insufficient stock. Only ${selectedMed.stockQty} ${selectedMed.unit}s available.'),
+          content: Text(
+              'Insufficient stock. Only ${selectedMed.stockQty} ${selectedMed.unit}s available.'),
           backgroundColor: Colors.red.shade700,
         ),
       );
       return;
     }
 
-    final existingIndex = _cart.indexWhere((item) => item.medicineId == selectedMed.id);
+    final existingIndex =
+        _cart.indexWhere((item) => item.medicineId == selectedMed.id);
     if (existingIndex >= 0) {
       final newQty = _cart[existingIndex].quantity + qty;
       if (newQty > selectedMed.stockQty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Cannot exceed available stock (${selectedMed.stockQty} ${selectedMed.unit}s).'),
+            content: Text(
+                'Cannot exceed available stock (${selectedMed.stockQty} ${selectedMed.unit}s).'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -171,7 +182,8 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
             genericName: selectedMed.genericName,
             unit: selectedMed.unit,
             form: selectedMed.form,
-            batchNo: 'B${DateTime.now().year}-${selectedMed.id.toString().padLeft(3, '0')}',
+            batchNo:
+                'B${DateTime.now().year}-${selectedMed.id.toString().padLeft(3, '0')}',
             unitPrice: unitPrice,
             quantity: qty,
             maxStock: selectedMed.stockQty,
@@ -185,7 +197,9 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   Future<void> _completePosSale() async {
     if (_cart.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cart is empty. Please add medicines before checkout.')),
+        const SnackBar(
+            content:
+                Text('Cart is empty. Please add medicines before checkout.')),
       );
       return;
     }
@@ -201,7 +215,8 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
     try {
       // 1. Deduct stock for each medicine in SQLite
       for (final item in _cart) {
-        await db.hmsDao.dispenseMedicine(item.medicineId, item.quantity, _customerName);
+        await db.hmsDao
+            .dispenseMedicine(item.medicineId, item.quantity, _customerName);
       }
 
       // 2. Insert Invoice record in SQLite
@@ -218,13 +233,17 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
         duePaise: 0,
         paymentMode: _paymentMode,
         status: 'Paid',
-        dateTime: 'Today, ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
-        items: _cart.map((item) => {
-          'desc': '${item.medicineName} (${item.quantity} ${item.unit})',
-          'rate': '₹${item.unitPrice.toStringAsFixed(2)}',
-          'qty': item.quantity.toString(),
-          'total': '₹${item.lineTotal.toStringAsFixed(2)}',
-        }).toList(),
+        dateTime:
+            'Today, ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+        items: _cart
+            .map((item) => {
+                  'desc':
+                      '${item.medicineName} (${item.quantity} ${item.unit})',
+                  'rate': item.unitPrice,
+                  'qty': item.quantity,
+                  'total': item.lineTotal,
+                })
+            .toList(),
       );
 
       await db.hmsDao.insertInvoice(invoice);
@@ -246,10 +265,12 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
         _isProcessing = false;
       });
     } catch (e) {
-      setState(() => _isProcessing = false);
       if (!mounted) return;
+      setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error completing sale: $e'), backgroundColor: Colors.red.shade800),
+        SnackBar(
+            content: Text('Error completing sale: $e'),
+            backgroundColor: Colors.red.shade800),
       );
     }
   }
@@ -278,10 +299,13 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                     children: [
                       Text(
                         '${ref.read(hospitalNameNotifierProvider).toUpperCase()} PHARMACY',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
                       ),
-                      const Text('Main Hospital Campus • 24/7 Pharmacy Counter'),
-                      Text('Invoice: ${inv.invoiceNo} • ${inv.dateTime}', style: const TextStyle(color: Colors.grey)),
+                      const Text(
+                          'Main Hospital Campus • 24/7 Pharmacy Counter'),
+                      Text('Invoice: ${inv.invoiceNo} • ${inv.dateTime}',
+                          style: const TextStyle(color: Colors.grey)),
                     ],
                   ),
                 ),
@@ -289,11 +313,13 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Customer: ${inv.patientName} (${inv.uhid})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text('Customer: ${inv.patientName} (${inv.uhid})',
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
                     Text('Payment: ${inv.paymentMode}'),
                   ],
                 ),
-                Text('Prescribing Doctor: $_doctorName', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                Text('Prescribing Doctor: $_doctorName',
+                    style: const TextStyle(color: Colors.grey, fontSize: 13)),
                 const Gap(12),
                 Table(
                   columnWidths: const {
@@ -306,19 +332,41 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                     const TableRow(
                       decoration: BoxDecoration(color: Color(0x10000000)),
                       children: [
-                        Padding(padding: EdgeInsets.all(6), child: Text('Item', style: TextStyle(fontWeight: FontWeight.bold))),
-                        Padding(padding: EdgeInsets.all(6), child: Text('Qty', style: TextStyle(fontWeight: FontWeight.bold))),
-                        Padding(padding: EdgeInsets.all(6), child: Text('Rate', style: TextStyle(fontWeight: FontWeight.bold))),
-                        Padding(padding: EdgeInsets.all(6), child: Text('Total', style: TextStyle(fontWeight: FontWeight.bold))),
+                        Padding(
+                            padding: EdgeInsets.all(6),
+                            child: Text('Item',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
+                        Padding(
+                            padding: EdgeInsets.all(6),
+                            child: Text('Qty',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
+                        Padding(
+                            padding: EdgeInsets.all(6),
+                            child: Text('Rate',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
+                        Padding(
+                            padding: EdgeInsets.all(6),
+                            child: Text('Total',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
                       ],
                     ),
                     for (final item in items)
                       TableRow(
                         children: [
-                          Padding(padding: const EdgeInsets.all(6), child: Text(item.medicineName)),
-                          Padding(padding: const EdgeInsets.all(6), child: Text('${item.quantity}')),
-                          Padding(padding: const EdgeInsets.all(6), child: Text('₹${item.unitPrice.toStringAsFixed(2)}')),
-                          Padding(padding: const EdgeInsets.all(6), child: Text('₹${item.lineTotal.toStringAsFixed(2)}')),
+                          Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: Text(item.medicineName)),
+                          Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: Text('${item.quantity}')),
+                          Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: Text(
+                                  '₹${item.unitPrice.toStringAsFixed(2)}')),
+                          Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: Text(
+                                  '₹${item.lineTotal.toStringAsFixed(2)}')),
                         ],
                       ),
                   ],
@@ -342,10 +390,15 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total Amount Paid:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Text('Total Amount Paid:',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
                     Text(
                       '₹${(inv.totalPaise / 100).toStringAsFixed(2)}',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade800),
                     ),
                   ],
                 ),
@@ -367,7 +420,8 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Thermal receipt for ${inv.invoiceNo} sent to POS printer.'),
+                  content: Text(
+                      'Thermal receipt for ${inv.invoiceNo} sent to POS printer.'),
                   backgroundColor: Colors.teal.shade800,
                 ),
               );
@@ -425,18 +479,24 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                       children: [
                         CircleAvatar(
                           backgroundColor: colorScheme.primaryContainer,
-                          child: Icon(Icons.point_of_sale_rounded, color: colorScheme.onPrimaryContainer),
+                          child: Icon(Icons.point_of_sale_rounded,
+                              color: colorScheme.onPrimaryContainer),
                         ),
                         const Gap(12),
                         const Text(
                           'POS Checkout & Medicine Dispensation',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         const Spacer(),
                         SegmentedButton<bool>(
                           segments: const [
-                            ButtonSegment(value: true, label: Text('Walk-in / Counter Cash')),
-                            ButtonSegment(value: false, label: Text('Registered Patient')),
+                            ButtonSegment(
+                                value: true,
+                                label: Text('Walk-in / Counter Cash')),
+                            ButtonSegment(
+                                value: false,
+                                label: Text('Registered Patient')),
                           ],
                           selected: {_isWalkIn},
                           onSelectionChanged: (set) {
@@ -464,13 +524,16 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                             flex: 3,
                             child: patientsAsync.when(
                               loading: () => const LinearProgressIndicator(),
-                              error: (e, _) => Text('Error loading patients: $e'),
+                              error: (e, _) =>
+                                  Text('Error loading patients: $e'),
                               data: (patients) {
                                 final uniquePatients = <String, dynamic>{};
                                 for (final p in patients) {
-                                  if (p.uhid.isNotEmpty) uniquePatients[p.uhid] = p;
+                                  if (p.uhid.isNotEmpty)
+                                    uniquePatients[p.uhid] = p;
                                 }
-                                final hasMatch = uniquePatients.containsKey(_customerUhid);
+                                final hasMatch =
+                                    uniquePatients.containsKey(_customerUhid);
                                 return DropdownButtonFormField<String>(
                                   value: hasMatch ? _customerUhid : null,
                                   decoration: const InputDecoration(
@@ -480,11 +543,13 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                                   items: uniquePatients.values.map((p) {
                                     return DropdownMenuItem<String>(
                                       value: p.uhid as String,
-                                      child: Text('${p.name} (${p.uhid}) - Phone: ${p.phone ?? "-"}'),
+                                      child: Text(
+                                          '${p.name} (${p.uhid}) - Phone: ${p.phone ?? "-"}'),
                                     );
                                   }).toList(),
                                   onChanged: (uhid) {
-                                    if (uhid != null && uniquePatients.containsKey(uhid)) {
+                                    if (uhid != null &&
+                                        uniquePatients.containsKey(uhid)) {
                                       final p = uniquePatients[uhid]!;
                                       setState(() {
                                         _customerName = p.name;
@@ -506,7 +571,9 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                                 labelText: 'Customer / Buyer Name *',
                                 prefixIcon: Icon(Icons.person_outline),
                               ),
-                              onChanged: (v) => _customerName = v.trim().isEmpty ? 'Walk-in Customer' : v.trim(),
+                              onChanged: (v) => _customerName = v.trim().isEmpty
+                                  ? 'Walk-in Customer'
+                                  : v.trim(),
                             ),
                           ),
                         ],
@@ -520,7 +587,9 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                               hintText: 'e.g. Prescribing Doctor',
                               prefixIcon: Icon(Icons.medical_services_outlined),
                             ),
-                            onChanged: (v) => _doctorName = v.trim().isEmpty ? 'Self / Counter Sale' : v.trim(),
+                            onChanged: (v) => _doctorName = v.trim().isEmpty
+                                ? 'Self / Counter Sale'
+                                : v.trim(),
                           ),
                         ),
                       ],
@@ -535,15 +604,18 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                           flex: 4,
                           child: medicinesAsync.when(
                             loading: () => const LinearProgressIndicator(),
-                            error: (e, _) => Text('Error loading medicines: $e'),
+                            error: (e, _) =>
+                                Text('Error loading medicines: $e'),
                             data: (medicines) {
-                              final hasSelected = medicines.any((m) => m.id == _selectedMedicineId);
+                              final hasSelected = medicines
+                                  .any((m) => m.id == _selectedMedicineId);
                               return DropdownButtonFormField<int>(
                                 isExpanded: true,
                                 value: hasSelected ? _selectedMedicineId : null,
                                 decoration: const InputDecoration(
                                   labelText: 'Select Medicine from Stock *',
-                                  hintText: 'Choose medicine from pharmacy inventory',
+                                  hintText:
+                                      'Choose medicine from pharmacy inventory',
                                   prefixIcon: Icon(Icons.medication),
                                 ),
                                 items: medicines.map((m) {
@@ -555,7 +627,9 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                                       '${m.name} (${m.genericName}) • Stock: ${m.stockQty} ${m.unit}s • ${m.mrpFormatted}${isOut ? " [OUT OF STOCK]" : ""}',
                                       style: TextStyle(
                                         color: isOut ? Colors.grey : null,
-                                        fontWeight: isOut ? FontWeight.normal : FontWeight.w600,
+                                        fontWeight: isOut
+                                            ? FontWeight.normal
+                                            : FontWeight.w600,
                                       ),
                                     ),
                                   );
@@ -585,7 +659,8 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                         FilledButton.icon(
                           onPressed: _addItemToCart,
                           style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 16),
                           ),
                           icon: const Icon(Icons.add_shopping_cart, size: 18),
                           label: const Text('Add to Bill'),
@@ -616,7 +691,8 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                             const Gap(8),
                             Text(
                               'Sale Item Details (${_cart.length} items)',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                           ],
                         ),
@@ -627,7 +703,8 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                             child: Center(
                               child: Column(
                                 children: [
-                                  Icon(Icons.remove_shopping_cart_outlined, size: 48, color: Colors.grey),
+                                  Icon(Icons.remove_shopping_cart_outlined,
+                                      size: 48, color: Colors.grey),
                                   Gap(12),
                                   Text(
                                     'No medicines in bill. Select a medicine above and click "Add to Bill".',
@@ -642,15 +719,21 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: _cart.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
                             itemBuilder: (context, index) {
                               final item = _cart[index];
                               return ListTile(
                                 leading: CircleAvatar(
                                   backgroundColor: Colors.teal.shade50,
-                                  child: Text('${index + 1}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal.shade900)),
+                                  child: Text('${index + 1}',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.teal.shade900)),
                                 ),
-                                title: Text(item.medicineName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                title: Text(item.medicineName,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold)),
                                 subtitle: Text(
                                   '${item.genericName} • ${item.form} • Batch #${item.batchNo} • Unit Rate: ₹${item.unitPrice.toStringAsFixed(2)}',
                                 ),
@@ -658,26 +741,35 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.remove_circle_outline, size: 20),
+                                      icon: const Icon(
+                                          Icons.remove_circle_outline,
+                                          size: 20),
                                       onPressed: item.quantity > 1
-                                          ? () => setState(() => item.quantity--)
+                                          ? () =>
+                                              setState(() => item.quantity--)
                                           : null,
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.grey.shade300),
+                                        border: Border.all(
+                                            color: Colors.grey.shade300),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
                                         '${item.quantity}',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15),
                                       ),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.add_circle_outline, size: 20),
+                                      icon: const Icon(Icons.add_circle_outline,
+                                          size: 20),
                                       onPressed: item.quantity < item.maxStock
-                                          ? () => setState(() => item.quantity++)
+                                          ? () =>
+                                              setState(() => item.quantity++)
                                           : null,
                                     ),
                                     const Gap(16),
@@ -685,15 +777,19 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                                       width: 90,
                                       child: Text(
                                         '₹${item.lineTotal.toStringAsFixed(2)}',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16),
                                         textAlign: TextAlign.right,
                                       ),
                                     ),
                                     const Gap(12),
                                     IconButton(
-                                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                      icon: const Icon(Icons.delete_outline,
+                                          color: Colors.red, size: 20),
                                       tooltip: 'Remove',
-                                      onPressed: () => setState(() => _cart.removeAt(index)),
+                                      onPressed: () =>
+                                          setState(() => _cart.removeAt(index)),
                                     ),
                                   ],
                                 ),
@@ -714,27 +810,34 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                       children: [
                         const Text(
                           'Payment & Invoice Summary',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 18),
                         ),
                         const Gap(20),
-
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Subtotal:', style: TextStyle(fontSize: 15)),
-                            Text('₹${_subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                            const Text('Subtotal:',
+                                style: TextStyle(fontSize: 15)),
+                            Text('₹${_subtotal.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                    fontSize: 15, fontWeight: FontWeight.bold)),
                           ],
                         ),
                         const Gap(12),
-
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text('Healthcare GST Rate:'),
                             DropdownButton<double>(
-                              value: _taxRates.contains(_taxRatePct) ? _taxRatePct : _taxRates.first,
+                              value: _taxRates.contains(_taxRatePct)
+                                  ? _taxRatePct
+                                  : _taxRates.first,
                               underline: const SizedBox.shrink(),
-                              items: _taxRates.map((r) => DropdownMenuItem(value: r, child: Text('$r% GST'))).toList(),
+                              items: _taxRates
+                                  .map((r) => DropdownMenuItem(
+                                      value: r, child: Text('$r% GST')))
+                                  .toList(),
                               onChanged: (v) {
                                 if (v != null) setState(() => _taxRatePct = v);
                               },
@@ -744,12 +847,13 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Tax Amount ($_taxRatePct%):', style: const TextStyle(color: Colors.grey)),
-                            Text('₹${_taxAmount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.grey)),
+                            Text('Tax Amount ($_taxRatePct%):',
+                                style: const TextStyle(color: Colors.grey)),
+                            Text('₹${_taxAmount.toStringAsFixed(2)}',
+                                style: const TextStyle(color: Colors.grey)),
                           ],
                         ),
                         const Gap(12),
-
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -758,11 +862,14 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                               width: 100,
                               height: 36,
                               child: TextField(
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
                                 decoration: const InputDecoration(
                                   isDense: true,
                                   prefixText: '₹',
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 8),
                                 ),
                                 onChanged: (v) {
                                   final disc = double.tryParse(v.trim()) ?? 0.0;
@@ -773,11 +880,12 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                           ],
                         ),
                         const Divider(height: 28),
-
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Net Payable Total:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            const Text('Net Payable Total:',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold)),
                             Text(
                               '₹${_grandTotal.toStringAsFixed(2)}',
                               style: TextStyle(
@@ -789,34 +897,47 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                           ],
                         ),
                         const Gap(24),
-
                         DropdownButtonFormField<String>(
-                          value: _paymentModes.contains(_paymentMode) ? _paymentMode : _paymentModes.first,
+                          value: _paymentModes.contains(_paymentMode)
+                              ? _paymentMode
+                              : _paymentModes.first,
                           decoration: const InputDecoration(
                             labelText: 'Select Payment Method *',
                             prefixIcon: Icon(Icons.payment),
                           ),
-                          items: _paymentModes.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                          items: _paymentModes
+                              .map((m) =>
+                                  DropdownMenuItem(value: m, child: Text(m)))
+                              .toList(),
                           onChanged: (v) {
                             if (v != null) setState(() => _paymentMode = v);
                           },
                         ),
                         const Gap(28),
-
                         SizedBox(
                           width: double.infinity,
                           height: 52,
                           child: FilledButton.icon(
-                            onPressed: _cart.isNotEmpty && !_isProcessing ? _completePosSale : null,
+                            onPressed: _cart.isNotEmpty && !_isProcessing
+                                ? _completePosSale
+                                : null,
                             style: FilledButton.styleFrom(
                               backgroundColor: Colors.teal.shade800,
                             ),
                             icon: _isProcessing
-                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Icon(Icons.check_circle_outline, size: 22),
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2))
+                                : const Icon(Icons.check_circle_outline,
+                                    size: 22),
                             label: Text(
-                              _isProcessing ? 'Processing Sale…' : 'Complete Sale & Generate Bill (₹${_grandTotal.toStringAsFixed(2)})',
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                              _isProcessing
+                                  ? 'Processing Sale…'
+                                  : 'Complete Sale & Generate Bill (₹${_grandTotal.toStringAsFixed(2)})',
+                              style: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),

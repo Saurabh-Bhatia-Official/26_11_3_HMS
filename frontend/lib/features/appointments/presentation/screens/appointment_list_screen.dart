@@ -22,6 +22,17 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
   DateTime _selectedDate = DateTime.now();
   String _doctorFilter = 'All Doctors';
 
+  String _doctorLabel(AppointmentModel item) {
+    final doctorName = item.doctorName.trim();
+    final department = item.department.trim();
+    if (department.isEmpty ||
+        doctorName.endsWith('($department)') ||
+        doctorName.endsWith('— $department')) {
+      return doctorName;
+    }
+    return '$doctorName — $department';
+  }
+
   Future<void> _updateStatus(AppointmentModel item, String newStatus) async {
     final db = ref.read(appDatabaseProvider);
     await db.hmsDao.updateAppointmentStatus(item.id, newStatus);
@@ -427,7 +438,7 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                                   color: Colors.grey,
                                 ),
                                 const Gap(4),
-                                Text('${item.doctorName} (${item.department})'),
+                                Text(_doctorLabel(item)),
                                 const Gap(16),
                                 Text('Type: ${item.visitType}'),
                               ],

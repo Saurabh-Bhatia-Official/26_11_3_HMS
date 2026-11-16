@@ -52,6 +52,7 @@ abstract class AppRoutes {
   // ── Staff ────────────────────────────────────────────────────────────────
   static const String staff = '/staff';
   static const String staffNew = '/staff/new';
+  static const String doctorNew = '/staff/doctors/new';
   static const String staffEditPath = '/staff/:id/edit';
 
   static String staffEdit(dynamic id) => '/staff/$id/edit';
@@ -60,7 +61,8 @@ abstract class AppRoutes {
   static const String lab = '/lab';
   static const String labOrderDetail = '/lab/:orderId';
 
-  static String labOrderDetailPath(dynamic orderId) => '/lab/$orderId';
+  static String labOrderDetailPath(dynamic orderId, {bool edit = false}) =>
+      '/lab/$orderId${edit ? '?mode=edit' : ''}';
 
   // ── Pharmacy ─────────────────────────────────────────────────────────────
   static const String pharmacy = '/pharmacy';

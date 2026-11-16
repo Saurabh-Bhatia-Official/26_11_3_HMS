@@ -6,11 +6,24 @@ import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
 import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
+import 'package:hospital_management/data/models/lab_models.dart';
+
+const _finalLabReportStatuses = {
+  'completed',
+  'verified',
+  'resulted',
+  'delivered',
+};
 
 class LabOrderDetailScreen extends ConsumerStatefulWidget {
-  const LabOrderDetailScreen({super.key, required this.orderId});
+  const LabOrderDetailScreen({
+    super.key,
+    required this.orderId,
+    this.startInEditMode = false,
+  });
 
   final String orderId;
+  final bool startInEditMode;
 
   @override
   ConsumerState<LabOrderDetailScreen> createState() => _LabOrderDetailScreenState();
@@ -18,13 +31,30 @@ class LabOrderDetailScreen extends ConsumerStatefulWidget {
 
 class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
   bool _initialized = false;
+  bool _isSaving = false;
+  bool _isEditingReport = false;
   final List<Map<String, dynamic>> _parameters = [];
 
-  void _initParameters(List<Map<String, dynamic>> source) {
-    for (final p in _parameters) {
-      (p['controller'] as TextEditingController?)?.dispose();
+  @override
+  void didUpdateWidget(covariant LabOrderDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.orderId != widget.orderId ||
+        oldWidget.startInEditMode != widget.startInEditMode) {
+      _disposeParameters();
+      _initialized = false;
+      _isEditingReport = false;
+    }
+  }
+
+  void _disposeParameters() {
+    for (final parameter in _parameters) {
+      (parameter['controller'] as TextEditingController?)?.dispose();
     }
     _parameters.clear();
+  }
+
+  void _initParameters(List<Map<String, dynamic>> source) {
+    _disposeParameters();
 
     for (final item in source) {
       final name = item['param'] ?? item['name'] ?? 'Parameter';
@@ -46,36 +76,70 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
 
   @override
   void dispose() {
-    for (final p in _parameters) {
-      (p['controller'] as TextEditingController?)?.dispose();
-    }
+    _disposeParameters();
     super.dispose();
   }
 
-  Future<void> _verifyAndSave() async {
-    final db = ref.read(appDatabaseProvider);
-    final params = _parameters.map((p) => {
-      'param': p['param'],
-      'val': (p['controller'] as TextEditingController).text.trim(),
-      'unit': p['unit'],
-      'refLow': p['refLow'],
-      'refHigh': p['refHigh'],
-    }).toList();
+  Future<void> _verifyAndSave(LabOrderModel order) async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    final isEditingReport =
+        _finalLabReportStatuses.contains(order.status.toLowerCase());
 
-    await db.hmsDao.updateLabOrderResults(widget.orderId, params, 'Completed');
-    ref.invalidate(labOrdersListProvider);
-    ref.invalidate(labOrderDetailProvider(widget.orderId));
-    ref.invalidate(dashboardStatsProvider);
+    try {
+      final params = _parameters
+          .map((parameter) => {
+                'param': parameter['param'],
+                'val': (parameter['controller'] as TextEditingController)
+                    .text
+                    .trim(),
+                'unit': parameter['unit'],
+                'refLow': parameter['refLow'],
+                'refHigh': parameter['refHigh'],
+              })
+          .toList();
+      final db = ref.read(appDatabaseProvider);
+      await db.hmsDao.updateLabOrderResults(
+        widget.orderId,
+        params,
+        isEditingReport ? order.status : 'Completed',
+      );
+      ref.invalidate(labOrdersListProvider);
+      ref.invalidate(dashboardStatsProvider);
+      if (isEditingReport) {
+        ref.invalidate(labOrderDetailProvider(widget.orderId));
+      }
 
-    if (mounted) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Lab results for ${widget.orderId} saved to database! Marked Completed.'),
+          content: Text(isEditingReport
+              ? 'Changes to lab report ${widget.orderId} saved.'
+              : 'Lab results for ${widget.orderId} saved and marked completed.'),
           backgroundColor: Colors.green.shade700,
         ),
       );
-      context.go(AppRoutes.lab);
+      if (isEditingReport) {
+        setState(() => _isEditingReport = false);
+      } else {
+        context.go(AppRoutes.lab);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unable to save lab report ${widget.orderId}: $error'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  void _cancelReportEdit(LabOrderModel order) {
+    _initParameters(order.parameters);
+    setState(() => _isEditingReport = false);
   }
 
   @override
@@ -107,16 +171,35 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
         body: Center(child: Text('Error loading lab order: $err')),
       ),
       data: (order) {
+        if (order == null) {
+          return Scaffold(
+            backgroundColor: colorScheme.surfaceContainerLowest,
+            appBar: AppBar(
+              title: Text('Laboratory Order #${widget.orderId}'),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.go(AppRoutes.lab),
+              ),
+            ),
+            body: const Center(child: Text('Laboratory order not found.')),
+          );
+        }
         if (!_initialized) {
-          _initParameters(order?.parameters ?? []);
+          _initParameters(order.parameters);
+          _isEditingReport =
+                  !_finalLabReportStatuses.contains(order.status.toLowerCase()) ||
+              widget.startInEditMode;
         }
 
-        final patientName = order?.patientName ?? 'Patient';
-        final uhid = order?.uhid ?? 'UHID';
-        final testName = order?.testName ?? 'Laboratory Investigation';
-        final doctorName = order?.doctorName ?? 'Consulting Doctor';
-        final sampleType = order?.sampleType ?? 'Blood';
-        final status = order?.status ?? 'Sample Collected';
+        final patientName = order.patientName;
+        final uhid = order.uhid;
+        final testName = order.testName;
+        final doctorName = order.doctorName;
+        final sampleType = order.sampleType;
+        final status = order.status;
+        final hasCompletedReport =
+            _finalLabReportStatuses.contains(status.toLowerCase());
+        final isViewingReport = hasCompletedReport && !_isEditingReport;
 
         return Scaffold(
           backgroundColor: colorScheme.surfaceContainerLowest,
@@ -136,12 +219,40 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                 icon: const Icon(Icons.print_outlined, size: 18),
                 label: const Text('Print Report'),
               ),
-              const Gap(12),
-              FilledButton.icon(
-                onPressed: _verifyAndSave,
-                icon: const Icon(Icons.verified_outlined, size: 18),
-                label: const Text('Save & Pathologist Verify'),
-              ),
+              if (hasCompletedReport && _isEditingReport) ...[
+                const Gap(8),
+                TextButton.icon(
+                  onPressed: _isSaving ? null : () => _cancelReportEdit(order),
+                  icon: const Icon(Icons.close, size: 18),
+                  label: const Text('Cancel'),
+                ),
+                const Gap(8),
+                FilledButton.icon(
+                  onPressed: _isSaving ? null : () => _verifyAndSave(order),
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined, size: 18),
+                  label: Text(_isSaving ? 'Saving…' : 'Save Report Changes'),
+                ),
+              ] else if (!hasCompletedReport) ...[
+                const Gap(12),
+                FilledButton.icon(
+                  onPressed: _isSaving ? null : () => _verifyAndSave(order),
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.verified_outlined, size: 18),
+                  label: Text(
+                      _isSaving ? 'Saving…' : 'Save & Complete Report'),
+                ),
+              ],
               const Gap(16),
             ],
           ),
@@ -226,22 +337,48 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                                   Padding(padding: const EdgeInsets.all(12), child: Text(p['param'] as String)),
                                   Padding(
                                     padding: const EdgeInsets.all(8),
-                                    child: TextFormField(
-                                      controller: p['controller'] as TextEditingController,
-                                      keyboardType: TextInputType.number,
-                                      decoration: const InputDecoration(isDense: true),
-                                      onChanged: (_) => setState(() {}),
-                                    ),
+                                    child: isViewingReport
+                                        ? Text(
+                                            (p['controller']
+                                                        as TextEditingController)
+                                                    .text
+                                                    .trim()
+                                                    .isEmpty
+                                                ? '—'
+                                                : (p['controller']
+                                                            as TextEditingController)
+                                                        .text
+                                                        .trim(),
+                                          )
+                                        : TextFormField(
+                                            controller: p['controller']
+                                                as TextEditingController,
+                                            keyboardType: TextInputType.number,
+                                            decoration: const InputDecoration(
+                                                isDense: true),
+                                            onChanged: (_) => setState(() {}),
+                                          ),
                                   ),
                                   Padding(padding: const EdgeInsets.all(12), child: Text(p['unit'] as String)),
                                   Padding(padding: const EdgeInsets.all(12), child: Text('${p["refLow"]} - ${p["refHigh"]}')),
                                   Padding(
                                     padding: const EdgeInsets.all(12),
-                                    child: _buildFlag(
-                                      double.tryParse((p['controller'] as TextEditingController).text) ?? 0,
-                                      p['refLow'] as double,
-                                      p['refHigh'] as double,
-                                    ),
+                                    child: double.tryParse(
+                                                (p['controller']
+                                                        as TextEditingController)
+                                                    .text
+                                                    .trim()) ==
+                                            null
+                                        ? const Text('—')
+                                        : _buildFlag(
+                                            double.parse(
+                                                (p['controller']
+                                                        as TextEditingController)
+                                                    .text
+                                                    .trim()),
+                                            p['refLow'] as double,
+                                            p['refHigh'] as double,
+                                          ),
                                   ),
                                 ],
                               ),

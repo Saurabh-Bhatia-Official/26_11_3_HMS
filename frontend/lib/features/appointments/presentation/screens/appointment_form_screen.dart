@@ -27,8 +27,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
   final _notesController = TextEditingController();
 
   DateTime _selectedDate = DateTime.now();
-  String _selectedDoctor = '';
-  String _selectedDepartment = '';
+  int? _selectedDoctorId;
   String _selectedSlot = '10:00 AM';
   String _visitType = 'Scheduled Consultation';
 
@@ -105,6 +104,18 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    final doctors = _availableDoctors(ref.read(staffListProvider).value ?? []);
+    final doctor = _selectedDoctorId == null
+        ? doctors.firstOrNull
+        : doctors.where((member) => member.id == _selectedDoctorId).firstOrNull;
+    if (doctor == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Select an active doctor before booking.')),
+      );
+      return;
+    }
+
     final db = ref.read(appDatabaseProvider);
     final existing = widget.appointment;
 
@@ -134,8 +145,8 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
       tokenNo: token,
       patientName: patientName,
       uhid: uhid,
-      doctorName: _selectedDoctor,
-      department: _selectedDepartment,
+      doctorName: doctor.name,
+      department: doctor.department,
       date: '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
       timeSlot: _selectedSlot,
       status: existing?.status ?? 'Scheduled',
@@ -432,7 +443,9 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                         width: double.infinity,
                         height: 48,
                         child: FilledButton.icon(
-                          onPressed: _book,
+                          onPressed: doctors.isNotEmpty && !staffAsync.isLoading
+                              ? _book
+                              : null,
                           icon: const Icon(Icons.check_circle_outline),
                           label:
                               const Text('Confirm Booking & Issue Token Slip'),

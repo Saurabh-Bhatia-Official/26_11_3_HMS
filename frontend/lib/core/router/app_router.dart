@@ -220,6 +220,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const StaffListScreen(),
             routes: [
               GoRoute(
+                path: 'doctors/new',
+                name: 'doctor-new',
+                builder: (context, state) =>
+                    const StaffFormScreen(doctorOnly: true),
+              ),
+              GoRoute(
                 path: 'new',
                 name: 'staff-new',
                 builder: (context, state) => const StaffFormScreen(),
@@ -250,7 +256,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 name: 'lab-order-detail-legacy',
                 builder: (context, state) {
                   final orderId = state.pathParameters['orderId'] ?? '1';
-                  return LabOrderDetailScreen(orderId: orderId);
+                  return LabOrderDetailScreen(
+                    orderId: orderId,
+                    startInEditMode:
+                        state.uri.queryParameters['mode'] == 'edit',
+                  );
                 },
               ),
               GoRoute(
@@ -258,7 +268,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 name: 'lab-order-detail',
                 builder: (context, state) {
                   final orderId = state.pathParameters['orderId'] ?? '1';
-                  return LabOrderDetailScreen(orderId: orderId);
+                  return LabOrderDetailScreen(
+                    orderId: orderId,
+                    startInEditMode:
+                        state.uri.queryParameters['mode'] == 'edit',
+                  );
                 },
               ),
             ],
