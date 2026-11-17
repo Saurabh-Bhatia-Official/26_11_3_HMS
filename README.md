@@ -101,19 +101,22 @@ flutter test
 
 ### Running the Backend
 
-Set a local JWT secret before starting. Keep it private and use a separate random value in each environment.
+From the repository root, start the backend in PowerShell with:
+
+```powershell
+.\backend\run-local.cmd
+```
+
+The backend listens on port `12223` by default. The local launcher allows the Flutter web origin `http://localhost:12221` unless `CARESYNC_CORS_ALLOWED_ORIGINS` is already set. It also generates a fresh random JWT secret on every run, replacing any value inherited from the current shell. The generated key is kept in memory and is not saved or committed; restarting the backend invalidates tokens from the previous run. Production must provide its own private secret of at least 32 bytes through `CARESYNC_JWT_SECRET`.
+
+Alternatively, run Maven directly from `backend/`. The `spring-boot:run` goal activates the `local` profile and generates a new ephemeral JWT secret if `CARESYNC_JWT_SECRET` is not set:
 
 ```powershell
 cd backend
-$env:CARESYNC_JWT_SECRET = "replace-with-a-private-random-secret-at-least-32-bytes"
 .\mvnw.cmd spring-boot:run
 ```
 
-Alternatively:
-
-```bash
-mvn spring-boot:run
-```
+The ephemeral key is never saved and changes on each start. For non-local deployments, set a private `CARESYNC_JWT_SECRET` of at least 32 UTF-8 bytes; the application fails startup if it is missing or too short.
 
 ### Running Backend Tests
 
@@ -126,8 +129,8 @@ cd backend
 
 | Service | URL |
 |---|---|
-| Backend Server | http://localhost:8080 |
-| Health Check | http://localhost:8080/actuator/health |
+| Backend Server | http://localhost:12223 |
+| Health Check | http://localhost:12223/actuator/health |
 
 ### Database Configuration
 
@@ -141,7 +144,7 @@ Start the backend, provision a backend account, then run Flutter with the backen
 
 ```powershell
 cd frontend
-flutter run -d chrome --dart-define=CARESYNC_API_BASE_URL=http://localhost:8080
+flutter run -d chrome --web-port=12221 --dart-define=CARESYNC_API_BASE_URL=http://localhost:12223
 ```
 
 Sign in with the provisioned backend credentials to enable remote reads for staff, lab orders, pharmacy stock resources, invoices, and supported report aggregates. If the backend is unreachable, those screens fall back to their local SQLite data. Local-only accounts and data remain separate from backend accounts and records.
@@ -151,14 +154,29 @@ Patient creation from a backend-authenticated session queues only UUID, UHID, an
 For Neon, configure `NEON_JDBC_URL` as a JDBC PostgreSQL URL with TLS enabled, along with `NEON_DB_USERNAME` and `NEON_DB_PASSWORD`, then start with the `neon` profile:
 
 ```powershell
-$env:SPRING_PROFILES_ACTIVE = "neon"
-$env:NEON_JDBC_URL = "jdbc:postgresql://<neon-host>/<database>?sslmode=require"
+cd backend
+$env:NEON_JDBC_URL = "jdbc:postgresql://<neon-host>/<database>?sslmode=require&channel_binding=require"
 $env:NEON_DB_USERNAME = "<database-user>"
-$env:NEON_DB_PASSWORD = "<database-password>"
-.\mvnw.cmd spring-boot:run
+$securePassword = Read-Host "Neon DB password" -AsSecureString
+$passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+try {
+    $env:NEON_DB_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
+} finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPointer)
+}
+$env:CARESYNC_CORS_ALLOWED_ORIGINS = "http://localhost:12221"
+$secretBytes = New-Object byte[] 32
+$rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+try {
+    $rng.GetBytes($secretBytes)
+    $env:CARESYNC_JWT_SECRET = [Convert]::ToBase64String($secretBytes)
+} finally {
+    $rng.Dispose()
+}
+.\mvnw.cmd "-Dspring-boot.run.profiles=neon" spring-boot:run
 ```
 
-Hibernate currently updates the schema from the JPA entities at startup. Review and add versioned migrations before evolving a production database.
+Use a newly rotated database password; never commit or paste connection credentials into source files. Stop any running local backend first because the Neon profile uses the same server port. Hibernate currently updates the schema from the JPA entities at startup. Review and add versioned migrations before evolving a production database.
 
 ### Backend Authentication
 

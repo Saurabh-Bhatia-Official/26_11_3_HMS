@@ -1,6 +1,6 @@
 # CareSync backend security
 
-This document describes the current backend code. It is not a compliance certification or production-readiness approval. The backend does not access or synchronize the Flutter Drift database.
+This document describes the current backend code. It is not a compliance certification or production-readiness approval. The backend never accesses the Flutter Drift database directly; the client sends explicit API requests.
 
 ## Authentication API
 
@@ -15,7 +15,7 @@ Login accepts `{"username":"...","password":"..."}`. Refresh and logout accept `
 
 ## JWT and account lifecycle
 
-- `CARESYNC_JWT_SECRET` must contain at least 32 UTF-8 bytes. The application fails startup if it is absent or too short. Use a random secret from a secret manager; do not commit it. Changing the secret invalidates outstanding access tokens. Key rotation procedure is an infrastructure responsibility and is not implemented.
+- `CARESYNC_JWT_SECRET` must contain at least 32 UTF-8 bytes outside the local profile. The Maven `spring-boot:run` goal activates the local profile and generates an ephemeral random key only when the variable is absent; the key is not persisted, so restarting invalidates outstanding access tokens. Non-local deployments must provide a private secret through a secret manager; do not commit it. Key rotation procedure is an infrastructure responsibility and is not implemented.
 - Spring Security Nimbus signs and verifies HS256 tokens. Validation checks signature and algorithm, issuer, audience, required claims and strict integer claim types, issued-at, expiry, lifetime, and 30-second clock skew.
 - Passwords use BCrypt with work factor 12. Five failed attempts lock an account for 15 minutes. On lock expiry, the next login starts a fresh attempt window; a successful login resets the counter. Unknown, inactive, locked and invalid-credential login responses do not disclose account state.
 - Protected requests reload the account and check active status, supported role, hospital scope, and token version. Role or hospital assignment changes make old token claims fail validation. Deactivation increments token version.
@@ -28,6 +28,7 @@ Login accepts `{"username":"...","password":"..."}`. Refresh and logout accept `
 Accepted account roles are centralized in `SecurityRole`: `SUPER_ADMIN`, `ADMIN`, `DOCTOR`, `NURSE`, `RECEPTIONIST`, `PHARMACIST`, `LAB_TECHNICIAN`, `ACCOUNTS`, and `STAFF`. Current route permissions are:
 
 - `/api/staff/**`: `ADMIN`, `SUPER_ADMIN`.
+- `/api/patients/**`: `ADMIN`, `SUPER_ADMIN`, `DOCTOR`, `LAB_TECHNICIAN`, `PHARMACIST`, `ACCOUNTS`.
 - `/api/billing/**`: `ADMIN`, `SUPER_ADMIN`, `ACCOUNTS`.
 - `/api/pharmacy/**`: `ADMIN`, `SUPER_ADMIN`, `PHARMACIST`.
 - `/api/lab/tests/**`: test catalogue reads allow `ADMIN`, `SUPER_ADMIN`, `LAB_TECHNICIAN`, `DOCTOR`; changes allow only `ADMIN`, `SUPER_ADMIN`, `LAB_TECHNICIAN`.
@@ -40,6 +41,7 @@ The implemented business routes are:
 
 | Group | Resources and actions |
 | --- | --- |
+| `/api/patients` | Create minimal patient identity by client UUID; lookup by UUID |
 | `/api/staff` | Department and staff CRUD; optional `role` filter |
 | `/api/billing` | Service catalogue, invoice creation/list/detail/cancel, payments |
 | `/api/pharmacy` | Suppliers, medicine catalogue, batches, stock receive/adjustment, dispensing |
@@ -52,7 +54,7 @@ JSON request/response field names are camelCase. Prices are integer paise. Invoi
 
 Login derives scope from the persisted account; clients cannot choose a hospital in login, refresh, or `/me`. Non-super-admin accounts require a positive hospital ID, and protected requests compare token and current account scope. The `SUPER_ADMIN` account may have no hospital scope in the authentication model.
 
-Business records carry a `hospital_id`, and repository lookups include the authenticated account's hospital ID. A record from a different hospital is returned as not found. The backend still has no hospital entity/table, account-to-hospital foreign key, hospital provisioning flow, or hospital-switching endpoint, so it cannot validate that a configured hospital ID exists. A `SUPER_ADMIN` token with no hospital ID cannot access business records; cross-hospital super-admin operations are not implemented. Patient, visit, admission, and prescription IDs are external references because those modules are outside the current API scope; the backend cannot validate their existence or hospital ownership. Do not treat these references as foreign-key validation.
+Business records carry a `hospital_id`, and repository lookups include the authenticated account's hospital ID. A record from a different hospital is returned as not found. The patient API stores only UUID, UHID, and name and supports create/lookup; it is not a complete patient-record API. The backend still has no hospital entity/table, account-to-hospital foreign key, hospital provisioning flow, or hospital-switching endpoint, so it cannot validate that a configured hospital ID exists. A `SUPER_ADMIN` token with no hospital ID cannot access business records; cross-hospital super-admin operations are not implemented. Visit, admission, and prescription IDs remain external references that the backend cannot validate for existence or hospital ownership. Do not treat these references as foreign-key validation.
 
 ## HTTP and management controls
 
@@ -65,11 +67,11 @@ Business records carry a `hospital_id`, and repository lookups include the authe
 
 ## Database and migrations
 
-The default datasource is file-backed SQLite at `./data/caresyncdb.sqlite`; Hibernate uses `ddl-auto=update`. Activate the `neon` Spring profile to use a Neon PostgreSQL JDBC URL (`NEON_JDBC_URL`), username (`NEON_DB_USERNAME`), and password (`NEON_DB_PASSWORD`). The Neon URL should include `sslmode=require`. Schema changes are currently managed by Hibernate entity updates; no versioned migration runner exists. Before production schema evolution, introduce reviewed, versioned migrations and test them against disposable SQLite and PostgreSQL databases.
+The default datasource is file-backed SQLite at `./data/caresyncdb.sqlite`; Hibernate uses `ddl-auto=update`. Activate the `neon` Spring profile to use a Neon PostgreSQL JDBC URL (`NEON_JDBC_URL`), username (`NEON_DB_USERNAME`), and password (`NEON_DB_PASSWORD`). The Neon URL should include `sslmode=require`; keep credentials in environment variables or a secret manager, never in source control. Schema changes are currently managed by Hibernate entity updates; no versioned migration runner exists. Before production schema evolution, introduce reviewed, versioned migrations and test them against disposable SQLite and PostgreSQL databases.
 
 `src/main/resources/db/migration/auth_security_hardening.sql` is a prepared additive authentication script, tested against isolated H2 only. It is not automatically run and does not replace a versioned database migration strategy.
 
-The backend SQLite file is separate from the Flutter app's local Drift database. There is no client synchronization or conflict-resolution protocol yet.
+The backend SQLite file is separate from the Flutter app's local Drift database. The Flutter client has a durable outbox for new patient creation in backend-authenticated sessions only. Staff, lab, pharmacy, and billing mutations are not synchronized; general retry, conflict resolution, and opening-stock import are not implemented.
 
 ## Bootstrap and environment
 

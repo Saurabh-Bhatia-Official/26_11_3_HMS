@@ -1,0 +1,61 @@
+$kind: http-request
+name: 'Create Invoice'
+order: 3000
+method: POST
+url: '{{base_url}}/api/billing/invoices'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "patientId": {{patient_id}},
+      "patientName": "{{patient_name}}",
+      "uhid": "{{patient_uhid}}",
+      "invoiceType": "counter",
+      "discountPaise": 0,
+      "discountReason": "",
+      "notes": "Postman test invoice",
+      "items": [
+        {
+          "itemType": "service",
+          "description": "General Consultation",
+          "qty": 1,
+          "unitPricePaise": 50000,
+          "discountPaise": 0,
+          "taxRatePct": 0.0
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.collectionVariables.unset("invoice_id");
+      pm.collectionVariables.unset("invoice_total_paise");
+
+      pm.test("Status is 201", function () {
+          pm.response.to.have.status(201);
+      });
+
+      pm.test("Response has invoice fields", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+          pm.expect(jsonData).to.have.property("invoiceNo");
+          pm.expect(jsonData).to.have.property("status");
+          pm.expect(jsonData).to.have.property("totalPaise");
+      });
+
+      var jsonData = pm.response.json();
+      if (jsonData.id) {
+          pm.collectionVariables.set("invoice_id", String(jsonData.id));
+      }
+      if (jsonData.totalPaise !== undefined) {
+          pm.collectionVariables.set("invoice_total_paise", String(jsonData.totalPaise));
+      }

@@ -1,0 +1,29 @@
+$kind: http-request
+name: 'Get Billing Services'
+order: 1000
+method: GET
+url: '{{base_url}}/api/billing/services'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.collectionVariables.unset("billing_service_id");
+
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response is a JSON array", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.be.an("array");
+      });
+
+      var jsonData = pm.response.json();
+      if (jsonData.length > 0 && jsonData[0].id) {
+          pm.collectionVariables.set("billing_service_id", String(jsonData[0].id));
+      }

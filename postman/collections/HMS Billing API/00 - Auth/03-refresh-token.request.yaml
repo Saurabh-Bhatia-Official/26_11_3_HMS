@@ -1,0 +1,39 @@
+$kind: http-request
+name: 'Refresh Token'
+order: 3000
+method: POST
+url: '{{base_url}}/api/auth/refresh'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "refreshToken": "{{refresh_token}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.collectionVariables.unset("access_token");
+      pm.collectionVariables.unset("refresh_token");
+
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has new accessToken and refreshToken", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("accessToken");
+          pm.expect(jsonData.accessToken).to.be.a("string").and.not.empty;
+          pm.expect(jsonData.refreshToken).to.be.a("string").and.not.empty;
+      });
+
+      var jsonData = pm.response.json();
+      if (jsonData.accessToken) {
+          pm.collectionVariables.set("access_token", jsonData.accessToken);
+      }
+      if (jsonData.refreshToken) {
+          pm.collectionVariables.set("refresh_token", jsonData.refreshToken);
+      }

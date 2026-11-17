@@ -1,0 +1,45 @@
+$kind: collection
+name: HMS Billing API
+variables:
+  - key: base_url
+    value: 'http://localhost:12223'
+  - key: username
+    value: admin
+  - key: password
+    value: ''
+  - key: access_token
+    value: ''
+  - key: refresh_token
+    value: ''
+  - key: patient_id
+    value: ''
+  - key: patient_uuid
+    value: ''
+  - key: patient_uhid
+    value: ''
+  - key: patient_name
+    value: 'Postman Test Patient'
+  - key: invoice_id
+    value: ''
+  - key: invoice_total_paise
+    value: ''
+  - key: billing_service_id
+    value: ''
+  - key: lab_test_id
+    value: ''
+  - key: lab_order_id
+    value: ''
+  - key: supplier_id
+    value: ''
+  - key: medicine_id
+    value: ''
+  - key: batch_id
+    value: ''
+  - key: department_id
+    value: ''
+  - key: staff_id
+    value: ''
+  - key: from_date
+    value: '2026-01-01'
+  - key: to_date
+    value: '2026-12-31'

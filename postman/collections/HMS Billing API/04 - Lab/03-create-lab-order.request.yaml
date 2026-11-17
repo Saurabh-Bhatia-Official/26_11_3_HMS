@@ -1,0 +1,46 @@
+$kind: http-request
+name: 'Create Lab Order'
+order: 3000
+method: POST
+url: '{{base_url}}/api/lab/orders'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "patientId": {{patient_id}},
+      "patientName": "{{patient_name}}",
+      "uhid": "{{patient_uhid}}",
+      "testId": {{lab_test_id}},
+      "priority": "routine",
+      "notes": "Postman test lab order"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.collectionVariables.unset("lab_order_id");
+
+      pm.test("Status is 201", function () {
+          pm.response.to.have.status(201);
+      });
+
+      pm.test("Response has lab order fields", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+          pm.expect(jsonData).to.have.property("orderNo");
+          pm.expect(jsonData).to.have.property("status");
+          pm.expect(jsonData).to.have.property("testName");
+      });
+
+      var jsonData = pm.response.json();
+      if (jsonData.id) {
+          pm.collectionVariables.set("lab_order_id", String(jsonData.id));
+      }

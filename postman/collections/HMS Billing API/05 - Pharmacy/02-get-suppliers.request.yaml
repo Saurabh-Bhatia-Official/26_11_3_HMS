@@ -1,0 +1,22 @@
+$kind: http-request
+name: 'Get Suppliers'
+order: 2000
+method: GET
+url: '{{base_url}}/api/pharmacy/suppliers'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response is a JSON array", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.be.an("array");
+      });

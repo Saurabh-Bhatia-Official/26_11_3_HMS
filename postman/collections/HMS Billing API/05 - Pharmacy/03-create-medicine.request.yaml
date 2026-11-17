@@ -1,0 +1,48 @@
+$kind: http-request
+name: 'Create Medicine'
+order: 3000
+method: POST
+url: '{{base_url}}/api/pharmacy/medicines'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Paracetamol 500mg",
+      "genericName": "Paracetamol",
+      "form": "tablet",
+      "strength": "500mg",
+      "manufacturer": "Sun Pharma",
+      "category": "Analgesic",
+      "unit": "strip",
+      "taxRatePct": 5.0,
+      "reorderLevel": 50,
+      "hsnCode": "30049099"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 201", function () {
+          pm.response.to.have.status(201);
+      });
+
+      pm.test("Response has medicine fields", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+          pm.expect(jsonData).to.have.property("name");
+          pm.expect(jsonData).to.have.property("form");
+          pm.expect(jsonData).to.have.property("stockQty");
+      });
+
+      var jsonData = pm.response.json();
+      if (jsonData.id) {
+          pm.collectionVariables.set("medicine_id", String(jsonData.id));
+      }
