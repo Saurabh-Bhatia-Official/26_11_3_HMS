@@ -7,6 +7,8 @@ class Patient extends Equatable {
     required this.id,
     required this.uuid,
     required this.uhid,
+    this.serverUhid,
+    this.syncState,
     required this.name,
     this.gender,
     this.dob,
@@ -35,6 +37,9 @@ class Patient extends Equatable {
 
   /// Unique Hospital ID, e.g. "UHID-000042"
   final String uhid;
+  /// Server-assigned hospital UHID, separate from this device's local alias.
+  final String? serverUhid;
+  final String? syncState;
   final String name;
 
   /// "Male" | "Female" | "Other"
@@ -99,6 +104,8 @@ class Patient extends Equatable {
     int? id,
     String? uuid,
     String? uhid,
+    String? serverUhid,
+    String? syncState,
     String? name,
     String? gender,
     DateTime? dob,
@@ -130,6 +137,8 @@ class Patient extends Equatable {
       id: id ?? this.id,
       uuid: uuid ?? this.uuid,
       uhid: uhid ?? this.uhid,
+      serverUhid: serverUhid ?? this.serverUhid,
+      syncState: syncState ?? this.syncState,
       name: name ?? this.name,
       gender: clearGender ? null : (gender ?? this.gender),
       dob: clearDob ? null : (dob ?? this.dob),
@@ -160,6 +169,8 @@ class Patient extends Equatable {
         id,
         uuid,
         uhid,
+        serverUhid,
+        syncState,
         name,
         gender,
         dob,

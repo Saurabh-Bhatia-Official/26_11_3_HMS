@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/domain/entities/patient.dart';
 import 'package:hospital_management/features/patients/patients_provider.dart';
+import 'package:hospital_management/data/sync/patient_sync_coordinator.dart';
 
 class PatientFormScreen extends ConsumerStatefulWidget {
   const PatientFormScreen({super.key, this.patientId});
@@ -83,7 +84,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _isSaving = true);
-    final repo = ref.read(patientRepositoryProvider);
+    final mutation = ref.read(patientMutationProvider.notifier);
 
     try {
       final now = DateTime.now();
@@ -104,9 +105,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
           notes: _notesController.text.trim(),
         );
 
-        await repo.update(updated);
-        ref.invalidate(patientListProvider);
-        ref.invalidate(selectedPatientProvider(widget.patientId!));
+        await mutation.updatePatient(updated);
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -117,11 +116,11 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         );
         context.go('/patients/${updated.id}');
       } else {
-        final uhid = await repo.generateUhid();
         final patient = Patient(
           id: 0,
           uuid: '',
-          uhid: uhid,
+          // Repository assigns the local provisional UHID and client UUID.
+          uhid: '',
           name: _nameController.text.trim(),
           gender: _gender,
           ageYears: age,
@@ -136,8 +135,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
           createdAt: now,
         );
 
-        final created = await repo.create(patient);
-        ref.invalidate(patientListProvider);
+        final created = await mutation.createPatient(patient);
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -152,8 +150,12 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error saving patient: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
+          content: Text(e is PatientSyncBlockedException
+              ? e.message
+              : 'Error saving patient: $e'),
+          backgroundColor: e is PatientSyncBlockedException
+              ? Colors.orange.shade800
+              : Theme.of(context).colorScheme.error,
         ),
       );
     } finally {

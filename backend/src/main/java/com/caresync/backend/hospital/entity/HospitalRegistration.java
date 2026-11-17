@@ -96,4 +96,15 @@ public class HospitalRegistration {
         adminPasswordHash = null;
         adminUsernameReservation = null;
     }
+
+    /** Expires a pending registration without adding a new public status or schema column. */
+    public void expire(Instant now) {
+        if (status != HospitalStatus.PENDING) throw new IllegalStateException("Only pending registrations can expire");
+        status = HospitalStatus.REJECTED;
+        reviewedByAccountId = null;
+        reviewedAt = now;
+        adminPasswordHash = null;
+        adminUsernameReservation = null;
+        hospital.reject();
+    }
 }

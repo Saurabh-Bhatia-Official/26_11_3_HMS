@@ -5,11 +5,21 @@ import com.caresync.backend.hospital.entity.HospitalRegistration;
 import com.caresync.backend.hospital.entity.HospitalStatus;
 import com.caresync.backend.hospital.repository.HospitalRegistrationRepository;
 import com.caresync.backend.hospital.repository.HospitalRepository;
+import com.caresync.backend.hospital.repository.HospitalIdAllocationRepository;
 import com.caresync.backend.hospital.service.HospitalIdGenerator;
+import com.caresync.backend.hospital.service.HospitalManagementService;
+import com.caresync.backend.hospital.service.HospitalApiException;
+import com.caresync.backend.membership.entity.HospitalMembership;
+import com.caresync.backend.membership.entity.MembershipRole;
+import com.caresync.backend.membership.entity.MembershipStatus;
+import com.caresync.backend.membership.repository.HospitalMembershipRepository;
+import com.caresync.backend.membership.repository.MembershipAuditEventRepository;
+import com.caresync.backend.membership.service.MembershipService;
 import com.caresync.backend.security.AuthAccount;
 import com.caresync.backend.security.AuthAccountRepository;
 import com.caresync.backend.security.RefreshTokenRepository;
 import com.caresync.backend.security.SecurityAuditEventRepository;
+import com.caresync.backend.security.BearerTokenFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,8 +33,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import com.caresync.backend.security.SecurityAuditEvent;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.ArgumentMatchers.any;
 
 import java.time.Instant;
+import java.time.Duration;
+import java.sql.Timestamp;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -36,6 +53,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -44,6 +62,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = {
         "caresync.security.jwt-secret=local-test-secret-change-before-deployment-123456789",
+        "caresync.hospital.registration.rate-limit.max-attempts=1000",
         "spring.datasource.url=jdbc:h2:mem:caresync-hospital-module-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
 })
 @AutoConfigureMockMvc
@@ -54,7 +73,12 @@ class HospitalManagementControllerTests {
     @Autowired HospitalRegistrationRepository registrations;
     @Autowired AuthAccountRepository accounts;
     @Autowired RefreshTokenRepository refreshTokens;
-    @Autowired SecurityAuditEventRepository auditEvents;
+    @MockitoSpyBean SecurityAuditEventRepository auditEvents;
+    @Autowired HospitalMembershipRepository memberships;
+    @Autowired MembershipAuditEventRepository membershipAuditEvents;
+    @Autowired MembershipService membershipService;
+    @Autowired HospitalManagementService hospitalManagementService;
+    @Autowired JdbcTemplate jdbc;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired @Qualifier("hospitalIdGenerator") HospitalIdGenerator databaseSequenceIdGenerator;
 
@@ -62,6 +86,8 @@ class HospitalManagementControllerTests {
     void clearIsolatedTestDatabase() {
         refreshTokens.deleteAll();
         registrations.deleteAll();
+        membershipAuditEvents.deleteAll();
+        memberships.deleteAll();
         hospitals.deleteAll();
         auditEvents.deleteAll();
         accounts.deleteAll();
@@ -131,6 +157,76 @@ class HospitalManagementControllerTests {
     }
 
     @Test
+    void expiredPendingRegistrationReleasesCredentialsAndWritesLifecycleAudit() throws Exception {
+        String id = registerAndGetRegistrationId("expired-admin", "HospitalPassword9!");
+        HospitalRegistration pending = registrations.findById(UUID.fromString(id)).orElseThrow();
+        UUID hospitalUuid = pending.getHospital().getId();
+        Instant expiryTime = pending.getSubmittedAt().plus(Duration.ofHours(168));
+
+        assertEquals(1, hospitalManagementService.expirePendingRegistrations(expiryTime));
+        HospitalRegistration expired = registrations.findById(UUID.fromString(id)).orElseThrow();
+        assertEquals(HospitalStatus.REJECTED, expired.getStatus());
+        assertNull(expired.getAdminPasswordHash());
+        assertEquals(HospitalStatus.REJECTED, hospitals.findById(hospitalUuid).orElseThrow().getStatus());
+        assertTrue(auditEvents.findAll().stream()
+                .anyMatch(event -> "HOSPITAL_REGISTRATION_EXPIRED".equals(event.getEventType())));
+        assertEquals(0, hospitalManagementService.expirePendingRegistrations(expiryTime));
+    }
+
+    @Test
+    void expiredRegistrationCannotBeListedOrApprovedBeforeScheduledCleanup() throws Exception {
+        String id = registerAndGetRegistrationId("too-old-admin", "HospitalPassword9!");
+        UUID registrationUuid = UUID.fromString(id);
+        HospitalRegistration pending = registrations.findById(registrationUuid).orElseThrow();
+        Instant submittedTooLongAgo = Instant.now().minus(Duration.ofDays(8));
+        jdbc.update("UPDATE hospital_registrations SET submitted_at = ? WHERE registration_uuid = ?",
+                Timestamp.from(submittedTooLongAgo), registrationUuid);
+        AuthAccount reviewer = accounts.saveAndFlush(new AuthAccount("expiry-reviewer",
+                passwordEncoder.encode("StrongPassword9!"), "Central Reviewer", "SUPER_ADMIN", null));
+        BearerTokenFilter.AuthPrincipal principal = new BearerTokenFilter.AuthPrincipal(reviewer.getId(),
+                reviewer.getUsername(), reviewer.getFullName(), reviewer.getRole(), null);
+
+        assertTrue(hospitalManagementService.pendingRegistrations(principal).isEmpty());
+        assertThrows(HospitalApiException.class, () -> hospitalManagementService.approve(registrationUuid, principal));
+        HospitalRegistration stillPending = registrations.findById(registrationUuid).orElseThrow();
+        assertEquals(HospitalStatus.PENDING, stillPending.getStatus());
+        assertNotNull(stillPending.getAdminPasswordHash());
+
+        assertEquals(1, hospitalManagementService.expirePendingRegistrations(Instant.now()));
+        HospitalRegistration cleaned = registrations.findById(registrationUuid).orElseThrow();
+        assertEquals(HospitalStatus.REJECTED, cleaned.getStatus());
+        assertNull(cleaned.getAdminPasswordHash());
+        assertEquals(0, accounts.findAll().stream().filter(a -> "too-old-admin".equals(a.getUsername())).count());
+    }
+
+    @Test
+    void approvalFailureAfterProvisioningRollsBackHospitalAccountMembershipAndAudit() throws Exception {
+        String registrationId = registerAndGetRegistrationId("rollback-admin", "HospitalPassword9!");
+        HospitalRegistration pending = registrations.findById(UUID.fromString(registrationId)).orElseThrow();
+        AuthAccount reviewer = accounts.saveAndFlush(new AuthAccount("rollback-reviewer",
+                passwordEncoder.encode("StrongPassword9!"), "Central Reviewer", "SUPER_ADMIN", null));
+        doAnswer(invocation -> {
+            SecurityAuditEvent event = invocation.getArgument(0);
+            if ("HOSPITAL_APPROVED".equals(event.getEventType())) {
+                throw new IllegalStateException("Simulated audit persistence failure");
+            }
+            return invocation.callRealMethod();
+        }).when(auditEvents).save(any(SecurityAuditEvent.class));
+
+        assertThrows(IllegalStateException.class, () -> hospitalManagementService.approve(
+                UUID.fromString(registrationId), new BearerTokenFilter.AuthPrincipal(reviewer.getId(),
+                        reviewer.getUsername(), reviewer.getFullName(), reviewer.getRole(), null)));
+
+        HospitalRegistration afterRollback = registrations.findById(UUID.fromString(registrationId)).orElseThrow();
+        assertEquals(HospitalStatus.PENDING, afterRollback.getStatus());
+        assertNotNull(afterRollback.getAdminPasswordHash());
+        assertEquals(HospitalStatus.PENDING, hospitals.findById(pending.getHospital().getId()).orElseThrow().getStatus());
+        assertEquals(0, accounts.findAll().stream().filter(a -> "rollback-admin".equals(a.getUsername())).count());
+        assertEquals(0, memberships.count());
+        assertTrue(auditEvents.findAll().stream().noneMatch(event -> "HOSPITAL_APPROVED".equals(event.getEventType())));
+    }
+
+    @Test
     void approvalIsPlatformAdminOnlyAndAllocatesUniqueTwelveDigitId() throws Exception {
         String firstId = registerAndGetRegistrationId("hospital-admin", "HospitalPassword9!");
         Hospital collision = new Hospital(UUID.randomUUID(), "Existing", "EXIST", "Clinic", null, null,
@@ -167,11 +263,17 @@ class HospitalManagementControllerTests {
         AuthAccount admin = accounts.findByUsername("hospital-admin").orElseThrow();
         assertEquals("HOSPITAL_SUPER_ADMIN", admin.getRole());
         assertEquals(123_456_789_013L, admin.getHospitalId());
+        var membership = memberships.findByAccount_Id(admin.getId()).orElseThrow();
+        assertEquals(MembershipStatus.ACTIVE, membership.getStatus());
+        assertEquals(MembershipRole.HOSPITAL_SUPER_ADMIN, membership.getRole());
+        mvc.perform(post("/api/auth/hospital-login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"hospital-admin\",\"password\":\"HospitalPassword9!\",\"hospitalId\":\"123456789013\"}"))
+                .andExpect(status().isOk());
         assertNull(registrations.findAll().stream().filter(r -> r.getId().toString().equals(firstId))
                 .findFirst().orElseThrow().getAdminPasswordHash());
         mvc.perform(get("/api/v1/hospitals")).andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].hospitalId").value("123456789013"))
-                .andExpect(jsonPath("$[0].hospitalUuid").doesNotExist());
+                .andExpect(jsonPath("$[1].hospitalId").value("123456789013"))
+                .andExpect(jsonPath("$[1].hospitalUuid").doesNotExist());
     }
 
     @Test
@@ -253,6 +355,59 @@ class HospitalManagementControllerTests {
         hospitals.saveAndFlush(hospital);
         mvc.perform(get("/api/v1/hospitals/me").header("Authorization", "Bearer " + hospitalToken))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void legacyAccountCanAuthenticateButCannotAccessMembershipProtectedHospitalProfile() throws Exception {
+        Hospital hospital = new Hospital(UUID.randomUUID(), "Legacy Clinic", "LEG", "Clinic", null, null,
+                null, null, Instant.now());
+        hospital.approve(678_901_234_567L);
+        hospitals.saveAndFlush(hospital);
+        accounts.saveAndFlush(new AuthAccount("legacy-hospital-user", passwordEncoder.encode("HospitalPassword9!"),
+                "Legacy User", "DOCTOR", 678_901_234_567L));
+        assertTrue(membershipService.resolveActiveContext(
+                accounts.findByUsername("legacy-hospital-user").orElseThrow().getId(), 678_901_234_567L).isEmpty());
+
+        String legacyLogin = mvc.perform(post("/api/auth/hospital-login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"legacy-hospital-user\",\"password\":\"HospitalPassword9!\",\"hospitalId\":\"678901234567\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String token = new tools.jackson.databind.ObjectMapper().readTree(legacyLogin).path("accessToken").asText();
+        mvc.perform(get("/api/v1/hospitals/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void revokedMembershipInvalidatesRefreshAndTenantContext() throws Exception {
+        Hospital hospital = new Hospital(UUID.randomUUID(), "Membership Clinic", "MEM", "Clinic", null, null,
+                null, null, Instant.now());
+        hospital.approve(789_012_345_678L);
+        hospitals.saveAndFlush(hospital);
+        String adminToken = createTokenAccount("membership-admin", "HOSPITAL_SUPER_ADMIN", 789_012_345_678L);
+        AuthAccount employee = accounts.saveAndFlush(new AuthAccount("membership-doctor", passwordEncoder.encode("HospitalPassword9!"),
+                "Doctor", "DOCTOR", 789_012_345_678L));
+        HospitalMembership employeeMembership = memberships.saveAndFlush(new HospitalMembership(UUID.randomUUID(), employee,
+                hospital, MembershipRole.DOCTOR, Instant.now()));
+        Hospital otherHospital = new Hospital(UUID.randomUUID(), "Other Membership Clinic", "OTH", "Clinic", null, null,
+                null, null, Instant.now());
+        otherHospital.approve(789_012_345_679L);
+        hospitals.saveAndFlush(otherHospital);
+        assertTrue(membershipService.resolveActiveContext(employee.getId(), otherHospital.getHospitalId()).isEmpty());
+        String login = mvc.perform(post("/api/auth/hospital-login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"membership-doctor\",\"password\":\"HospitalPassword9!\",\"hospitalId\":\"789012345678\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        var json = new tools.jackson.databind.ObjectMapper().readTree(login);
+        String accessToken = json.path("accessToken").asText();
+        String refreshToken = json.path("refreshToken").asText();
+
+        membershipService.changeStatus(accounts.findByUsername("membership-admin").orElseThrow().getId(),
+                employeeMembership.getId(), MembershipStatus.REVOKED);
+
+        mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                .andExpect(status().isUnauthorized());
+        assertTrue(!adminToken.isBlank());
     }
 
     @Test
@@ -413,6 +568,11 @@ class HospitalManagementControllerTests {
     private String createTokenAccount(String username, String role, Long hospitalId) {
         AuthAccount account = accounts.saveAndFlush(new AuthAccount(username, passwordEncoder.encode("StrongPassword9!"),
                 "Test Account", role, hospitalId));
+        if (hospitalId != null) {
+            Hospital hospital = hospitals.findByHospitalIdAndStatus(hospitalId, HospitalStatus.APPROVED).orElseThrow();
+            memberships.saveAndFlush(new HospitalMembership(UUID.randomUUID(), account, hospital,
+                    MembershipRole.valueOf(role), Instant.now()));
+        }
         // The normal login API produces the same signed JWT and loads authoritative account state.
         try {
             String path = "SUPER_ADMIN".equals(role) ? "/api/auth/login" : "/api/auth/hospital-login";
@@ -443,8 +603,8 @@ class HospitalManagementControllerTests {
 
         @Bean
         @Primary
-        HospitalIdGenerator deterministicHospitalIdGenerator() {
-            return new HospitalIdGenerator() {
+        HospitalIdGenerator deterministicHospitalIdGenerator(HospitalIdAllocationRepository allocations) {
+            return new HospitalIdGenerator(allocations) {
                 @Override
                 public long nextCandidate() {
                     return candidateIndex.getAndIncrement() == 0 ? 123_456_789_012L : 123_456_789_013L;

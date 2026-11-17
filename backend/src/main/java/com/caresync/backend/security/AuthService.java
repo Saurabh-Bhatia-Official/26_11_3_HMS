@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.caresync.backend.hospital.entity.HospitalStatus;
 import com.caresync.backend.hospital.repository.HospitalRepository;
+import com.caresync.backend.membership.service.MembershipService;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -30,6 +31,7 @@ public class AuthService {
 
     private final AuthAccountRepository accounts;
     private final HospitalRepository hospitals;
+    private final MembershipService memberships;
     private final RefreshTokenRepository refreshTokens;
     private final SecurityAuditEventRepository auditEvents;
     private final PasswordEncoder passwordEncoder;
@@ -37,11 +39,13 @@ public class AuthService {
     private final String timingHash;
     private final SecureRandom random = new SecureRandom();
 
-    public AuthService(AuthAccountRepository accounts, HospitalRepository hospitals, RefreshTokenRepository refreshTokens,
+    public AuthService(AuthAccountRepository accounts, HospitalRepository hospitals, MembershipService memberships,
+                       RefreshTokenRepository refreshTokens,
                        SecurityAuditEventRepository auditEvents, PasswordEncoder passwordEncoder,
                        AccessTokenService accessTokens) {
         this.accounts = accounts;
         this.hospitals = hospitals;
+        this.memberships = memberships;
         this.refreshTokens = refreshTokens;
         this.auditEvents = auditEvents;
         this.passwordEncoder = passwordEncoder;
@@ -101,6 +105,10 @@ public class AuthService {
             audit(LOGIN_FAILED, account.getId(), now);
             return Optional.empty();
         }
+        if (!memberships.allowsAuthenticationOrRefresh(account)) {
+            audit(LOGIN_FAILED, account.getId(), now);
+            return Optional.empty();
+        }
         account.recordSuccess();
         audit(LOGIN_SUCCESS, account.getId(), now);
         return Optional.of(issuePair(account, account.getHospitalId(), UUID.randomUUID().toString()));
@@ -142,6 +150,12 @@ public class AuthService {
         }
         if (account.getHospitalId() != null
                 && hospitals.findByHospitalIdAndStatus(account.getHospitalId(), HospitalStatus.APPROVED).isEmpty()) {
+            old.revoke();
+            revokeFamily(old.getFamilyId());
+            audit(REFRESH_FAILED, account.getId(), now);
+            return Optional.empty();
+        }
+        if (!memberships.allowsAuthenticationOrRefresh(account)) {
             old.revoke();
             revokeFamily(old.getFamilyId());
             audit(REFRESH_FAILED, account.getId(), now);
@@ -190,6 +204,7 @@ public class AuthService {
                 && hospitals.findByHospitalIdAndStatus(account.getHospitalId(), HospitalStatus.APPROVED).isEmpty()) {
             return Optional.empty();
         }
+        if (!memberships.allowsAuthenticationOrRefresh(account)) return Optional.empty();
         return Optional.of(new BearerTokenFilter.AuthPrincipal(account.getId(), account.getUsername(), account.getFullName(),
                 account.getRole(), account.getHospitalId()));
     }

@@ -196,6 +196,36 @@ class OnlineHospitalSessionNotifier extends StateNotifier<OnlineHospitalSessionS
     await _loadSession(access, refreshToken);
   }
 
+  /// Returns the current secure access token for an authenticated API client.
+  Future<String?> accessTokenForApi() async {
+    if (!state.isAuthenticated) return null;
+    final token = await _tokens.read(_accessTokenKey);
+    return token == null || token.isEmpty ? null : token;
+  }
+
+  /// Rotates the stored refresh token after an API reports an expired access token.
+  Future<String?> refreshAccessTokenForApi() async {
+    final refresh = await _tokens.read(_refreshTokenKey);
+    if (refresh == null || refresh.isEmpty) {
+      await _expireSession();
+      return null;
+    }
+    try {
+      final pair = await _api.refreshSession(refresh);
+      final access = pair['accessToken'] as String?;
+      final rotatedRefresh = pair['refreshToken'] as String?;
+      if (access == null || access.isEmpty || rotatedRefresh == null || rotatedRefresh.isEmpty) {
+        await _expireSession();
+        return null;
+      }
+      await _writeTokens(access, rotatedRefresh);
+      return access;
+    } on HospitalApiException catch (error) {
+      if (error.statusCode == 401 || error.statusCode == 403) await _expireSession();
+      rethrow;
+    }
+  }
+
   Future<bool> logout() async {
     var serverRevoked = false;
     try {

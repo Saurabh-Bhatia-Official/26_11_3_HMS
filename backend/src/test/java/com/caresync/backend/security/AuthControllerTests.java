@@ -81,8 +81,8 @@ class AuthControllerTests {
     }
 
     @Test
-    void hospitalAccountsRequireExplicitHospitalSelectionWhileCentralAdminUsesLegacyLogin() throws Exception {
-        loginStatus("doctor1", "CorrectHorseBattery9!", 401);
+    void legacyHospitalAccountsKeepExistingLoginWhileCentralAdminUsesLegacyLogin() throws Exception {
+        loginStatus("doctor1", "CorrectHorseBattery9!", 200);
         accounts.save(new AuthAccount("platform-admin", passwordEncoder.encode("CentralPassword9!"),
                 "Platform Admin", "SUPER_ADMIN", null));
         loginStatus("platform-admin", "CentralPassword9!", 200);

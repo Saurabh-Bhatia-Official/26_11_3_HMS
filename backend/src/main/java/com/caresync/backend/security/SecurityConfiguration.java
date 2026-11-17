@@ -19,6 +19,9 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
+import com.caresync.backend.membership.service.MembershipService;
+import com.caresync.backend.tenant.TenantContextFilter;
+import com.caresync.backend.tenant.TenantContextHolder;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -71,6 +74,7 @@ public class SecurityConfiguration {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, JwtDecoder decoder, AuthService authService,
+                                           MembershipService membershipService, TenantContextHolder tenantContextHolder,
                                            @Qualifier("corsConfigurationSource") CorsConfigurationSource corsSource) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
@@ -83,6 +87,9 @@ public class SecurityConfiguration {
                                 "/api/v1/hospital-registrations", "/api/v1/hospitals", "/api/v1/hospitals/lookup/**",
                                 "/actuator/health").permitAll()
                         .requestMatchers("/api/v1/hospitals/me").hasAnyAuthority(SecurityRole.allAuthorities())
+                        .requestMatchers("/api/v1/patients/**").hasAnyAuthority(SecurityRole.allAuthorities())
+                        .requestMatchers("/api/v1/memberships", "/api/v1/memberships/**")
+                        .hasAuthority(SecurityRole.HOSPITAL_SUPER_ADMIN.authority())
                         .requestMatchers("/api/v1/platform/hospital-registrations/**").hasAuthority(SecurityRole.SUPER_ADMIN.authority())
                         .requestMatchers("/api/auth/me").hasAnyAuthority(SecurityRole.allAuthorities())
                         .anyRequest().denyAll())
@@ -94,6 +101,7 @@ public class SecurityConfiguration {
                         .addHeaderWriter(new StaticHeadersWriter("Permissions-Policy",
                                 "camera=(), microphone=(), geolocation=()")))
                 .addFilterBefore(new BearerTokenFilter(decoder, authService), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new TenantContextFilter(membershipService, tenantContextHolder), BearerTokenFilter.class)
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, exception) -> {
                             response.setStatus(401);

@@ -4,6 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
+import 'package:hospital_management/core/auth/online_hospital_session.dart';
 import 'package:hospital_management/core/widgets/empty_state.dart';
 import 'package:hospital_management/domain/entities/patient.dart';
 import 'package:hospital_management/features/patients/patients_provider.dart';
@@ -61,6 +62,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
   Widget build(BuildContext context) {
     final patientsAsync = ref.watch(patientListProvider);
     final checker = ref.watch(permissionCheckerProvider);
+    final online = ref.watch(onlineHospitalSessionProvider).isAuthenticated;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -173,7 +175,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  patient.uhid,
+                                  online ? (patient.serverUhid ?? patient.uhid) : patient.uhid,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
@@ -193,6 +195,22 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                               children: [
                                 Text('${patient.gender ?? "Unspecified"} • Age: ${patient.age}'),
                                 const Gap(16),
+                                if (patient.syncState != null && patient.syncState != 'SYNCED')
+                                  Text(
+                                    patient.syncState == 'BLOCKED_AUTH'
+                                        ? 'Sync needs Hospital access'
+                                        : patient.syncState == 'CONFLICT'
+                                            ? 'Sync conflict needs review'
+                                            : 'Sync pending',
+                                    style: TextStyle(
+                                      color: patient.syncState == 'CONFLICT'
+                                          ? colorScheme.error
+                                          : colorScheme.tertiary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                if (patient.syncState != null && patient.syncState != 'SYNCED')
+                                  const Gap(16),
                                 if (patient.bloodGroup != null) ...[
                                   Text('Blood: ${patient.bloodGroup}'),
                                   const Gap(16),

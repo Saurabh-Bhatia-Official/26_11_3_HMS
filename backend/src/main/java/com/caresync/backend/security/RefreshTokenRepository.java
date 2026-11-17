@@ -22,6 +22,8 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
 
     List<RefreshToken> findAllByFamilyId(String familyId);
 
+    List<RefreshToken> findAllByAccount_Id(Long accountId);
+
     boolean existsByFamilyIdAndRevokedFalseAndExpiresAtAfter(String familyId, Instant now);
 
     @Modifying

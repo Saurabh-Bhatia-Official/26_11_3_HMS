@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
+import 'package:hospital_management/core/auth/online_hospital_session.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
 import 'package:hospital_management/domain/entities/patient.dart';
@@ -16,6 +17,7 @@ class PatientProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final patientAsync = ref.watch(selectedPatientProvider(patientId));
     final allergiesAsync = ref.watch(patientAllergiesProvider(patientId));
+    final online = ref.watch(onlineHospitalSessionProvider).isAuthenticated;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -141,7 +143,7 @@ class PatientProfileScreen extends ConsumerWidget {
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
-                                      patient.uhid,
+                                      online ? (patient.serverUhid ?? patient.uhid) : patient.uhid,
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
@@ -149,6 +151,17 @@ class PatientProfileScreen extends ConsumerWidget {
                                       ),
                                     ),
                                   ),
+                                  if (patient.syncState != null && patient.syncState != 'SYNCED') ...[
+                                    const Gap(8),
+                                    Chip(
+                                      label: Text(patient.syncState == 'BLOCKED_AUTH'
+                                          ? 'Sync requires Hospital access'
+                                          : patient.syncState == 'CONFLICT'
+                                              ? 'Sync conflict'
+                                              : 'Sync pending'),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                  ],
                                   if (patient.isVip) ...[
                                     const Gap(8),
                                     const Chip(
