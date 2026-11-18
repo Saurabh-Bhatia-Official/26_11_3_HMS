@@ -83,7 +83,7 @@ class ReportsScreen extends ConsumerWidget {
                           color: Colors.indigo.shade600,
                         ),
                         KpiCard(
-                          label: 'Outstanding Patient Dues',
+                          label: 'Current Outstanding (All Invoices)',
                           value: dueFormatted,
                           icon: Icons.warning_amber_rounded,
                           color: Colors.amber.shade900,

@@ -50,7 +50,7 @@ public class ReportService {
         long invoiceCount = invoices.countByHospitalIdAndDeletedFalseAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
                 hospitalId, range.start(), range.end());
         return new ReportDtos.Summary(range.from(), range.to(), invoiceCount, revenue,
-                invoices.sumOutstanding(hospitalId), stockAlerts(hospitalId).size(),
+                invoices.sumCurrentOutstanding(hospitalId), stockAlerts(hospitalId).size(),
                 labOrders.countByHospitalIdAndDeletedFalseAndStatusIn(hospitalId, OPEN_LAB_STATUSES),
                 staff.countByHospitalIdAndActiveTrueAndDeletedFalse(hospitalId));
     }
@@ -77,7 +77,7 @@ public class ReportService {
         Map<Long, Long> stock = new HashMap<>();
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         batches.findAllByHospitalIdAndDeletedFalse(hospitalId).stream()
-                .filter(batch -> !batch.getExpiryDate().isBefore(today))
+                .filter(batch -> batch.isUnexpiredOn(today))
                 .forEach(batch -> stock.merge(batch.getMedicine().getId(), (long) batch.getQuantityOnHand(), Math::addExact));
         return medicines.findAllByHospitalIdAndDeletedFalseOrderByNameAsc(hospitalId).stream()
                 .map(medicine -> stockAlert(medicine, stock.getOrDefault(medicine.getId(), 0L)))

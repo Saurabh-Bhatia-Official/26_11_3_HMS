@@ -9,6 +9,9 @@ import com.caresync.backend.billing.repository.BillableServiceRepository;
 import com.caresync.backend.billing.repository.InvoiceRepository;
 import com.caresync.backend.common.AccessContext;
 import com.caresync.backend.common.BusinessException;
+import com.caresync.backend.patient.entity.PatientRecord;
+import com.caresync.backend.patient.repository.PatientRepository;
+import com.caresync.backend.reference.ReferenceService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,11 +27,16 @@ public class BillingService {
     private final AccessContext access;
     private final BillableServiceRepository services;
     private final InvoiceRepository invoices;
+    private final PatientRepository patients;
+    private final ReferenceService references;
 
-    public BillingService(AccessContext access, BillableServiceRepository services, InvoiceRepository invoices) {
+    public BillingService(AccessContext access, BillableServiceRepository services, InvoiceRepository invoices,
+                          PatientRepository patients, ReferenceService references) {
         this.access = access;
         this.services = services;
         this.invoices = invoices;
+        this.patients = patients;
+        this.references = references;
     }
 
     @Transactional(readOnly = true)
@@ -64,25 +72,45 @@ public class BillingService {
 
     public BillingDtos.InvoiceResponse createInvoice(BillingDtos.InvoiceRequest request) {
         long hospitalId = access.hospitalId();
+        PatientRecord patient = patients.findByIdAndHospitalIdAndDeletedFalse(request.patientId(), hospitalId)
+                .orElseThrow(() -> BusinessException.notFound("Patient"));
+        Long visitId = references.resolveVisitId(request.visitId(), request.visitUuid(), patient.getId());
+        Long admissionId = references.resolveAdmissionId(request.admissionId(), request.admissionUuid(),
+                patient.getId());
+        references.validateAdmissionVisitPair(request.admissionId(), request.admissionUuid(),
+                request.visitId(), request.visitUuid());
+        if (request.discountPaise() < 0) throw BusinessException.invalid("Invoice discount cannot be negative");
+        if (request.items() == null || request.items().isEmpty()) {
+            throw BusinessException.invalid("An invoice must contain at least one item");
+        }
         long subtotal = 0;
         long tax = 0;
         long itemsTotal = 0;
-        for (BillingDtos.InvoiceItemRequest item : request.items()) {
-            long base = Math.multiplyExact(item.unitPricePaise(), item.qty());
-            if (item.discountPaise() > base) throw BusinessException.invalid("Item discount exceeds item value");
-            long discounted = base - item.discountPaise();
-            long itemTax = percent(discounted, item.taxRatePct());
-            subtotal = Math.addExact(subtotal, base);
-            tax = Math.addExact(tax, itemTax);
-            itemsTotal = Math.addExact(itemsTotal, Math.addExact(discounted, itemTax));
+        try {
+            for (BillingDtos.InvoiceItemRequest item : request.items()) {
+                if (item.qty() <= 0 || item.unitPricePaise() < 0 || item.discountPaise() < 0
+                        || item.taxRatePct() < 0 || item.taxRatePct() > 100) {
+                    throw BusinessException.invalid("Invoice item values are invalid");
+                }
+                long base = Math.multiplyExact(item.unitPricePaise(), item.qty());
+                if (item.discountPaise() > base) throw BusinessException.invalid("Item discount exceeds item value");
+                long discounted = base - item.discountPaise();
+                long itemTax = percent(discounted, item.taxRatePct());
+                subtotal = Math.addExact(subtotal, base);
+                tax = Math.addExact(tax, itemTax);
+                itemsTotal = Math.addExact(itemsTotal, Math.addExact(discounted, itemTax));
+            }
+        } catch (ArithmeticException exception) {
+            throw BusinessException.invalid("Invoice amount exceeds the supported range");
         }
-        if (request.discountPaise() > Math.addExact(subtotal, tax)) {
+        if (request.discountPaise() > itemsTotal) {
             throw BusinessException.invalid("Invoice discount exceeds invoice value");
         }
-        long total = Math.subtractExact(itemsTotal, request.discountPaise());
+        long total = itemsTotal - request.discountPaise();
+        if (total < 0) throw BusinessException.invalid("Invoice total cannot be negative");
         String invoiceNo = "INV-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
-        Invoice invoice = new Invoice(hospitalId, invoiceNo, request.patientId(), request.patientName().trim(),
-                request.uhid(), request.visitId(), request.admissionId(), request.invoiceType(), subtotal,
+        Invoice invoice = new Invoice(hospitalId, invoiceNo, patient.getId(), patient.getName(),
+                patient.getUhid(), visitId, admissionId, request.invoiceType(), subtotal,
                 request.discountPaise(), request.discountReason(), tax, total, request.notes());
         for (BillingDtos.InvoiceItemRequest item : request.items()) {
             long base = Math.multiplyExact(item.unitPricePaise(), item.qty());
@@ -96,6 +124,9 @@ public class BillingService {
     }
 
     public BillingDtos.InvoiceResponse addPayment(long invoiceId, BillingDtos.PaymentRequest request) {
+        if (request.amountPaise() <= 0) {
+            throw BusinessException.invalid("Payment amount must be greater than zero");
+        }
         Invoice invoice = invoices.findForUpdate(invoiceId, access.hospitalId())
                 .orElseThrow(() -> BusinessException.notFound("Invoice"));
         if (invoice.getStatus().equals("cancelled")) throw BusinessException.conflict("Cancelled invoices cannot be paid");

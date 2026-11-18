@@ -9,6 +9,11 @@ import com.caresync.backend.lab.entity.LabTest;
 import com.caresync.backend.lab.entity.LabTestParameter;
 import com.caresync.backend.lab.repository.LabOrderRepository;
 import com.caresync.backend.lab.repository.LabTestRepository;
+import com.caresync.backend.patient.entity.PatientRecord;
+import com.caresync.backend.patient.repository.PatientRepository;
+import com.caresync.backend.reference.ReferenceService;
+import com.caresync.backend.staff.entity.StaffMember;
+import com.caresync.backend.staff.repository.StaffRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,11 +28,18 @@ public class LabService {
     private final AccessContext access;
     private final LabTestRepository tests;
     private final LabOrderRepository orders;
+    private final PatientRepository patients;
+    private final StaffRepository staff;
+    private final ReferenceService references;
 
-    public LabService(AccessContext access, LabTestRepository tests, LabOrderRepository orders) {
+    public LabService(AccessContext access, LabTestRepository tests, LabOrderRepository orders,
+                      PatientRepository patients, StaffRepository staff, ReferenceService references) {
         this.access = access;
         this.tests = tests;
         this.orders = orders;
+        this.patients = patients;
+        this.staff = staff;
+        this.references = references;
     }
 
     @Transactional(readOnly = true)
@@ -62,10 +74,19 @@ public class LabService {
     }
 
     public LabDtos.OrderResponse createOrder(LabDtos.OrderRequest request) {
+        long hospitalId = access.hospitalId();
+        PatientRecord patient = patients.findByIdAndHospitalIdAndDeletedFalse(request.patientId(), hospitalId)
+                .orElseThrow(() -> BusinessException.notFound("Patient"));
+        StaffMember doctor = request.doctorId() == null ? null : staff
+                .findByIdAndHospitalIdAndDeletedFalse(request.doctorId(), hospitalId)
+                .filter(member -> member.isActive() && member.getRole().equalsIgnoreCase("doctor"))
+                .orElseThrow(() -> BusinessException.notFound("Doctor"));
+        Long visitId = references.resolveVisitId(request.visitId(), request.visitUuid(), patient.getId());
         LabTest test = findTest(request.testId());
         String number = "LAB-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
-        LabOrder order = new LabOrder(access.hospitalId(), number, request.patientId(), request.patientName().trim(),
-                request.uhid(), request.visitId(), request.doctorId(), request.doctorName(), test,
+        LabOrder order = new LabOrder(hospitalId, number, patient.getId(), patient.getName(),
+                patient.getUhid(), visitId, doctor == null ? null : doctor.getId(),
+                doctor == null ? null : doctor.getName(), test,
                 request.priority() == null ? "routine" : request.priority(), request.notes());
         return orderResponse(orders.save(order));
     }
@@ -121,6 +142,10 @@ public class LabService {
         return requests.stream().map(parameter -> {
             String name = parameter.parameterName().trim();
             if (!names.add(name.toLowerCase())) throw BusinessException.invalid("Test parameter names must be unique");
+            if (parameter.rangeLow() != null && !Double.isFinite(parameter.rangeLow())
+                    || parameter.rangeHigh() != null && !Double.isFinite(parameter.rangeHigh())) {
+                throw BusinessException.invalid("Parameter ranges must be finite numbers");
+            }
             if (parameter.rangeLow() != null && parameter.rangeHigh() != null
                     && parameter.rangeLow() > parameter.rangeHigh()) {
                 throw BusinessException.invalid("Parameter lower range cannot exceed its upper range");

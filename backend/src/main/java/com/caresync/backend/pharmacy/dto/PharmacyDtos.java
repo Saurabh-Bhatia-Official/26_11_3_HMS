@@ -51,8 +51,12 @@ public final class PharmacyDtos {
                                      int adjustmentQuantity, String reason, long adjustedBy, Instant createdAt) {}
 
     public record DispensingItemRequest(@Min(1) long medicineId, @Min(1) @Max(1000000) int quantity) {}
-    public record DispenseRequest(@Min(1) long patientId, Long prescriptionId, Long visitId,
-                                  Boolean counterSale, @NotEmpty List<@Valid DispensingItemRequest> items) {}
+    public record DispenseRequest(@Min(1) long patientId, @Min(1) Long prescriptionId, @Min(1) Long visitId,
+                                  @Pattern(regexp = "(?i)[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")
+                                  String prescriptionUuid,
+                                  @Pattern(regexp = "(?i)[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")
+                                  String visitUuid,
+                                  Boolean counterSale, @NotEmpty List<@NotNull @Valid DispensingItemRequest> items) {}
     public record DispensingItemResponse(long medicineId, String medicineName, long batchId, String batchNo,
                                          int quantity, long unitPricePaise, double taxRatePct, long totalPaise) {}
     public record DispensingResponse(long id, long patientId, Long prescriptionId, Long visitId,

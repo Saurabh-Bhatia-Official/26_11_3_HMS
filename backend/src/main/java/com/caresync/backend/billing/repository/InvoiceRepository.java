@@ -30,7 +30,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     @Query("select coalesce(sum(i.duePaise), 0) from Invoice i where i.hospitalId = :hospitalId " +
             "and i.deleted = false and i.status <> 'cancelled'")
-    Long sumOutstanding(@Param("hospitalId") long hospitalId);
+    Long sumCurrentOutstanding(@Param("hospitalId") long hospitalId);
 
     @Query("select p from Payment p where p.invoice.hospitalId = :hospitalId and p.invoice.deleted = false " +
             "and p.paidAt >= :start and p.paidAt < :end order by p.paidAt asc")

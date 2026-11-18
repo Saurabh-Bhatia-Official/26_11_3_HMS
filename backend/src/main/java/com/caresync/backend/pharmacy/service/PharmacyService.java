@@ -14,6 +14,9 @@ import com.caresync.backend.pharmacy.repository.MedicineBatchRepository;
 import com.caresync.backend.pharmacy.repository.MedicineRepository;
 import com.caresync.backend.pharmacy.repository.StockAdjustmentRepository;
 import com.caresync.backend.pharmacy.repository.SupplierRepository;
+import com.caresync.backend.patient.entity.PatientRecord;
+import com.caresync.backend.patient.repository.PatientRepository;
+import com.caresync.backend.reference.ReferenceService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,16 +37,21 @@ public class PharmacyService {
     private final MedicineBatchRepository batches;
     private final StockAdjustmentRepository adjustments;
     private final DispensingRepository dispensings;
+    private final PatientRepository patients;
+    private final ReferenceService references;
 
     public PharmacyService(AccessContext access, SupplierRepository suppliers, MedicineRepository medicines,
                            MedicineBatchRepository batches, StockAdjustmentRepository adjustments,
-                           DispensingRepository dispensings) {
+                           DispensingRepository dispensings, PatientRepository patients,
+                           ReferenceService references) {
         this.access = access;
         this.suppliers = suppliers;
         this.medicines = medicines;
         this.batches = batches;
         this.adjustments = adjustments;
         this.dispensings = dispensings;
+        this.patients = patients;
+        this.references = references;
     }
 
     @Transactional(readOnly = true)
@@ -99,6 +107,9 @@ public class PharmacyService {
 
     public PharmacyDtos.BatchResponse receive(PharmacyDtos.ReceiveStockRequest request) {
         long hospitalId = access.hospitalId();
+        if (request.quantity() <= 0 || request.purchasePricePaise() < 0 || request.mrpPaise() < 0) {
+            throw BusinessException.invalid("Stock quantity must be positive and prices cannot be negative");
+        }
         Medicine medicine = findMedicine(request.medicineId());
         if (!request.expiryDate().isAfter(LocalDate.now(ZoneOffset.UTC))) {
             throw BusinessException.invalid("Cannot receive an expired or expiring-today batch");
@@ -142,8 +153,23 @@ public class PharmacyService {
 
     public PharmacyDtos.DispensingResponse dispense(PharmacyDtos.DispenseRequest request) {
         long hospitalId = access.hospitalId();
+        if (request.patientId() <= 0 || request.prescriptionId() != null && request.prescriptionId() <= 0
+                || request.visitId() != null && request.visitId() <= 0) {
+            throw BusinessException.invalid("Patient, prescription, and visit identifiers must be positive");
+        }
+        PatientRecord patient = patients.findByIdAndHospitalIdAndDeletedFalse(request.patientId(), hospitalId)
+                .orElseThrow(() -> BusinessException.notFound("Patient"));
+        Long visitId = references.resolveVisitId(request.visitId(), request.visitUuid(), patient.getId());
+        Long prescriptionId = references.resolvePrescriptionId(request.prescriptionId(), request.prescriptionUuid(),
+                patient.getId(), visitId, null);
+        if (request.items() == null || request.items().isEmpty()) {
+            throw BusinessException.invalid("A dispensing must contain at least one item");
+        }
         Set<Long> medicineIds = new HashSet<>();
         for (PharmacyDtos.DispensingItemRequest item : request.items()) {
+            if (item == null || item.medicineId() <= 0 || item.quantity() <= 0 || item.quantity() > 1_000_000) {
+                throw BusinessException.invalid("Medicine identifiers and dispensing quantities must be positive");
+            }
             if (!medicineIds.add(item.medicineId())) {
                 throw BusinessException.invalid("A medicine can only appear once in a dispensing request");
             }
@@ -151,9 +177,15 @@ public class PharmacyService {
 
         List<DispensedLine> lines = request.items().stream()
                 .flatMap(item -> allocate(hospitalId, item).stream()).toList();
-        long total = lines.stream().mapToLong(DispensedLine::totalPaise).reduce(0, Math::addExact);
-        Dispensing dispensing = new Dispensing(hospitalId, request.patientId(), request.prescriptionId(),
-                request.visitId(), access.userId(), Boolean.TRUE.equals(request.counterSale()), total);
+        long total;
+        try {
+            total = lines.stream().mapToLong(DispensedLine::totalPaise).reduce(0, Math::addExact);
+        } catch (ArithmeticException exception) {
+            throw BusinessException.invalid("Dispensing total exceeds the supported amount");
+        }
+        if (total < 0) throw BusinessException.invalid("Dispensing total cannot be negative");
+        Dispensing dispensing = new Dispensing(hospitalId, request.patientId(), prescriptionId,
+                visitId, access.userId(), Boolean.TRUE.equals(request.counterSale()), total);
         for (DispensedLine line : lines) {
             dispensing.addItem(new DispensingItem(line.medicine(), line.batch(), line.quantity(),
                     line.unitPricePaise(), line.taxRatePct(), line.totalPaise()));
@@ -173,14 +205,18 @@ public class PharmacyService {
         List<DispensedLine> allocations = new java.util.ArrayList<>();
         List<MedicineBatch> available = batches.findAvailableForUpdate(hospitalId, medicine.getId());
         for (MedicineBatch batch : available) {
-            if (!batch.getExpiryDate().isAfter(LocalDate.now(ZoneOffset.UTC))) continue;
+            if (!batch.isUnexpiredOn(LocalDate.now(ZoneOffset.UTC))) continue;
             int allocated = Math.min(remaining, batch.getQuantityOnHand());
             if (allocated == 0) continue;
             batch.adjust(-allocated);
-            long base = Math.multiplyExact(batch.getMrpPaise(), allocated);
-            long tax = percent(base, medicine.getTaxRatePct());
-            allocations.add(new DispensedLine(medicine, batch, allocated, batch.getMrpPaise(),
-                    medicine.getTaxRatePct(), Math.addExact(base, tax)));
+            try {
+                long base = Math.multiplyExact(batch.getMrpPaise(), allocated);
+                long tax = percent(base, medicine.getTaxRatePct());
+                allocations.add(new DispensedLine(medicine, batch, allocated, batch.getMrpPaise(),
+                        medicine.getTaxRatePct(), Math.addExact(base, tax)));
+            } catch (ArithmeticException exception) {
+                throw BusinessException.invalid("Dispensing amount exceeds the supported range");
+            }
             remaining -= allocated;
             if (remaining == 0) break;
         }
@@ -190,7 +226,7 @@ public class PharmacyService {
 
     private int stockFor(long hospitalId, long medicineId) {
         return batches.findAllByHospitalIdAndMedicineIdAndDeletedFalseOrderByExpiryDateAsc(hospitalId, medicineId)
-                .stream().filter(batch -> batch.getExpiryDate().isAfter(LocalDate.now(ZoneOffset.UTC)))
+                .stream().filter(batch -> batch.isUnexpiredOn(LocalDate.now(ZoneOffset.UTC)))
                 .mapToInt(MedicineBatch::getQuantityOnHand).sum();
     }
 

@@ -69,6 +69,8 @@ public class MedicineBatch extends HospitalScopedEntity {
         quantityOnHand = next;
     }
 
+    public boolean isUnexpiredOn(LocalDate date) { return expiryDate.isAfter(date); }
+
     public Medicine getMedicine() { return medicine; }
     public String getBatchNo() { return batchNo; }
     public LocalDate getExpiryDate() { return expiryDate; }

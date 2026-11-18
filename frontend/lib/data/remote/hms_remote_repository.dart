@@ -208,13 +208,7 @@ class HmsRemoteRepository {
       (await medicines()).where((medicine) => medicine.isLowStock).toList();
 
   Future<List<MedicineBatchModel>> nearExpiryBatches() async {
-    final end = DateTime.now().add(const Duration(days: 90));
-    return (await batches()).where((batch) {
-      final expiry = DateTime.tryParse(batch.expiryDate);
-      return expiry != null &&
-          !expiry.isBefore(DateTime.now()) &&
-          !expiry.isAfter(end);
-    }).toList();
+    return (await batches()).where((batch) => batch.isNearExpiry).toList();
   }
 
   Future<List<StockAdjustmentModel>> stockAdjustments() async {

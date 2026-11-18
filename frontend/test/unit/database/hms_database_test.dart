@@ -190,7 +190,9 @@ void main() {
       final resumedVisitId = await db.hmsDao.startOpdForAppointment(saved);
 
       expect(resumedVisitId, equals(visitId));
-      expect((await db.hmsDao.getAllOpdVisits()).length, equals(1));
+      final visits = await db.hmsDao.getAllOpdVisits();
+      expect(visits.length, equals(1));
+      expect(visits.single.uuid, isNotEmpty);
       expect(
         (await db.hmsDao.getAllAppointments()).single.status,
         equals('In Consultation'),
@@ -410,6 +412,8 @@ void main() {
       final admissions = await db.hmsDao.getAllIpdAdmissions();
       expect(admissions, isNotEmpty);
       final firstAdm = admissions.first;
+      expect(firstAdm.uuid, isNotEmpty);
+      expect(firstAdm.visitUuid, isNotEmpty);
 
       await db.hmsDao.addIpdNursingNote(firstAdm.id, {
         'time': 'Just now',

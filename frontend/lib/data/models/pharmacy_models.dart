@@ -190,22 +190,27 @@ class MedicineBatchModel {
   String get costFormatted => '₹${(costPaise / 100).toStringAsFixed(2)}';
 
   bool get isExpired {
-    try {
-      final exp = DateTime.parse(expiryDate);
-      return DateTime.now().isAfter(exp);
-    } catch (_) {
-      return false;
-    }
+    final expiry = _expiryDateUtc;
+    return expiry != null && !expiry.isAfter(_todayUtc);
   }
 
   bool get isNearExpiry {
-    try {
-      final exp = DateTime.parse(expiryDate);
-      final diff = exp.difference(DateTime.now()).inDays;
-      return diff >= 0 && diff <= 90;
-    } catch (_) {
-      return false;
-    }
+    final expiry = _expiryDateUtc;
+    final today = _todayUtc;
+    return expiry != null &&
+        expiry.isAfter(today) &&
+        !expiry.isAfter(today.add(const Duration(days: 90)));
+  }
+
+  DateTime? get _expiryDateUtc {
+    final expiry = DateTime.tryParse(expiryDate);
+    if (expiry == null) return null;
+    return DateTime.utc(expiry.year, expiry.month, expiry.day);
+  }
+
+  DateTime get _todayUtc {
+    final now = DateTime.now().toUtc();
+    return DateTime.utc(now.year, now.month, now.day);
   }
 
   factory MedicineBatchModel.fromMap(Map<String, dynamic> map) {

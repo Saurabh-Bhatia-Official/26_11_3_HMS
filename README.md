@@ -62,6 +62,8 @@ On Windows:
 ```
 
 Alternatively, use VS Code Run and Debug and select the CareSync Web configuration.
+These default launch options use the local database, so the demo credentials shown
+on the sign-in screen work without a backend account.
 
 ### Running Frontend Tests
 
@@ -149,7 +151,7 @@ flutter run -d chrome --web-port=12221 --dart-define=CARESYNC_API_BASE_URL=http:
 
 Sign in with the provisioned backend credentials to enable remote reads for staff, lab orders, pharmacy stock resources, invoices, and supported report aggregates. If the backend is unreachable, those screens fall back to their local SQLite data. Local-only accounts and data remain separate from backend accounts and records.
 
-Patient creation from a backend-authenticated session queues only UUID, UHID, and name, then retries on the next backend login. Existing patients are not bulk-uploaded. Other mutations—including staff, lab orders/results, pharmacy stock/dispensing, and invoices/payments—are still local-only. Remote responses are not cached to SQLite, and conflict resolution and audited opening-stock import are not yet implemented. Do not rely on other local changes syncing to the server.
+Patient creation, OPD visit starts, and IPD admissions from a backend-authenticated session are queued with stable UUID references and retried on the next backend login. Existing local history is not bulk-uploaded, and edits to visits/admissions are not synchronized. Other mutations—including staff, prescriptions, lab orders/results, pharmacy stock/dispensing, and invoices/payments—remain local-only unless sent directly to the backend APIs. Remote responses are not cached to SQLite, and conflict resolution and audited opening-stock import are not yet implemented.
 
 For Neon, configure `NEON_JDBC_URL` as a JDBC PostgreSQL URL with TLS enabled, along with `NEON_DB_USERNAME` and `NEON_DB_PASSWORD`, then start with the `neon` profile:
 
@@ -189,11 +191,14 @@ The backend requires `CARESYNC_JWT_SECRET` to be set to a unique random value of
 | POST | `/api/auth/logout` | Revoke a refresh token |
 | GET | `/api/auth/me` | Return the authenticated account |
 
-Business APIs are available under `/api/staff`, `/api/billing`, `/api/pharmacy`, `/api/lab`, and `/api/reports`. They require a bearer access token and hospital-scoped account; authorization is role-based and each business row is filtered by the account's hospital ID.
+Business APIs are available under `/api/staff`, `/api/patients`, `/api/visits`, `/api/admissions`, `/api/prescriptions`, `/api/billing`, `/api/pharmacy`, `/api/lab`, and `/api/reports`. They require a bearer access token and hospital-scoped account; authorization is role-based and each business row is filtered by the account's hospital ID.
 
 | API group | Main resources |
 |---|---|
 | `/api/patients` | Patient identity lookup and creation by stable UUID |
+| `/api/visits` | Hospital-scoped visit references created by stable UUID |
+| `/api/admissions` | Admission references linked to the same patient's visit |
+| `/api/prescriptions` | Prescription references linked to a hospital-scoped visit |
 | `/api/staff` | Departments and staff records |
 | `/api/billing` | Service catalogue, invoices, and payments |
 | `/api/pharmacy` | Suppliers, medicines, batches, stock adjustments, and dispensing |

@@ -8,8 +8,7 @@
       "program": "frontend/lib/main.dart",
       "deviceId": "chrome",
       "args": [
-        "--web-port=12221",
-        "--dart-define=CARESYNC_API_BASE_URL=http://localhost:12223"
+        "--web-port=12221"
       ]
     }
   ]

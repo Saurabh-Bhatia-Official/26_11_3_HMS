@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
+import 'package:uuid/uuid.dart';
 
 /// Database Access Object for Hospital Management System core modules.
 ///
@@ -81,6 +82,7 @@ class HmsDao {
     await db.customStatement('''
       CREATE TABLE IF NOT EXISTS opd_visits (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT,
         appointment_id INTEGER,
         token_no TEXT,
         patient_name TEXT NOT NULL,
@@ -115,6 +117,24 @@ class HmsDao {
         'ALTER TABLE opd_visits ADD COLUMN appointment_id INTEGER;',
       );
     }
+    if (!opdVisitColumns.any((column) => column.data['name'] == 'uuid')) {
+      await db.customStatement('ALTER TABLE opd_visits ADD COLUMN uuid TEXT;');
+    }
+    final missingOpdVisitUuids = await db
+        .customSelect(
+          "SELECT id FROM opd_visits WHERE uuid IS NULL OR uuid = ''",
+        )
+        .get();
+    for (final row in missingOpdVisitUuids) {
+      await db.customStatement(
+        "UPDATE opd_visits SET uuid = '${const Uuid().v4()}' WHERE id = ${row.data['id']}",
+      );
+    }
+    await db.customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_opd_visits_uuid
+      ON opd_visits(uuid)
+      WHERE uuid IS NOT NULL;
+    ''');
 
     await db.customStatement('''
       CREATE UNIQUE INDEX IF NOT EXISTS idx_opd_visits_appointment_id
@@ -126,6 +146,8 @@ class HmsDao {
     await db.customStatement('''
       CREATE TABLE IF NOT EXISTS ipd_admissions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT,
+        visit_uuid TEXT,
         patient_name TEXT NOT NULL,
         uhid TEXT NOT NULL,
         ward TEXT NOT NULL,
@@ -140,6 +162,32 @@ class HmsDao {
         medications_json TEXT,
         created_at TEXT
       );
+    ''');
+    final admissionColumns =
+        await db.customSelect('PRAGMA table_info(ipd_admissions)').get();
+    if (!admissionColumns.any((column) => column.data['name'] == 'uuid')) {
+      await db
+          .customStatement('ALTER TABLE ipd_admissions ADD COLUMN uuid TEXT;');
+    }
+    if (!admissionColumns
+        .any((column) => column.data['name'] == 'visit_uuid')) {
+      await db.customStatement(
+          'ALTER TABLE ipd_admissions ADD COLUMN visit_uuid TEXT;');
+    }
+    final missingAdmissionUuids = await db
+        .customSelect(
+          "SELECT id FROM ipd_admissions WHERE uuid IS NULL OR uuid = ''",
+        )
+        .get();
+    for (final row in missingAdmissionUuids) {
+      await db.customStatement(
+        "UPDATE ipd_admissions SET uuid = '${const Uuid().v4()}' WHERE id = ${row.data['id']}",
+      );
+    }
+    await db.customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_ipd_admissions_uuid
+      ON ipd_admissions(uuid)
+      WHERE uuid IS NOT NULL;
     ''');
 
     // 6. Lab Orders Table
@@ -674,14 +722,16 @@ class HmsDao {
     }
 
     final now = DateTime.now().toIso8601String();
+    final visitUuid = const Uuid().v4();
     final visitId = await db.customInsert('''
       INSERT INTO opd_visits (
-        appointment_id, token_no, patient_name, uhid,
+        uuid, appointment_id, token_no, patient_name, uhid,
         doctor_name, department, age_gender, status,
         complaint, history, examination, diagnosis, advice,
         bp_sys, bp_dia, pulse, temp, spo2, weight, height,
         medications_json, created_at
       ) VALUES (
+        '$visitUuid',
         ${appointment.id},
         '${_esc(appointment.tokenNo)}',
         '${_esc(appointment.patientName)}',
@@ -781,12 +831,14 @@ class HmsDao {
   Future<int> insertOpdVisit(OpdVisitModel visit) async {
     final now = DateTime.now().toIso8601String();
     final medsJson = jsonEncode(visit.medications);
+    final visitUuid = visit.uuid.isEmpty ? const Uuid().v4() : visit.uuid;
     await db.customStatement('''
       INSERT INTO opd_visits (
-        token_no, patient_name, uhid, doctor_name, department, age_gender, status,
+        uuid, token_no, patient_name, uhid, doctor_name, department, age_gender, status,
         complaint, history, examination, diagnosis, advice,
         bp_sys, bp_dia, pulse, temp, spo2, weight, height, medications_json, created_at
       ) VALUES (
+        '${_esc(visitUuid)}',
         '${_esc(visit.tokenNo)}', '${_esc(visit.patientName)}', '${_esc(visit.uhid)}', '${_esc(visit.doctorName)}', '${_esc(visit.department)}', '${_esc(visit.ageGender)}', '${_esc(visit.status)}',
         '${_esc(visit.complaint)}', '${_esc(visit.history)}', '${_esc(visit.examination)}', '${_esc(visit.diagnosis)}', '${_esc(visit.advice)}',
         '${_esc(visit.bpSys)}', '${_esc(visit.bpDia)}', '${_esc(visit.pulse)}', '${_esc(visit.temp)}', '${_esc(visit.spo2)}', '${_esc(visit.weight)}', '${_esc(visit.height)}', '${_esc(medsJson)}', '$now'
@@ -824,11 +876,15 @@ class HmsDao {
 
   Future<void> insertIpdAdmission(IpdAdmissionModel admission) async {
     final now = DateTime.now().toIso8601String();
+    final admissionUuid =
+        admission.uuid.isEmpty ? const Uuid().v4() : admission.uuid;
+    final visitUuid =
+        admission.visitUuid.isEmpty ? const Uuid().v4() : admission.visitUuid;
     final notesJson = jsonEncode(admission.notes);
     final medsJson = jsonEncode(admission.medications);
     await db.customStatement('''
-      INSERT INTO ipd_admissions (patient_name, uhid, ward, bed_no, doctor_name, admit_date, days, diagnosis, status, deposit_paise, notes_json, medications_json, created_at)
-      VALUES ('${_esc(admission.patientName)}', '${_esc(admission.uhid)}', '${_esc(admission.ward)}', '${_esc(admission.bedNo)}', '${_esc(admission.doctorName)}', '${_esc(admission.admitDate)}', ${admission.days}, '${_esc(admission.diagnosis)}', '${_esc(admission.status)}', ${admission.depositPaise}, '${_esc(notesJson)}', '${_esc(medsJson)}', '$now')
+      INSERT INTO ipd_admissions (uuid, visit_uuid, patient_name, uhid, ward, bed_no, doctor_name, admit_date, days, diagnosis, status, deposit_paise, notes_json, medications_json, created_at)
+      VALUES ('${_esc(admissionUuid)}', '${_esc(visitUuid)}', '${_esc(admission.patientName)}', '${_esc(admission.uhid)}', '${_esc(admission.ward)}', '${_esc(admission.bedNo)}', '${_esc(admission.doctorName)}', '${_esc(admission.admitDate)}', ${admission.days}, '${_esc(admission.diagnosis)}', '${_esc(admission.status)}', ${admission.depositPaise}, '${_esc(notesJson)}', '${_esc(medsJson)}', '$now')
     ''');
     // Mark bed occupied
     await updateBedStatus(admission.bedNo, 'Occupied',

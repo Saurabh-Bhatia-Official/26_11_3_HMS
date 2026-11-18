@@ -3,6 +3,8 @@ import 'dart:convert';
 /// Inpatient Admission model representing admitted patients, bed occupancy and care summary.
 class IpdAdmissionModel {
   final int id;
+  final String uuid;
+  final String visitUuid;
   final String patientName;
   final String uhid;
   final String ward;
@@ -25,6 +27,8 @@ class IpdAdmissionModel {
 
   const IpdAdmissionModel({
     required this.id,
+    this.uuid = '',
+    this.visitUuid = '',
     required this.patientName,
     required this.uhid,
     required this.ward,
@@ -77,6 +81,8 @@ class IpdAdmissionModel {
 
     return IpdAdmissionModel(
       id: map['id'] as int? ?? 0,
+      uuid: map['uuid'] as String? ?? '',
+      visitUuid: map['visit_uuid'] as String? ?? '',
       patientName: map['patient_name'] as String? ?? '',
       uhid: map['uhid'] as String? ?? '',
       ward: map['ward'] as String? ?? '',
@@ -101,6 +107,8 @@ class IpdAdmissionModel {
 
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
+        'uuid': uuid,
+        'visit_uuid': visitUuid,
         'patient_name': patientName,
         'uhid': uhid,
         'ward': ward,
@@ -129,6 +137,8 @@ class IpdAdmissionModel {
 
   IpdAdmissionModel copyWith({
     int? id,
+    String? uuid,
+    String? visitUuid,
     String? patientName,
     String? uhid,
     String? ward,
@@ -151,6 +161,8 @@ class IpdAdmissionModel {
   }) {
     return IpdAdmissionModel(
       id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
+      visitUuid: visitUuid ?? this.visitUuid,
       patientName: patientName ?? this.patientName,
       uhid: uhid ?? this.uhid,
       ward: ward ?? this.ward,
@@ -346,7 +358,8 @@ class MedicationAdministrationModel {
   String toJson() => jsonEncode(toMap());
 
   factory MedicationAdministrationModel.fromJson(String source) =>
-      MedicationAdministrationModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+      MedicationAdministrationModel.fromMap(
+          jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Discharge summary card & documentation model
@@ -416,4 +429,3 @@ class DischargeSummaryModel {
   factory DischargeSummaryModel.fromJson(String source) =>
       DischargeSummaryModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
-

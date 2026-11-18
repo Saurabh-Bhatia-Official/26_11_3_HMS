@@ -29,6 +29,9 @@ Accepted account roles are centralized in `SecurityRole`: `SUPER_ADMIN`, `ADMIN`
 
 - `/api/staff/**`: `ADMIN`, `SUPER_ADMIN`.
 - `/api/patients/**`: `ADMIN`, `SUPER_ADMIN`, `DOCTOR`, `LAB_TECHNICIAN`, `PHARMACIST`, `ACCOUNTS`.
+- `/api/visits/**`: `ADMIN`, `SUPER_ADMIN`, `DOCTOR`, `NURSE`, `RECEPTIONIST`, `ACCOUNTS`.
+- `/api/admissions/**`: `ADMIN`, `SUPER_ADMIN`, `DOCTOR`, `NURSE`, `RECEPTIONIST`, `ACCOUNTS`.
+- `/api/prescriptions/**`: `ADMIN`, `SUPER_ADMIN`, `DOCTOR`.
 - `/api/billing/**`: `ADMIN`, `SUPER_ADMIN`, `ACCOUNTS`.
 - `/api/pharmacy/**`: `ADMIN`, `SUPER_ADMIN`, `PHARMACIST`.
 - `/api/lab/tests/**`: test catalogue reads allow `ADMIN`, `SUPER_ADMIN`, `LAB_TECHNICIAN`, `DOCTOR`; changes allow only `ADMIN`, `SUPER_ADMIN`, `LAB_TECHNICIAN`.
@@ -42,6 +45,9 @@ The implemented business routes are:
 | Group | Resources and actions |
 | --- | --- |
 | `/api/patients` | Create minimal patient identity by client UUID; lookup by UUID |
+| `/api/visits` | Create visit references by client UUID and hospital-scoped patient UUID |
+| `/api/admissions` | Create admissions linked to the same hospital and patient as their visit |
+| `/api/prescriptions` | Create prescription references linked to a hospital-scoped visit and optional doctor |
 | `/api/staff` | Department and staff CRUD; optional `role` filter |
 | `/api/billing` | Service catalogue, invoice creation/list/detail/cancel, payments |
 | `/api/pharmacy` | Suppliers, medicine catalogue, batches, stock receive/adjustment, dispensing |
@@ -54,7 +60,7 @@ JSON request/response field names are camelCase. Prices are integer paise. Invoi
 
 Login derives scope from the persisted account; clients cannot choose a hospital in login, refresh, or `/me`. Non-super-admin accounts require a positive hospital ID, and protected requests compare token and current account scope. The `SUPER_ADMIN` account may have no hospital scope in the authentication model.
 
-Business records carry a `hospital_id`, and repository lookups include the authenticated account's hospital ID. A record from a different hospital is returned as not found. The patient API stores only UUID, UHID, and name and supports create/lookup; it is not a complete patient-record API. The backend still has no hospital entity/table, account-to-hospital foreign key, hospital provisioning flow, or hospital-switching endpoint, so it cannot validate that a configured hospital ID exists. A `SUPER_ADMIN` token with no hospital ID cannot access business records; cross-hospital super-admin operations are not implemented. Visit, admission, and prescription IDs remain external references that the backend cannot validate for existence or hospital ownership. Do not treat these references as foreign-key validation.
+Business records carry a `hospital_id`, and repository lookups include the authenticated account's hospital ID. A record from a different hospital is returned as not found. Billing, lab, and pharmacy accept optional server IDs or stable UUIDs for visit, admission, and prescription references; they resolve those references in the current hospital and ensure patient/visit relationships match before saving. Visit and admission creation resolve patient UUIDs within the current hospital. Admission creation also requires a visit for that same patient. Prescription references require a visit in the current hospital and can include a same-hospital doctor ID. The patient API stores only UUID, UHID, and name and supports create/lookup; it is not a complete patient-record API. The backend still has no hospital entity/table, account-to-hospital foreign key, hospital provisioning flow, or hospital-switching endpoint, so it cannot validate that a configured hospital ID exists. A `SUPER_ADMIN` token with no hospital ID cannot access business records; cross-hospital super-admin operations are not implemented.
 
 ## HTTP and management controls
 
@@ -71,7 +77,7 @@ The default datasource is file-backed SQLite at `./data/caresyncdb.sqlite`; Hibe
 
 `src/main/resources/db/migration/auth_security_hardening.sql` is a prepared additive authentication script, tested against isolated H2 only. It is not automatically run and does not replace a versioned database migration strategy.
 
-The backend SQLite file is separate from the Flutter app's local Drift database. The Flutter client has a durable outbox for new patient creation in backend-authenticated sessions only. Staff, lab, pharmacy, and billing mutations are not synchronized; general retry, conflict resolution, and opening-stock import are not implemented.
+The backend SQLite file is separate from the Flutter app's local Drift database. The Flutter client has a durable outbox for new patient creation, OPD visit starts, and IPD admissions in backend-authenticated sessions only. Existing history and visit/admission edits are not synchronized. Prescription references can be created through the backend API, but the Flutter client has no prescription creation/sync workflow. Staff, lab, pharmacy, and billing mutations are not synchronized; conflict resolution and opening-stock import are not implemented.
 
 ## Bootstrap and environment
 

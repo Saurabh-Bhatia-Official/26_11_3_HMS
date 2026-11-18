@@ -23,17 +23,19 @@ public final class LabDtos {
     public record TestRequest(@NotBlank @Size(max = 180) String name, @Size(max = 100) String category,
                               @Size(max = 80) String sampleType, @Min(0) @Max(1000000000000L) long pricePaise,
                               @Min(1) @Max(8760) int turnaroundHours, Boolean outsourced,
-                              List<@Valid ParameterRequest> parameters) {}
+                              List<@NotNull @Valid ParameterRequest> parameters) {}
     public record TestResponse(long id, String uuid, String name, String category, String sampleType,
                                long pricePaise, int turnaroundHours, boolean outsourced, Instant createdAt,
                                Instant updatedAt, List<ParameterResponse> parameters) {}
 
     public record OrderRequest(@Min(1) long patientId, @NotBlank @Size(max = 200) String patientName,
-                               @Size(max = 32) String uhid, Long visitId, Long doctorId,
+                               @Size(max = 32) String uhid, @Min(1) Long visitId,
+                               @Pattern(regexp = "(?i)[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")
+                               String visitUuid, @Min(1) Long doctorId,
                                @Size(max = 160) String doctorName, @Min(1) long testId,
                                @Pattern(regexp = "routine|urgent|stat") String priority,
                                @Size(max = 1000) String notes) {}
-    public record ResultRequest(@NotEmpty List<@Valid ResultValueRequest> results) {}
+    public record ResultRequest(@NotEmpty List<@NotNull @Valid ResultValueRequest> results) {}
     public record ResultValueRequest(@NotBlank @Size(max = 160) String parameterName,
                                      @NotBlank @Size(max = 500) String value, @Size(max = 32) String unit,
                                      @Size(max = 200) String referenceRange,
