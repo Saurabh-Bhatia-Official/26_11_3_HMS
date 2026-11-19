@@ -1,28 +1,28 @@
 package com.caresync.backend.security;
 
+import java.net.URI;
+import java.util.Arrays;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.annotation.Qualifier;
-
-import java.net.URI;
-import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 @EnableScheduling
@@ -78,10 +78,40 @@ public class SecurityConfiguration {
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/actuator/health").permitAll()
-                        .requestMatchers("/api/auth/me").hasAnyAuthority(SecurityRole.allAuthorities())
-                        .anyRequest().denyAll())
+                
+.authorizeHttpRequests(auth -> auth
+        .requestMatchers(
+                "/api/auth/login",
+                "/api/auth/refresh",
+                "/api/auth/logout",
+                "/actuator/health"
+        ).permitAll()
+
+        .requestMatchers("/api/auth/me")
+        .hasAnyAuthority(SecurityRole.allAuthorities())
+
+        .requestMatchers("/api/facility/**")
+.hasAnyAuthority(SecurityRole.allAuthorities())
+
+.requestMatchers(
+        "/api/v1/facilities/wards",
+        "/api/v1/facilities/wards/**"
+)
+.hasAnyAuthority(SecurityRole.allAuthorities())
+
+.requestMatchers(
+        "/api/v1/facilities/rooms",
+        "/api/v1/facilities/rooms/**"
+)
+.hasAnyAuthority(SecurityRole.allAuthorities())
+.requestMatchers(
+        "/api/v1/facilities/beds",
+        "/api/v1/facilities/beds/**"
+)
+.hasAnyAuthority(SecurityRole.allAuthorities())
+        .anyRequest().denyAll()
+)
+
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.deny())
                         .addHeaderWriter(new StaticHeadersWriter("Content-Security-Policy",

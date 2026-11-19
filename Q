@@ -1,0 +1,196 @@
+[1mdiff --git a/backend/src/main/java/com/caresync/backend/security/ApiExceptionHandler.java b/backend/src/main/java/com/caresync/backend/security/ApiExceptionHandler.java[m
+[1mindex e2ecbb2..6406b32 100644[m
+[1m--- a/backend/src/main/java/com/caresync/backend/security/ApiExceptionHandler.java[m
+[1m+++ b/backend/src/main/java/com/caresync/backend/security/ApiExceptionHandler.java[m
+[36m@@ -1,41 +1,97 @@[m
+[32m+[m
+ package com.caresync.backend.security;[m
+ [m
+ import org.springframework.http.HttpStatus;[m
+ import org.springframework.http.ResponseEntity;[m
+[31m-import org.springframework.web.bind.MethodArgumentNotValidException;[m
+ import org.springframework.http.converter.HttpMessageNotReadableException;[m
+[31m-import org.springframework.web.HttpRequestMethodNotSupportedException;[m
+ import org.springframework.web.HttpMediaTypeNotSupportedException;[m
+[32m+[m[32mimport org.springframework.web.HttpRequestMethodNotSupportedException;[m
+[32m+[m[32mimport org.springframework.web.bind.MethodArgumentNotValidException;[m
+ import org.springframework.web.bind.annotation.ExceptionHandler;[m
+ import org.springframework.web.bind.annotation.RestControllerAdvice;[m
+[32m+[m[32mimport org.springframework.web.server.ResponseStatusException;[m
+[32m+[m
+[32m+[m[32mimport com.caresync.backend.facility.exception.RoomAlreadyExistsException;[m
+[32m+[m[32mimport com.caresync.backend.facility.exception.RoomNotFoundException;[m
+[32m+[m[32mimport com.caresync.backend.facility.exception.WardAlreadyExistsException;[m
+[32m+[m[32mimport com.caresync.backend.facility.exception.WardNotFoundException;[m
+ [m
+ @RestControllerAdvice[m
+ public class ApiExceptionHandler {[m
+[32m+[m
+     @ExceptionHandler(MethodArgumentNotValidException.class)[m
+[31m-    public ResponseEntity<AuthDtos.ErrorResponse> validation(MethodArgumentNotValidException exception) {[m
+[31m-        return ResponseEntity.badRequest().body(new AuthDtos.ErrorResponse("Invalid request"));[m
+[32m+[m[32m    public ResponseEntity<AuthDtos.ErrorResponse> validation([m
+[32m+[m[32m            MethodArgumentNotValidException exception) {[m
+[32m+[m[32m        return ResponseEntity.badRequest()[m
+[32m+[m[32m                .body(new AuthDtos.ErrorResponse("Invalid request"));[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    @ExceptionHandler(WardNotFoundException.class)[m
+[32m+[m[32m    public ResponseEntity<AuthDtos.ErrorResponse> wardNotFound([m
+[32m+[m[32m            WardNotFoundException exception) {[m
+[32m+[m[32m        return ResponseEntity.status(HttpStatus.NOT_FOUND)[m
+[32m+[m[32m                .body(new AuthDtos.ErrorResponse("Ward not found"));[m
+     }[m
+ [m
+[32m+[m[32m    @ExceptionHandler(WardAlreadyExistsException.class)[m
+[32m+[m[32m    public ResponseEntity<AuthDtos.ErrorResponse> wardAlreadyExists([m
+[32m+[m[32m            WardAlreadyExistsException exception) {[m
+[32m+[m[32m        return ResponseEntity.status(HttpStatus.CONFLICT)[m
+[32m+[m[32m                .body(new AuthDtos.ErrorResponse([m
+[32m+[m[32m                        "A ward with this code already exists"));[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    @ExceptionHandler(RoomNotFoundException.class)[m
+[32m+[m[32mpublic ResponseEntity<AuthDtos.ErrorResponse> roomNotFound([m
+[32m+[m[32m        RoomNotFoundException exception) {[m
+[32m+[m[32m    return ResponseEntity.status(HttpStatus.NOT_FOUND)[m
+[32m+[m[32m            .body(new AuthDtos.ErrorResponse("Room not found"));[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m@ExceptionHandler(RoomAlreadyExistsException.class)[m
+[32m+[m[32mpublic ResponseEntity<AuthDtos.ErrorResponse> roomAlreadyExists([m
+[32m+[m[32m        RoomAlreadyExistsException exception) {[m
+[32m+[m[32m    return ResponseEntity.status(HttpStatus.CONFLICT)[m
+[32m+[m[32m            .body(new AuthDtos.ErrorResponse(exception.getMessage()));[m
+[32m+[m[32m}[m
+[32m+[m
+     @ExceptionHandler(HttpMessageNotReadableException.class)[m
+[31m-    public ResponseEntity<AuthDtos.ErrorResponse> unreadableRequest(HttpMessageNotReadableException exception) {[m
+[31m-        return ResponseEntity.badRequest().body(new AuthDtos.ErrorResponse("Invalid request"));[m
+[32m+[m[32m    public ResponseEntity<AuthDtos.ErrorResponse> unreadableRequest([m
+[32m+[m[32m            HttpMessageNotReadableException exception) {[m
+[32m+[m[32m        return ResponseEntity.badRequest()[m
+[32m+[m[32m                .body(new AuthDtos.ErrorResponse("Invalid request"));[m
+     }[m
+ [m
+     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)[m
+[31m-    public ResponseEntity<AuthDtos.ErrorResponse> unsupportedMethod(HttpRequestMethodNotSupportedException exception) {[m
+[32m+[m[32m    public ResponseEntity<AuthDtos.ErrorResponse> unsupportedMethod([m
+[32m+[m[32m            HttpRequestMethodNotSupportedException exception) {[m
+         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)[m
+                 .body(new AuthDtos.ErrorResponse("Method not allowed"));[m
+     }[m
+ [m
+     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)[m
+[31m-    public ResponseEntity<AuthDtos.ErrorResponse> unsupportedMediaType(HttpMediaTypeNotSupportedException exception) {[m
+[32m+[m[32m    public ResponseEntity<AuthDtos.ErrorResponse> unsupportedMediaType([m
+[32m+[m[32m            HttpMediaTypeNotSupportedException exception) {[m
+         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)[m
+                 .body(new AuthDtos.ErrorResponse("Unsupported media type"));[m
+     }[m
+ [m
+[32m+[m[32m    @ExceptionHandler(ResponseStatusException.class)[m
+[32m+[m[32m    public ResponseEntity<AuthDtos.ErrorResponse> responseStatus([m
+[32m+[m[32m            ResponseStatusException exception) {[m
+[32m+[m[32m        return ResponseEntity.status(exception.getStatusCode())[m
+[32m+[m[32m                .body(new AuthDtos.ErrorResponse([m
+[32m+[m[32m                        exception.getReason() != null[m
+[32m+[m[32m                                ? exception.getReason()[m
+[32m+[m[32m                                : "Request could not be completed"[m
+[32m+[m[32m                ));[m
+[32m+[m[32m    }[m
+[32m+[m
+     @ExceptionHandler(Exception.class)[m
+[31m-    public ResponseEntity<AuthDtos.ErrorResponse> unexpected(Exception exception) {[m
+[32m+[m[32m    public ResponseEntity<AuthDtos.ErrorResponse> unexpected([m
+[32m+[m[32m            Exception exception) {[m
+         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)[m
+[31m-                .body(new AuthDtos.ErrorResponse("Request could not be completed"));[m
+[32m+[m[32m                .body(new AuthDtos.ErrorResponse([m
+[32m+[m[32m                        "Request could not be completed"));[m
+     }[m
+ }[m
+[1mdiff --git a/backend/src/main/java/com/caresync/backend/security/SecurityConfiguration.java b/backend/src/main/java/com/caresync/backend/security/SecurityConfiguration.java[m
+[1mindex fc2d0aa..2401d19 100644[m
+[1m--- a/backend/src/main/java/com/caresync/backend/security/SecurityConfiguration.java[m
+[1m+++ b/backend/src/main/java/com/caresync/backend/security/SecurityConfiguration.java[m
+[36m@@ -1,28 +1,28 @@[m
+ package com.caresync.backend.security;[m
+ [m
+[32m+[m[32mimport java.net.URI;[m
+[32m+[m[32mimport java.util.Arrays;[m
+[32m+[m[32mimport java.util.List;[m
+[32m+[m
+[32m+[m[32mimport org.springframework.beans.factory.annotation.Qualifier;[m
+[32m+[m[32mimport org.springframework.beans.factory.annotation.Value;[m
+ import org.springframework.context.annotation.Bean;[m
+ import org.springframework.context.annotation.Configuration;[m
+[32m+[m[32mimport org.springframework.scheduling.annotation.EnableScheduling;[m
+ import org.springframework.security.config.annotation.web.builders.HttpSecurity;[m
+ import org.springframework.security.config.http.SessionCreationPolicy;[m
+[31m-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;[m
+[31m-import org.springframework.security.crypto.password.PasswordEncoder;[m
+ import org.springframework.security.core.userdetails.UserDetailsService;[m
+ import org.springframework.security.core.userdetails.UsernameNotFoundException;[m
+[32m+[m[32mimport org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;[m
+[32m+[m[32mimport org.springframework.security.crypto.password.PasswordEncoder;[m
+[32m+[m[32mimport org.springframework.security.oauth2.jwt.JwtDecoder;[m
+[32m+[m[32mimport org.springframework.security.oauth2.jwt.JwtEncoder;[m
+ import org.springframework.security.web.SecurityFilterChain;[m
+ import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;[m
+ import org.springframework.security.web.header.writers.StaticHeadersWriter;[m
+ import org.springframework.web.cors.CorsConfiguration;[m
+ import org.springframework.web.cors.CorsConfigurationSource;[m
+ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;[m
+[31m-import org.springframework.security.oauth2.jwt.JwtDecoder;[m
+[31m-import org.springframework.security.oauth2.jwt.JwtEncoder;[m
+[31m-import org.springframework.scheduling.annotation.EnableScheduling;[m
+[31m-import org.springframework.beans.factory.annotation.Value;[m
+[31m-import org.springframework.beans.factory.annotation.Qualifier;[m
+[31m-[m
+[31m-import java.net.URI;[m
+[31m-import java.util.Arrays;[m
+[31m-import java.util.List;[m
+ [m
+ @Configuration[m
+ @EnableScheduling[m
+[36m@@ -78,10 +78,35 @@[m [mpublic class SecurityConfiguration {[m
+                 .formLogin(form -> form.disable())[m
+                 .httpBasic(basic -> basic.disable())[m
+                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))[m
+[31m-                .authorizeHttpRequests(auth -> auth[m
+[31m-                        .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/actuator/health").permitAll()[m
+[31m-                        .requestMatchers("/api/auth/me").hasAnyAuthority(SecurityRole.allAuthorities())[m
+[31m-                        .anyRequest().denyAll())[m
+[32m+[m[41m                [m
+[32m+[m[32m.authorizeHttpRequests(auth -> auth[m
+[32m+[m[32m        .requestMatchers([m
+[32m+[m[32m                "/api/auth/login",[m
+[32m+[m[32m                "/api/auth/refresh",[m
+[32m+[m[32m                "/api/auth/logout",[m
+[32m+[m[32m                "/actuator/health"[m
+[32m+[m[32m        ).permitAll()[m
+[32m+[m
+[32m+[m[32m        .requestMatchers("/api/auth/me")[m
+[32m+[m[32m        .hasAnyAuthority(SecurityRole.allAuthorities())[m
+[32m+[m
+[32m+[m[32m        .requestMatchers("/api/facility/**")[m
+[32m+[m[32m.hasAnyAuthority(SecurityRole.allAuthorities())[m
+[32m+[m
+[32m+[m[32m.requestMatchers([m
+[32m+[m[32m        "/api/v1/facilities/wards",[m
+[32m+[m[32m        "/api/v1/facilities/wards/**"[m
+[32m+[m[32m)[m
+[32m+[m[32m.hasAnyAuthority(SecurityRole.allAuthorities())[m
+[32m+[m
+[32m+[m[32m.requestMatchers([m
+[32m+[m[32m        "/api/v1/facilities/rooms",[m
+[32m+[m[32m        "/api/v1/facilities/rooms/**"[m
+[32m+[m[32m)[m
+[32m+[m[32m.hasAnyAuthority(SecurityRole.allAuthorities())[m
+[32m+[m[32m        .anyRequest().denyAll()[m
+[32m+[m[32m)[m
+[32m+[m
+                 .headers(headers -> headers[m
+                         .frameOptions(frame -> frame.deny())[m
+                         .addHeaderWriter(new StaticHeadersWriter("Content-Security-Policy",[m

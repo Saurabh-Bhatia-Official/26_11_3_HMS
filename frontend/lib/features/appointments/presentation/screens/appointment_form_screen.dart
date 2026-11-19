@@ -26,6 +26,12 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
   final _patientSearchController = TextEditingController();
   final _notesController = TextEditingController();
 
+  List<StaffModel> _availableDoctors(List<StaffModel> staff) {
+    return staff
+        .where((member) => member.role.toLowerCase().contains('doctor'))
+        .toList();
+  }
+
   DateTime _selectedDate = DateTime.now();
   int? _selectedDoctorId;
   String _selectedSlot = '10:00 AM';
@@ -90,6 +96,10 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
   }
 
   Future<void> _book() async {
+    debugPrint('BOOK BUTTON CLICKED');
+
+    debugPrint('Checking appointment date and time...');
+
     if (_isPastAppointmentSlot()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -102,12 +112,29 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
       return;
     }
 
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      debugPrint('FORM VALIDATION FAILED');
+      return;
+    }
 
-    final doctors = _availableDoctors(ref.read(staffListProvider).value ?? []);
-    final doctor = _selectedDoctorId == null
-        ? doctors.firstOrNull
-        : doctors.where((member) => member.id == _selectedDoctorId).firstOrNull;
+    debugPrint('FORM VALIDATION PASSED');
+
+    final doctors = _availableDoctors(
+      ref.read(staffListProvider).value ?? [],
+    );
+
+    if (doctors.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No doctors available.')),
+      );
+      return;
+    }
+
+    final doctor = doctors.firstWhere(
+      (member) => member.id == _selectedDoctorId,
+      orElse: () => doctors.first,
+    );
+
     if (doctor == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -136,7 +163,8 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
       final countRes = await db
           .customSelect('SELECT count(*) as count FROM appointments')
           .getSingle();
-
+      debugPrint('Checking appointment count in database...');
+      debugPrint('Appointment count retrieved: ${countRes.data}');
       token = ((countRes.data['count'] as int) + 1).toString().padLeft(2, '0');
     }
 
@@ -195,24 +223,22 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     final patientsAsync = ref.watch(patientListProvider);
 
     final staffList = staffAsync.value ?? [];
+    debugPrint('STAFF LOADING: ${staffAsync.isLoading}');
+    debugPrint('STAFF ERROR: ${staffAsync.hasError}');
+    if (staffAsync.hasError) {
+      debugPrint('STAFF ERROR DETAILS: ${staffAsync.error}');
+    }
     final patients = patientsAsync.value ?? [];
 
-    final doctors = staffList
-        .where((s) => s.role.toLowerCase().contains('doctor'))
-        .map((s) => '${s.name} (${s.department})')
-        .toSet()
-        .toList();
-    if (doctors.isEmpty) {
-      doctors.add('Duty Doctor (General)');
-    }
+    final doctors = _availableDoctors(staffList);
 
-    if (_selectedDoctor.isEmpty || !doctors.contains(_selectedDoctor)) {
-      _selectedDoctor = doctors.first;
-      if (_selectedDoctor.contains('(') && _selectedDoctor.contains(')')) {
-        _selectedDepartment =
-            _selectedDoctor.split('(').last.replaceAll(')', '').trim();
-      }
-    }
+    final int? selectedDoctorId = doctors.any(
+      (doctor) => doctor.id == _selectedDoctorId,
+    )
+        ? _selectedDoctorId
+        : doctors.isNotEmpty
+            ? doctors.first.id
+            : null;
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
@@ -286,31 +312,27 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                       const Gap(16),
 
                       // Doctor Selection
-                      DropdownButtonFormField<String>(
-                        value: doctors.contains(_selectedDoctor)
-                            ? _selectedDoctor
-                            : doctors.first,
+                      // Doctor Selection
+                      DropdownButtonFormField<int>(
+                        value: selectedDoctorId,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'Consulting Doctor *',
                           prefixIcon: Icon(Icons.medical_services_outlined),
                         ),
-                        items: doctors
-                            .map((d) =>
-                                DropdownMenuItem(value: d, child: Text(d)))
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) {
-                            setState(() {
-                              _selectedDoctor = v;
-                              if (v.contains('(') && v.contains(')')) {
-                                _selectedDepartment = v
-                                    .split('(')
-                                    .last
-                                    .replaceAll(')', '')
-                                    .trim();
-                              }
-                            });
-                          }
+                        items: doctors.map((doctor) {
+                          return DropdownMenuItem<int>(
+                            value: doctor.id,
+                            child:
+                                Text('${doctor.name} (${doctor.department})'),
+                          );
+                        }).toList(),
+                        validator: (value) =>
+                            value == null ? 'Please select a doctor' : null,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedDoctorId = value;
+                          });
                         },
                       ),
                       const Gap(16),

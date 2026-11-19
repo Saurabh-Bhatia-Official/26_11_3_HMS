@@ -34,8 +34,9 @@ class BedModel {
     this.updatedAt = '',
   });
 
-  String get tariffFormatted =>
-      tariffPaise > 0 ? '₹${(tariffPaise / 100).toStringAsFixed(0)}/day' : 'Free';
+  String get tariffFormatted => tariffPaise > 0
+      ? '₹${(tariffPaise / 100).toStringAsFixed(0)}/day'
+      : 'Free';
 
   bool get isAvailable => status.toLowerCase() == 'available';
   bool get isOccupied => status.toLowerCase() == 'occupied';
@@ -48,7 +49,8 @@ class BedModel {
       bedNo: map['bed_no'] as String? ?? '',
       ward: map['ward'] as String? ?? '',
       type: (map['bed_type'] ?? map['type']) as String? ?? 'general',
-      tariffPaise: (map['tariff_paise'] ?? map['daily_tariff_paise']) as int? ?? 0,
+      tariffPaise:
+          (map['tariff_paise'] ?? map['daily_tariff_paise']) as int? ?? 0,
       status: map['status'] as String? ?? 'available',
       patientName: map['patient_name'] as String?,
       uhid: map['uhid'] as String?,
@@ -234,15 +236,20 @@ class WardModel {
   String toString() => 'WardModel(name: $name, beds: $occupiedBeds/$totalBeds)';
 }
 
-/// Room within a ward
+/// Room within a ward.
+///
+/// Field names align with the Spring Boot Room API. [fromMap] also accepts
+/// legacy SQLite snake_case keys so existing local data remains readable.
 class RoomModel {
   final int id;
   final String uuid;
   final int wardId;
   final String wardName;
-  final String roomNo;
-  final int floor;
-  final bool isActive;
+  final String roomNumber;
+  final String roomType;
+  final String floor;
+  final String description;
+  final bool active;
   final String createdAt;
   final String updatedAt;
 
@@ -250,43 +257,109 @@ class RoomModel {
     required this.id,
     required this.uuid,
     required this.wardId,
+    String? roomNumber,
+    String? roomNo,
     this.wardName = '',
-    required this.roomNo,
-    this.floor = 0,
-    this.isActive = true,
+    this.roomType = '',
+    this.floor = '',
+    this.description = '',
+    bool? active,
+    bool? isActive,
     this.createdAt = '',
     this.updatedAt = '',
-  });
+  })  : roomNumber = roomNumber ?? roomNo ?? '',
+        active = active ?? isActive ?? true;
+
+  /// Backward-compatible alias for older UI code.
+  @Deprecated('Use roomNumber instead.')
+  String get roomNo => roomNumber;
+
+  /// Backward-compatible alias for older UI code.
+  @Deprecated('Use active instead.')
+  bool get isActive => active;
+
+  static int _readInt(dynamic value, {int defaultValue = 0}) {
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? defaultValue;
+    return defaultValue;
+  }
+
+  static bool _readBool(dynamic value, {bool defaultValue = true}) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.toLowerCase().trim();
+      if (normalized == 'true' || normalized == '1') return true;
+      if (normalized == 'false' || normalized == '0') return false;
+    }
+    return defaultValue;
+  }
 
   factory RoomModel.fromMap(Map<String, dynamic> map) {
+    final rawFloor = map['floor'];
     return RoomModel(
-      id: map['id'] as int? ?? 0,
+      id: (map['id'] as num?)?.toInt() ?? 0,
       uuid: map['uuid'] as String? ?? '',
-      wardId: map['ward_id'] as int? ?? 0,
-      wardName: map['ward_name'] as String? ?? '',
-      roomNo: map['room_no'] as String? ?? '',
-      floor: map['floor'] as int? ?? 0,
-      isActive: (map['is_active'] is int)
-          ? (map['is_active'] as int) == 1
-          : (map['is_active'] as bool? ?? true),
-      createdAt: map['created_at'] as String? ?? '',
-      updatedAt: map['updated_at'] as String? ?? '',
+      wardId: _readInt(map['wardId'] ?? map['ward_id']),
+      wardName: map['wardName'] as String? ?? map['ward_name'] as String? ?? '',
+      roomNumber:
+          map['roomNumber'] as String? ?? map['room_no'] as String? ?? '',
+      roomType: map['roomType'] as String? ?? map['room_type'] as String? ?? '',
+      floor: rawFloor?.toString() ?? '',
+      description: map['description'] as String? ?? '',
+      active: _readBool(
+        map['active'] ?? map['is_active'],
+        defaultValue: true,
+      ),
+      createdAt:
+          map['createdAt'] as String? ?? map['created_at'] as String? ?? '',
+      updatedAt:
+          map['updatedAt'] as String? ?? map['updated_at'] as String? ?? '',
     );
   }
 
+  /// Serializes using backend JSON property names (camelCase).
+  Map<String, dynamic> toApiMap() => {
+        if (id > 0) 'id': id,
+        'uuid': uuid,
+        'wardId': wardId,
+        'roomNumber': roomNumber,
+        'roomType': roomType,
+        'floor': floor,
+        'description': description,
+        'active': active,
+        'createdAt': createdAt,
+        'updatedAt': updatedAt,
+      };
+
+  /// Serializes only the fields accepted by the Spring Boot create/update DTO.
+  Map<String, dynamic> toRequestMap() => {
+        'wardId': wardId,
+        'roomNumber': roomNumber,
+        'roomType': roomType,
+        'floor': floor.isEmpty ? null : floor,
+        'description': description.isEmpty ? null : description,
+      };
+
+  String toRequestJson() => jsonEncode(toRequestMap());
+
+  /// Serializes using legacy SQLite-style keys for local persistence.
+  /// This does not imply that a Room table currently exists in SQLite.
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
         'ward_id': wardId,
         'ward_name': wardName,
-        'room_no': roomNo,
+        'room_no': roomNumber,
+        'room_type': roomType,
         'floor': floor,
-        'is_active': isActive ? 1 : 0,
+        'description': description,
+        'is_active': active ? 1 : 0,
         'created_at': createdAt,
         'updated_at': updatedAt,
       };
 
-  String toJson() => jsonEncode(toMap());
+  String toJson() => jsonEncode(toApiMap());
 
   factory RoomModel.fromJson(String source) =>
       RoomModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
@@ -296,8 +369,12 @@ class RoomModel {
     String? uuid,
     int? wardId,
     String? wardName,
+    String? roomNumber,
     String? roomNo,
-    int? floor,
+    String? roomType,
+    String? floor,
+    String? description,
+    bool? active,
     bool? isActive,
     String? createdAt,
     String? updatedAt,
@@ -307,9 +384,11 @@ class RoomModel {
       uuid: uuid ?? this.uuid,
       wardId: wardId ?? this.wardId,
       wardName: wardName ?? this.wardName,
-      roomNo: roomNo ?? this.roomNo,
+      roomNumber: roomNumber ?? roomNo ?? this.roomNumber,
+      roomType: roomType ?? this.roomType,
       floor: floor ?? this.floor,
-      isActive: isActive ?? this.isActive,
+      description: description ?? this.description,
+      active: active ?? isActive ?? this.active,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -321,13 +400,13 @@ class RoomModel {
       other is RoomModel &&
           runtimeType == other.runtimeType &&
           id == other.id &&
-          roomNo == other.roomNo;
+          roomNumber == other.roomNumber;
 
   @override
-  int get hashCode => id.hashCode ^ roomNo.hashCode;
+  int get hashCode => id.hashCode ^ roomNumber.hashCode;
 
   @override
-  String toString() => 'RoomModel(roomNo: $roomNo, ward: $wardName)';
+  String toString() => 'RoomModel(roomNumber: $roomNumber, ward: $wardName)';
 }
 
 /// Bed transfer event audit model
@@ -406,4 +485,3 @@ class BedTransferModel {
   @override
   String toString() => 'BedTransfer($fromBedNo -> $toBedNo at $transferredAt)';
 }
-

@@ -21,6 +21,7 @@ class AppointmentListScreen extends ConsumerStatefulWidget {
 class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
   DateTime _selectedDate = DateTime.now();
   String _doctorFilter = 'All Doctors';
+  String _specializationFilter = 'All Specializations';
 
   String _doctorLabel(AppointmentModel item) {
     final doctorName = item.doctorName.trim();
@@ -249,12 +250,29 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
     final staffAsync = ref.watch(staffListProvider);
 
     final staffList = staffAsync.value ?? [];
+
+    final doctorStaff = staffList
+        .where((s) => s.role.toLowerCase().contains('doctor'))
+        .toList();
+
+    final specializationOptions = [
+      'All Specializations',
+      ...doctorStaff
+          .map((s) => s.department.trim())
+          .where((department) => department.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort(),
+    ];
+
+    final availableDoctors = doctorStaff.where((doctor) {
+      return _specializationFilter == 'All Specializations' ||
+          doctor.department.trim() == _specializationFilter;
+    }).toList();
+
     final doctorOptions = [
       'All Doctors',
-      ...staffList
-          .where((s) => s.role.toLowerCase().contains('doctor'))
-          .map((s) => s.name)
-          .toSet(),
+      ...availableDoctors.map((doctor) => doctor.name).toSet(),
     ];
 
     return Scaffold(
@@ -313,32 +331,92 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                     const Gap(16),
 
                     // Doctor dropdown
+
+// Doctor dropdown
                     DropdownButton<String>(
                       value: doctorOptions.contains(_doctorFilter)
                           ? _doctorFilter
                           : 'All Doctors',
                       underline: const SizedBox.shrink(),
-                      items: doctorOptions
-                          .map(
-                            (d) => DropdownMenuItem(value: d, child: Text(d)),
-                          )
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) setState(() => _doctorFilter = v);
+                      hint: const Text('Select Doctor'),
+                      items: doctorOptions.map((doctor) {
+                        return DropdownMenuItem(
+                          value: doctor,
+                          child: Text(doctor),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+
+                        setState(() {
+                          _doctorFilter = value;
+
+                          if (value != 'All Doctors') {
+                            final selectedDoctor = doctorStaff.firstWhere(
+                              (doctor) => doctor.name == value,
+                            );
+                            _specializationFilter =
+                                selectedDoctor.department.trim();
+                          }
+                        });
                       },
                     ),
+
+                    const Gap(16),
+
+// Specialization dropdown
+                    DropdownButton<String>(
+                      value:
+                          specializationOptions.contains(_specializationFilter)
+                              ? _specializationFilter
+                              : 'All Specializations',
+                      underline: const SizedBox.shrink(),
+                      hint: const Text('Select Specialization'),
+                      items: specializationOptions.map((specialization) {
+                        return DropdownMenuItem(
+                          value: specialization,
+                          child: Text(specialization),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+
+                        setState(() {
+                          _specializationFilter = value;
+
+                          if (_doctorFilter != 'All Doctors') {
+                            final doctorStillMatches = doctorStaff.any(
+                              (doctor) =>
+                                  doctor.name == _doctorFilter &&
+                                  (value == 'All Specializations' ||
+                                      doctor.department.trim() == value),
+                            );
+
+                            if (!doctorStillMatches) {
+                              _doctorFilter = 'All Doctors';
+                            }
+                          }
+                        });
+                      },
+                    ),
+
                     const Spacer(),
 
                     // Summary counts
                     appointmentsAsync.when(
                       data: (list) {
-                        final filtered = _doctorFilter == 'All Doctors'
-                            ? list
-                            : list
-                                .where(
-                                  (a) => a.doctorName.contains(_doctorFilter),
-                                )
-                                .toList();
+                        final filtered = list.where((appointment) {
+                          final matchesDoctor = _doctorFilter ==
+                                  'All Doctors' ||
+                              appointment.doctorName.trim() == _doctorFilter;
+
+                          final matchesSpecialization = _specializationFilter ==
+                                  'All Specializations' ||
+                              appointment.department.trim().toLowerCase() ==
+                                  _specializationFilter.trim().toLowerCase();
+
+                          return matchesDoctor && matchesSpecialization;
+                        }).toList();
                         return Text(
                           'Total: ${filtered.length} Slots Booked',
                           style: TextStyle(
@@ -363,11 +441,17 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                 error: (e, _) =>
                     Center(child: Text('Error loading appointments: $e')),
                 data: (appointments) {
-                  final filtered = _doctorFilter == 'All Doctors'
-                      ? appointments
-                      : appointments
-                          .where((a) => a.doctorName.contains(_doctorFilter))
-                          .toList();
+                  final filtered = appointments.where((appointment) {
+                    final matchesDoctor = _doctorFilter == 'All Doctors' ||
+                        appointment.doctorName.trim() == _doctorFilter;
+
+                    final matchesSpecialization =
+                        _specializationFilter == 'All Specializations' ||
+                            appointment.department.trim().toLowerCase() ==
+                                _specializationFilter.trim().toLowerCase();
+
+                    return matchesDoctor && matchesSpecialization;
+                  }).toList();
 
                   if (filtered.isEmpty) {
                     return const Center(
