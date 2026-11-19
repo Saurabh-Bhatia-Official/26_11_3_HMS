@@ -1,0 +1,24 @@
+$kind: http-request
+name: Get Report Summary
+order: 1000
+method: GET
+url: '{{base_url}}/api/reports/summary?from={{from_date}}&to={{to_date}}'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Summary distinguishes current outstanding", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("currentOutstandingPaise");
+          pm.expect(jsonData).to.have.property("from");
+          pm.expect(jsonData).to.have.property("to");
+      });

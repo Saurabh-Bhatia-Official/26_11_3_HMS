@@ -239,10 +239,11 @@ final dashboardStatsProvider =
   final local = await db.hmsDao.getDashboardStats();
   if (!_remoteEnabled(ref)) return local;
   try {
+    final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
     final remote = await HmsRemoteRepository(ref.read(backendApiClientProvider))
         .reportSummary(
-      from: DateTime.now().toIso8601String().substring(0, 10),
-      to: DateTime.now().toIso8601String().substring(0, 10),
+      from: today,
+      to: today,
     );
     return {
       ...local,
@@ -262,16 +263,17 @@ final reportsDataProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final local = await db.hmsDao.getReportsData();
   if (!_remoteEnabled(ref)) return local;
   try {
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc();
     final firstOfMonth =
-        DateTime(now.year, now.month, 1).toIso8601String().substring(0, 10);
+        DateTime.utc(now.year, now.month, 1).toIso8601String().substring(0, 10);
     final today = now.toIso8601String().substring(0, 10);
     final remote = await HmsRemoteRepository(ref.read(backendApiClientProvider))
         .reportSummary(from: firstOfMonth, to: today);
     return {
       ...local,
       'totalRevenuePaise': remote['revenuePaise'],
-      'totalDuePaise': remote['outstandingPaise'] ?? local['totalDuePaise'],
+      'totalDuePaise':
+          remote['currentOutstandingPaise'] ?? local['totalDuePaise'],
     };
   } on BackendConnectionException {
     return local;

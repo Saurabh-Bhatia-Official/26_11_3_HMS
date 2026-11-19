@@ -83,7 +83,7 @@ class ReportsScreen extends ConsumerWidget {
                           color: Colors.indigo.shade600,
                         ),
                         KpiCard(
-                          label: 'Current Outstanding (All Invoices)',
+                          label: 'Current Outstanding (not date-filtered)',
                           value: dueFormatted,
                           icon: Icons.warning_amber_rounded,
                           color: Colors.amber.shade900,

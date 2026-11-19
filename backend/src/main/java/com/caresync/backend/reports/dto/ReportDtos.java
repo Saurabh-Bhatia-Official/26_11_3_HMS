@@ -7,7 +7,7 @@ public final class ReportDtos {
     private ReportDtos() {}
 
     public record Summary(LocalDate from, LocalDate to, long invoiceCount, long revenuePaise,
-                          long outstandingPaise, long lowStockMedicineCount, long pendingLabOrderCount,
+                          long currentOutstandingPaise, long lowStockMedicineCount, long pendingLabOrderCount,
                           long activeStaffCount) {}
     public record RevenuePoint(LocalDate date, long revenuePaise) {}
     public record StockAlert(long medicineId, String medicineName, int stockQty, int reorderLevel) {}

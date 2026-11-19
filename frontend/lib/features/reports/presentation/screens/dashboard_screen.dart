@@ -44,7 +44,7 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
   if (ref.watch(backendApiClientProvider).isConfigured &&
       (ref.watch(sessionProvider).user?.isRemote ?? false)) {
     try {
-      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
       final remote = await HmsRemoteRepository(ref.read(backendApiClientProvider))
           .reportSummary(from: today, to: today);
       data['todayRevenuePaise'] = remote['revenuePaise'];

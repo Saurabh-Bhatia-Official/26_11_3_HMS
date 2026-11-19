@@ -27,7 +27,7 @@ public final class StaffDtos {
             @NotBlank @Size(max = 160) String name,
             @NotBlank @Pattern(regexp = "M|F|Other") String gender,
             LocalDate dob,
-            @NotBlank @Size(max = 32) String phone,
+            @NotBlank @Pattern(regexp = "[0-9]{10}") String phone,
             @Email @Size(max = 254) String email,
             @Size(max = 500) String address,
             @NotBlank @Pattern(regexp = "doctor|nurse|lab|pharmacy|reception|admin|accounts|staff")

@@ -197,7 +197,7 @@ class HmsRemoteRepository {
     final row = _asObject(value);
     return {
       'revenuePaise': row['revenuePaise'] ?? 0,
-      'outstandingPaise': row['outstandingPaise'] ?? 0,
+      'currentOutstandingPaise': row['currentOutstandingPaise'] ?? 0,
       'lowStockMedicines': row['lowStockMedicineCount'] ?? 0,
       'pendingLabOrders': row['pendingLabOrderCount'] ?? 0,
       'activeStaff': row['activeStaffCount'] ?? 0,

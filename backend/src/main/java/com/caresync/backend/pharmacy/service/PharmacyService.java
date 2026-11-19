@@ -208,7 +208,11 @@ public class PharmacyService {
             if (!batch.isUnexpiredOn(LocalDate.now(ZoneOffset.UTC))) continue;
             int allocated = Math.min(remaining, batch.getQuantityOnHand());
             if (allocated == 0) continue;
-            batch.adjust(-allocated);
+            int updated = batches.decrementStockIfAvailable(batch.getId(), hospitalId, allocated,
+                    LocalDate.now(ZoneOffset.UTC));
+            if (updated != 1) {
+                throw BusinessException.conflict("Stock changed while dispensing; retry the request");
+            }
             try {
                 long base = Math.multiplyExact(batch.getMrpPaise(), allocated);
                 long tax = percent(base, medicine.getTaxRatePct());

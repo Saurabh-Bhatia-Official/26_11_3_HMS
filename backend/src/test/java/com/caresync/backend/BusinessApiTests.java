@@ -72,6 +72,8 @@ class BusinessApiTests {
         accounts.deleteAll();
         accounts.save(new AuthAccount("accounts1", passwordEncoder.encode("CorrectHorseBattery9!"),
                 "Billing Officer", "ACCOUNTS", 42L));
+        accounts.save(new AuthAccount("admin1", passwordEncoder.encode("CorrectHorseBattery9!"),
+                "Hospital Admin", "ADMIN", 42L));
         accounts.save(new AuthAccount("accounts2", passwordEncoder.encode("CorrectHorseBattery9!"),
                 "Other Billing Officer", "ACCOUNTS", 43L));
         accounts.save(new AuthAccount("pharmacy1", passwordEncoder.encode("CorrectHorseBattery9!"),
@@ -165,6 +167,30 @@ class BusinessApiTests {
         mvc.perform(get("/api/patients/by-uuid/{uuid}", uuid)
                         .header("Authorization", bearer(login("accounts2"))))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void staffPhoneMustContainExactlyTenDigits() throws Exception {
+        String token = login("admin1");
+        Map<String, Object> request = new java.util.HashMap<>(Map.of(
+                "name", "Phone Validation Staff",
+                "gender", "Other",
+                "phone", "9876543210",
+                "role", "staff",
+                "consultationFeePaise", 0L,
+                "followupFeePaise", 0L));
+
+        mvc.perform(post("/api/staff").header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.phone").value("9876543210"));
+
+        for (String invalidPhone : java.util.List.of("12345abc90", "123456789", "12345678901")) {
+            request.put("phone", invalidPhone);
+            mvc.perform(post("/api/staff").header("Authorization", bearer(token))
+                            .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Test
@@ -444,7 +470,7 @@ class BusinessApiTests {
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isOk()).andReturn();
         long outstandingBefore = mapper.readTree(beforeResponse.getResponse().getContentAsString())
-                .path("outstandingPaise").asLong();
+                .path("currentOutstandingPaise").asLong();
 
         mvc.perform(post("/api/billing/invoices").header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -460,7 +486,7 @@ class BusinessApiTests {
                 .andExpect(status().isOk()).andReturn();
         JsonNode summary = mapper.readTree(historicalResponse.getResponse().getContentAsString());
         assertEquals(0, summary.path("invoiceCount").asInt());
-        assertEquals(outstandingBefore + 1000, summary.path("outstandingPaise").asLong());
+        assertEquals(outstandingBefore + 1000, summary.path("currentOutstandingPaise").asLong());
     }
 
     @Test
