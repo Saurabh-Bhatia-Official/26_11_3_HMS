@@ -755,21 +755,97 @@ class HmsDao {
   }
 
   Future<void> insertIpdAdmission(IpdAdmissionModel admission) async {
+    final uhid = admission.uhid.trim();
+    final patientName = admission.patientName.trim();
+
+    // 1. Check whether this patient already has an active admission.
+    final patientCondition = uhid.isEmpty || uhid.toUpperCase() == 'WALK-IN'
+        ? "LOWER(TRIM(patient_name)) = "
+            "LOWER(TRIM('${_esc(patientName)}'))"
+        : "LOWER(TRIM(uhid)) = LOWER(TRIM('${_esc(uhid)}'))";
+
+    final existingAdmission = await db.customSelect('''
+    SELECT bed_no
+    FROM ipd_admissions
+    WHERE $patientCondition
+      AND LOWER(TRIM(status)) = 'admitted'
+    LIMIT 1
+  ''').get();
+
+    if (existingAdmission.isNotEmpty) {
+      final existingBed = existingAdmission.first.data['bed_no'];
+
+      throw StateError(
+        'This patient is already admitted in Bed $existingBed. '
+        'Please discharge the existing admission before admitting again.',
+      );
+    }
+
+    // 2. Check whether the selected bed exists and is available.
+    final bedRows = await db.customSelect('''
+    SELECT status
+    FROM beds
+    WHERE LOWER(TRIM(bed_no)) =
+          LOWER(TRIM('${_esc(admission.bedNo)}'))
+    LIMIT 1
+  ''').get();
+
+    if (bedRows.isEmpty) {
+      throw StateError('Selected bed does not exist.');
+    }
+
+    final bedStatus = (bedRows.first.data['status'] as String? ?? '').trim();
+
+    if (bedStatus.toLowerCase() != 'available') {
+      throw StateError(
+        'Bed ${admission.bedNo} is not available. '
+        'Please select another bed.',
+      );
+    }
+
+    // 3. Insert the admission.
     final now = DateTime.now().toIso8601String();
     final notesJson = jsonEncode(admission.notes);
     final medsJson = jsonEncode(admission.medications);
+
     await db.customStatement('''
-      INSERT INTO ipd_admissions (patient_name, uhid, ward, bed_no, doctor_name, admit_date, days, diagnosis, status, deposit_paise, notes_json, medications_json, created_at)
-      VALUES ('${_esc(admission.patientName)}', '${_esc(admission.uhid)}', '${_esc(admission.ward)}', '${_esc(admission.bedNo)}', '${_esc(admission.doctorName)}', '${_esc(admission.admitDate)}', ${admission.days}, '${_esc(admission.diagnosis)}', '${_esc(admission.status)}', ${admission.depositPaise}, '${_esc(notesJson)}', '${_esc(medsJson)}', '$now')
-    ''');
-    // Mark bed occupied
-    await updateBedStatus(admission.bedNo, 'Occupied',
-        patientName: admission.patientName, uhid: admission.uhid);
+    INSERT INTO ipd_admissions (
+      patient_name, uhid, ward, bed_no, doctor_name,
+      admit_date, days, diagnosis, status, deposit_paise,
+      notes_json, medications_json, created_at
+    )
+    VALUES (
+      '${_esc(admission.patientName)}',
+      '${_esc(admission.uhid)}',
+      '${_esc(admission.ward)}',
+      '${_esc(admission.bedNo)}',
+      '${_esc(admission.doctorName)}',
+      '${_esc(admission.admitDate)}',
+      ${admission.days},
+      '${_esc(admission.diagnosis)}',
+      '${_esc(admission.status)}',
+      ${admission.depositPaise},
+      '${_esc(notesJson)}',
+      '${_esc(medsJson)}',
+      '$now'
+    )
+  ''');
+
+    // 4. Mark the bed occupied.
+    await updateBedStatus(
+      admission.bedNo,
+      'Occupied',
+      patientName: admission.patientName,
+      uhid: admission.uhid,
+    );
+
     await insertAuditLog(
-        'admin',
-        'ADMIT',
-        'Admission #${admission.patientName}',
-        'Admitted ${admission.patientName} to ${admission.ward} Bed ${admission.bedNo}');
+      'admin',
+      'ADMIT',
+      'Admission #${admission.patientName}',
+      'Admitted ${admission.patientName} to ${admission.ward} '
+          'Bed ${admission.bedNo}',
+    );
   }
 
   Future<void> updateIpdMedicationStatus(
