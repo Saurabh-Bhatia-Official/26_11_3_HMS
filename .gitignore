@@ -99,3 +99,8 @@ erstrupt26_11_3_HMS
 
 # Duplicate archived migration reference
 /backend/src/main/resources/db/migration-archive/auth_security_hardening.sql.moved-reference
+
+# Local database credentials
+backend/.env
+backend/.env.*
+!backend/.env.example

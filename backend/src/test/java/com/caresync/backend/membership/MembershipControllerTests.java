@@ -38,8 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
-        "caresync.security.jwt-secret=membership-test-secret-keep-this-only-for-tests-123456789",
-        "spring.datasource.url=jdbc:h2:mem:caresync-membership-controller-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+        "caresync.security.jwt-secret=membership-test-secret-keep-this-only-for-tests-123456789"
 })
 @AutoConfigureMockMvc
 class MembershipControllerTests {
@@ -64,6 +63,13 @@ class MembershipControllerTests {
 
     @BeforeEach
     void prepareIsolatedDatabase() throws Exception {
+        jdbc.update("delete from appointment_events");
+        jdbc.update("delete from appointments");
+        jdbc.update("delete from doctor_schedule_exceptions");
+        jdbc.update("delete from doctor_schedules");
+        jdbc.update("delete from doctor_profiles");
+        jdbc.update("delete from patients");
+        jdbc.update("delete from departments");
         membershipAuditEvents.deleteAll();
         memberships.deleteAll();
         refreshTokens.deleteAll();

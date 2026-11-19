@@ -92,6 +92,12 @@ class OnlineHospitalDashboardScreen extends ConsumerWidget {
             child: Text('Your online session is scoped to this approved Hospital. Clinical modules will appear here as their server APIs are integrated.'),
           ),
         ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          onPressed: () => context.go(AppRoutes.onlineClinical),
+          icon: const Icon(Icons.cloud_queue),
+          label: const Text('Open online clinical workspace'),
+        ),
       ],
     );
   }

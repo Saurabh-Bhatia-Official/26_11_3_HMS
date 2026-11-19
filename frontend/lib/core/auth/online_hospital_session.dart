@@ -22,8 +22,11 @@ class OnlineHospitalUser {
   factory OnlineHospitalUser.fromJson(Map<String, dynamic> json) {
     final id = int.tryParse(json['id'].toString());
     final hospitalId = json['hospitalId']?.toString();
-    if (id == null || hospitalId == null || !RegExp(r'^\d{12}$').hasMatch(hospitalId)) {
-      throw const HospitalApiException('The server returned an invalid Hospital account.');
+    if (id == null ||
+        hospitalId == null ||
+        !RegExp(r'^\d{12}$').hasMatch(hospitalId)) {
+      throw const HospitalApiException(
+          'The server returned an invalid Hospital account.');
     }
     final role = json['role'] as String?;
     if (role == null || role == 'SUPER_ADMIN') {
@@ -61,7 +64,8 @@ class OnlineHospitalProfile {
   factory OnlineHospitalProfile.fromJson(Map<String, dynamic> json) {
     final id = json['hospitalId']?.toString();
     if (id == null || !RegExp(r'^\d{12}$').hasMatch(id)) {
-      throw const HospitalApiException('The server returned an invalid Hospital profile.');
+      throw const HospitalApiException(
+          'The server returned an invalid Hospital profile.');
     }
     return OnlineHospitalProfile(
       hospitalId: id,
@@ -90,7 +94,8 @@ class SecureOnlineTokenStore implements OnlineTokenStore {
   Future<String?> read(String key) => _storage.read(key: key);
 
   @override
-  Future<void> write(String key, String value) => _storage.write(key: key, value: value);
+  Future<void> write(String key, String value) =>
+      _storage.write(key: key, value: value);
 
   @override
   Future<void> delete(String key) => _storage.delete(key: key);
@@ -119,8 +124,10 @@ class OnlineHospitalSessionState {
   static const signedOut = OnlineHospitalSessionState(isRestoring: false);
 }
 
-class OnlineHospitalSessionNotifier extends StateNotifier<OnlineHospitalSessionState> {
-  OnlineHospitalSessionNotifier(this._api, this._tokens, {bool autoRestore = true})
+class OnlineHospitalSessionNotifier
+    extends StateNotifier<OnlineHospitalSessionState> {
+  OnlineHospitalSessionNotifier(this._api, this._tokens,
+      {bool autoRestore = true})
       : super(const OnlineHospitalSessionState()) {
     if (autoRestore) unawaited(restore());
   }
@@ -136,13 +143,19 @@ class OnlineHospitalSessionNotifier extends StateNotifier<OnlineHospitalSessionS
     try {
       final access = await _tokens.read(_accessTokenKey);
       final refresh = await _tokens.read(_refreshTokenKey);
-      if (access == null || refresh == null || access.isEmpty || refresh.isEmpty) {
+      if (!mounted) return;
+      if (access == null ||
+          refresh == null ||
+          access.isEmpty ||
+          refresh.isEmpty) {
         await _clearTokens();
+        if (!mounted) return;
         state = OnlineHospitalSessionState.signedOut;
         return;
       }
       await _loadSession(access, refresh);
     } catch (_) {
+      if (!mounted) return;
       state = OnlineHospitalSessionState.signedOutWithError(
           'Secure session storage is unavailable. Please try again.');
     }
@@ -153,7 +166,8 @@ class OnlineHospitalSessionNotifier extends StateNotifier<OnlineHospitalSessionS
     required String username,
     required String password,
   }) async {
-    state = const OnlineHospitalSessionState(isRestoring: false, isLoading: true);
+    state =
+        const OnlineHospitalSessionState(isRestoring: false, isLoading: true);
     try {
       final response = await _api.hospitalLogin(
         hospitalId: hospitalId,
@@ -163,16 +177,21 @@ class OnlineHospitalSessionNotifier extends StateNotifier<OnlineHospitalSessionS
       final access = response['accessToken'] as String?;
       final refresh = response['refreshToken'] as String?;
       final userJson = response['user'];
-      if (access == null || refresh == null || userJson is! Map<String, dynamic>) {
-        throw const HospitalApiException('The server returned an invalid login response.');
+      if (access == null ||
+          refresh == null ||
+          userJson is! Map<String, dynamic>) {
+        throw const HospitalApiException(
+            'The server returned an invalid login response.');
       }
       final user = OnlineHospitalUser.fromJson(userJson);
       if (user.hospitalId != hospitalId) {
-        throw const HospitalApiException('The account does not belong to the selected Hospital.');
+        throw const HospitalApiException(
+            'The account does not belong to the selected Hospital.');
       }
       await _writeTokens(access, refresh);
       await _loadSession(access, refresh);
-      if (!state.isAuthenticated) throw const HospitalApiException('Hospital access is unavailable.');
+      if (!state.isAuthenticated)
+        throw const HospitalApiException('Hospital access is unavailable.');
       return null;
     } on HospitalApiException catch (error) {
       await _clearTokens();
@@ -180,7 +199,8 @@ class OnlineHospitalSessionNotifier extends StateNotifier<OnlineHospitalSessionS
       return error.message;
     } catch (_) {
       await _clearTokens();
-      state = OnlineHospitalSessionState.signedOutWithError('Cannot establish a secure server session.');
+      state = OnlineHospitalSessionState.signedOutWithError(
+          'Cannot establish a secure server session.');
       return state.error;
     }
   }
@@ -192,7 +212,8 @@ class OnlineHospitalSessionNotifier extends StateNotifier<OnlineHospitalSessionS
       await _expireSession();
       return;
     }
-    state = OnlineHospitalSessionState(isLoading: true, user: state.user, hospital: state.hospital);
+    state = OnlineHospitalSessionState(
+        isLoading: true, user: state.user, hospital: state.hospital);
     await _loadSession(access, refreshToken);
   }
 
@@ -214,14 +235,18 @@ class OnlineHospitalSessionNotifier extends StateNotifier<OnlineHospitalSessionS
       final pair = await _api.refreshSession(refresh);
       final access = pair['accessToken'] as String?;
       final rotatedRefresh = pair['refreshToken'] as String?;
-      if (access == null || access.isEmpty || rotatedRefresh == null || rotatedRefresh.isEmpty) {
+      if (access == null ||
+          access.isEmpty ||
+          rotatedRefresh == null ||
+          rotatedRefresh.isEmpty) {
         await _expireSession();
         return null;
       }
       await _writeTokens(access, rotatedRefresh);
       return access;
     } on HospitalApiException catch (error) {
-      if (error.statusCode == 401 || error.statusCode == 403) await _expireSession();
+      if (error.statusCode == 401 || error.statusCode == 403)
+        await _expireSession();
       rethrow;
     }
   }
@@ -267,16 +292,21 @@ class OnlineHospitalSessionNotifier extends StateNotifier<OnlineHospitalSessionS
       final user = OnlineHospitalUser.fromJson(userJson);
       final hospital = OnlineHospitalProfile.fromJson(hospitalJson);
       if (user.hospitalId != hospital.hospitalId) {
-        throw const HospitalApiException('The server returned mismatched Hospital context.');
+        throw const HospitalApiException(
+            'The server returned mismatched Hospital context.');
       }
-      state = OnlineHospitalSessionState(isRestoring: false, user: user, hospital: hospital);
+      if (!mounted) return;
+      state = OnlineHospitalSessionState(
+          isRestoring: false, user: user, hospital: hospital);
     } on HospitalApiException catch (error) {
       final invalidSession = error.statusCode == 401 || error.statusCode == 403;
       if (invalidSession) await _clearTokens();
+      if (!mounted) return;
       state = OnlineHospitalSessionState.signedOutWithError(invalidSession
           ? 'Your server session has expired.'
           : 'The Hospital server is temporarily unavailable. Retry to restore your session.');
     } catch (_) {
+      if (!mounted) return;
       state = OnlineHospitalSessionState.signedOutWithError(
           'The Hospital server is temporarily unavailable. Retry to restore your session.');
     }
@@ -298,12 +328,13 @@ class OnlineHospitalSessionNotifier extends StateNotifier<OnlineHospitalSessionS
 
   Future<void> _expireSession() async {
     await _clearTokens();
-    state = OnlineHospitalSessionState.signedOutWithError('Your server session has expired. Please sign in again.');
+    state = OnlineHospitalSessionState.signedOutWithError(
+        'Your server session has expired. Please sign in again.');
   }
 }
 
-final onlineHospitalSessionProvider =
-    StateNotifierProvider<OnlineHospitalSessionNotifier, OnlineHospitalSessionState>((ref) {
+final onlineHospitalSessionProvider = StateNotifierProvider<
+    OnlineHospitalSessionNotifier, OnlineHospitalSessionState>((ref) {
   return OnlineHospitalSessionNotifier(
     ref.read(hospitalApiClientProvider),
     SecureOnlineTokenStore(const FlutterSecureStorage()),

@@ -63,7 +63,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "caresync.security.jwt-secret=local-test-secret-change-before-deployment-123456789",
         "caresync.hospital.registration.rate-limit.max-attempts=1000",
-        "spring.datasource.url=jdbc:h2:mem:caresync-hospital-module-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+        "spring.datasource.url=${caresync.test.datasource-url:jdbc:h2:mem:caresync-hospital-module-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}"
 })
 @AutoConfigureMockMvc
 @Import(HospitalManagementControllerTests.TestBeans.class)
@@ -84,6 +84,13 @@ class HospitalManagementControllerTests {
 
     @BeforeEach
     void clearIsolatedTestDatabase() {
+        jdbc.update("delete from appointment_events");
+        jdbc.update("delete from appointments");
+        jdbc.update("delete from doctor_schedule_exceptions");
+        jdbc.update("delete from doctor_schedules");
+        jdbc.update("delete from doctor_profiles");
+        jdbc.update("delete from patients");
+        jdbc.update("delete from departments");
         refreshTokens.deleteAll();
         registrations.deleteAll();
         membershipAuditEvents.deleteAll();

@@ -28,11 +28,14 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- H2 remains the default; opt in to PostgreSQL with -Dcaresync.test.profiles=test,postgres-test. -->
+		<caresync.test.profiles>test</caresync.test.profiles>
 	</properties>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-h2console</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -74,7 +77,7 @@
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
-			<scope>runtime</scope>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.postgresql</groupId>
@@ -115,7 +118,7 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<systemPropertyVariables>
-						<spring.profiles.active>test</spring.profiles.active>
+						<spring.profiles.active>${caresync.test.profiles}</spring.profiles.active>
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>

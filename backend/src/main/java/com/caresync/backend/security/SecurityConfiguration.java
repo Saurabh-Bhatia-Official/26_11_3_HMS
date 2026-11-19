@@ -86,7 +86,10 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/auth/login", "/api/auth/hospital-login", "/api/auth/refresh", "/api/auth/logout",
                                 "/api/v1/hospital-registrations", "/api/v1/hospitals", "/api/v1/hospitals/lookup/**",
                                 "/actuator/health").permitAll()
-                        .requestMatchers("/api/v1/hospitals/me").hasAnyAuthority(SecurityRole.allAuthorities())
+                        .requestMatchers("/api/v1/hospitals/me", "/api/v1/hospitals/me/time-zone")
+                        .hasAnyAuthority(SecurityRole.allAuthorities())
+                        .requestMatchers("/api/v1/departments/**", "/api/v1/doctors/**", "/api/v1/appointments/**")
+                        .hasAnyAuthority(SecurityRole.allAuthorities())
                         .requestMatchers("/api/v1/patients/**").hasAnyAuthority(SecurityRole.allAuthorities())
                         .requestMatchers("/api/v1/memberships", "/api/v1/memberships/**")
                         .hasAuthority(SecurityRole.HOSPITAL_SUPER_ADMIN.authority())

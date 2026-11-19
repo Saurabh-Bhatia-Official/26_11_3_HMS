@@ -6,12 +6,14 @@ import com.caresync.backend.hospital.dto.HospitalRegistrationRequest;
 import com.caresync.backend.hospital.dto.HospitalRegistrationReviewResponse;
 import com.caresync.backend.hospital.dto.HospitalRegistrationSubmitted;
 import com.caresync.backend.hospital.dto.HospitalProfileResponse;
+import com.caresync.backend.hospital.dto.HospitalTimeZoneRequest;
 import com.caresync.backend.hospital.entity.Hospital;
 import com.caresync.backend.hospital.entity.HospitalRegistration;
 import com.caresync.backend.hospital.entity.HospitalStatus;
 import com.caresync.backend.hospital.repository.HospitalRegistrationRepository;
 import com.caresync.backend.hospital.repository.HospitalRepository;
 import com.caresync.backend.membership.service.MembershipService;
+import com.caresync.backend.membership.entity.MembershipRole;
 import com.caresync.backend.security.AuthAccount;
 import com.caresync.backend.security.AuthAccountRepository;
 import com.caresync.backend.security.BearerTokenFilter;
@@ -26,6 +28,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -188,7 +192,46 @@ public class HospitalManagementService {
         Hospital hospital = hospitals.findByHospitalIdAndStatus(actor.hospitalId(), HospitalStatus.APPROVED)
                 .orElseThrow(() -> new HospitalApiException(HttpStatus.FORBIDDEN, "Hospital access is unavailable"));
         return new HospitalProfileResponse(Long.toString(hospital.getHospitalId()), hospital.getName(),
-                hospital.getCode(), hospital.getType(), hospital.getAddress(), hospital.getPhone(), hospital.getEmail());
+                hospital.getCode(), hospital.getType(), hospital.getAddress(), hospital.getPhone(), hospital.getEmail(),
+                hospital.getTimeZone());
+    }
+
+    @Transactional
+    public HospitalProfileResponse configureCurrentHospitalTimeZone(HospitalTimeZoneRequest request,
+                                                                      BearerTokenFilter.AuthPrincipal actor) {
+        TenantContext verifiedTenant = requireHospitalAdministrator(actor);
+        String zone = request.timeZone();
+        try {
+            ZoneId.of(zone);
+        } catch (DateTimeException invalidZone) {
+            throw new HospitalApiException(HttpStatus.BAD_REQUEST, "A valid IANA time zone is required");
+        }
+        if (!"UTC".equals(zone) && !ZoneId.getAvailableZoneIds().contains(zone)) {
+            throw new HospitalApiException(HttpStatus.BAD_REQUEST, "A valid IANA time zone is required");
+        }
+        Hospital hospital = hospitals.findById(verifiedTenant.hospitalUuid())
+                .filter(value -> value.getStatus() == HospitalStatus.APPROVED)
+                .orElseThrow(() -> new HospitalApiException(HttpStatus.FORBIDDEN, "Hospital access is unavailable"));
+        hospital.configureTimeZone(zone);
+        hospitals.save(hospital);
+        auditEvents.save(new SecurityAuditEvent("HOSPITAL_TIMEZONE_UPDATED", verifiedTenant.accountId(), Instant.now()));
+        return new HospitalProfileResponse(Long.toString(hospital.getHospitalId()), hospital.getName(),
+                hospital.getCode(), hospital.getType(), hospital.getAddress(), hospital.getPhone(), hospital.getEmail(),
+                hospital.getTimeZone());
+    }
+
+    private TenantContext requireHospitalAdministrator(BearerTokenFilter.AuthPrincipal actor) {
+        if (actor == null || actor.hospitalId() == null || "SUPER_ADMIN".equals(actor.role())) {
+            throw new HospitalApiException(HttpStatus.FORBIDDEN, "Forbidden");
+        }
+        TenantContext verifiedTenant = tenantContext.get();
+        if (verifiedTenant == null || verifiedTenant.accountId() != actor.userId()
+                || verifiedTenant.hospitalId() != actor.hospitalId()
+                || (verifiedTenant.membershipRole() != MembershipRole.HOSPITAL_SUPER_ADMIN
+                    && verifiedTenant.membershipRole() != MembershipRole.ADMIN)) {
+            throw new HospitalApiException(HttpStatus.FORBIDDEN, "Hospital administrator membership required");
+        }
+        return verifiedTenant;
     }
 
     private long nextUniqueHospitalId() {

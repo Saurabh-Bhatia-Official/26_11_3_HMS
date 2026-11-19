@@ -402,13 +402,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _prefill(String username, String password) {
-    setState(() {
-      _usernameController.text = username;
-      _passwordController.text = password;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -545,20 +538,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: false, label: Text('Offline on this device')),
-              ButtonSegment(value: true, label: Text('Online server')),
-            ],
-            selected: {_onlineSignIn},
-            onSelectionChanged: (selection) {
-              setState(() {
-                _onlineSignIn = selection.first;
-                _onlineLoginMessage = null;
-              });
-              if (selection.first && _onlineHospitals.isEmpty) _loadOnlineHospitals();
-            },
-          ),
           if (_onlineSignIn && onlineSession.error != null) ...[
             const Gap(8),
             Text(onlineSession.error!, style: TextStyle(color: colorScheme.error)),
@@ -746,62 +725,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               onPressed: () => setState(() => _currentTab = AuthTab.centralReview),
               icon: const Icon(Icons.fact_check_outlined, size: 16),
               label: const Text('Central Super Admin: review registrations'),
-            ),
-          ),
-          const Gap(16),
-
-          // ── Demo credentials selector ──────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: colorScheme.outlineVariant),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.badge_outlined, size: 16, color: colorScheme.primary),
-                    const Gap(6),
-                    Text(
-                      'Demo Staff Credentials (Click to prefill):',
-                      style: textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                const Gap(8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    ActionChip(
-                      label: const Text('Super Admin', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('superadmin', 'SuperAdmin@1234'),
-                    ),
-                    ActionChip(
-                      label: const Text('Admin', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('admin', 'Admin@1234'),
-                    ),
-                    ActionChip(
-                      label: const Text('Doctor', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('doctor', 'Doctor@1234'),
-                    ),
-                    ActionChip(
-                      label: const Text('Nurse', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('nurse', 'Nurse@1234'),
-                    ),
-                    ActionChip(
-                      label: const Text('Reception', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('reception', 'Reception@1234'),
-                    ),
-                  ],
-                ),
-              ],
             ),
           ),
         ],

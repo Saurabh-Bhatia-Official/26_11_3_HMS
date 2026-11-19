@@ -55,6 +55,10 @@ public class Hospital {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    /** IANA time zone configured by an authorized Hospital administrator; null means not configured. */
+    @Column(name = "time_zone", length = 64)
+    private String timeZone;
+
     protected Hospital() {}
 
     public Hospital(UUID id, String name, String code, String type, String address, String phone,
@@ -82,6 +86,9 @@ public class Hospital {
     public String getTaxId() { return taxId; }
     public HospitalStatus getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
+    public String getTimeZone() { return timeZone; }
+
+    public void configureTimeZone(String timeZone) { this.timeZone = timeZone; }
 
     public void approve(long hospitalId) {
         if (status != HospitalStatus.PENDING) throw new IllegalStateException("Only pending hospitals can be approved");

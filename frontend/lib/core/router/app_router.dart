@@ -10,6 +10,7 @@ import 'package:hospital_management/core/widgets/app_shell.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
 import 'package:hospital_management/features/appointments/presentation/screens/appointment_form_screen.dart';
 import 'package:hospital_management/features/appointments/presentation/screens/appointment_list_screen.dart';
+import 'package:hospital_management/features/appointments/presentation/screens/online_clinical_workspace.dart';
 import 'package:hospital_management/features/audit/presentation/screens/audit_log_screen.dart';
 import 'package:hospital_management/features/auth/presentation/screens/lock_screen.dart';
 import 'package:hospital_management/features/auth/presentation/screens/login_screen.dart';
@@ -51,9 +52,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             : AppRoutes.onlineSessionLoading;
       }
       if (online.isAuthenticated) {
-        return state.matchedLocation == AppRoutes.onlineHospital ? null : AppRoutes.onlineHospital;
+        return state.matchedLocation == AppRoutes.onlineHospital ||
+                state.matchedLocation == AppRoutes.onlineClinical
+            ? null
+            : AppRoutes.onlineHospital;
       }
       if (state.matchedLocation == AppRoutes.onlineHospital ||
+          state.matchedLocation == AppRoutes.onlineClinical ||
           state.matchedLocation == AppRoutes.onlineSessionLoading) {
         final localSession = ref.read(sessionProvider);
         return localSession.isAuthenticated ? AppRoutes.dashboard : AppRoutes.login;
@@ -126,6 +131,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.onlineHospital,
         name: 'online-hospital',
         builder: (context, state) => const OnlineHospitalDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.onlineClinical,
+        name: 'online-clinical',
+        builder: (context, state) => const OnlineClinicalWorkspace(),
       ),
 
       ShellRoute(

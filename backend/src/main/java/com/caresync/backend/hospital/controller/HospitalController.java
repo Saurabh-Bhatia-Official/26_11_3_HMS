@@ -6,12 +6,14 @@ import com.caresync.backend.hospital.dto.HospitalRegistrationRequest;
 import com.caresync.backend.hospital.dto.HospitalRegistrationReviewResponse;
 import com.caresync.backend.hospital.dto.HospitalRegistrationSubmitted;
 import com.caresync.backend.hospital.dto.HospitalProfileResponse;
+import com.caresync.backend.hospital.dto.HospitalTimeZoneRequest;
 import com.caresync.backend.hospital.service.HospitalManagementService;
 import com.caresync.backend.security.BearerTokenFilter;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -65,6 +67,12 @@ public class HospitalController {
     public HospitalProfileResponse currentHospital(
             @AuthenticationPrincipal BearerTokenFilter.AuthPrincipal principal) {
         return hospitals.currentHospital(principal);
+    }
+
+    @PatchMapping("/hospitals/me/time-zone")
+    public HospitalProfileResponse configureTimeZone(@Valid @RequestBody HospitalTimeZoneRequest request,
+            @AuthenticationPrincipal BearerTokenFilter.AuthPrincipal principal) {
+        return hospitals.configureCurrentHospitalTimeZone(request, principal);
     }
 
     @GetMapping("/hospitals/lookup/{hospitalId}")

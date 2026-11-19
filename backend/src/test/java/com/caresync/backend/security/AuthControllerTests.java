@@ -1,7 +1,11 @@
 package com.caresync.backend.security;
 
 import com.caresync.backend.hospital.entity.Hospital;
+import com.caresync.backend.hospital.repository.HospitalRegistrationRepository;
 import com.caresync.backend.hospital.repository.HospitalRepository;
+import com.caresync.backend.membership.repository.HospitalMembershipRepository;
+import com.caresync.backend.membership.repository.MembershipAuditEventRepository;
+import com.caresync.backend.patient.repository.PatientRepository;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.jdbc.core.JdbcTemplate;
 import java.time.Instant;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -34,8 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 @SpringBootTest(properties = {
         "caresync.security.jwt-secret=local-test-secret-change-before-deployment-123456789",
-        "caresync.security.cors.allowed-origins=https://client.caresync.test",
-        "spring.datasource.url=jdbc:h2:mem:caresync-auth-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+        "caresync.security.cors.allowed-origins=https://client.caresync.test"
 })
 @AutoConfigureMockMvc
 class AuthControllerTests {
@@ -44,6 +48,10 @@ class AuthControllerTests {
     @Autowired ObjectMapper mapper;
     @Autowired AuthAccountRepository accounts;
     @Autowired HospitalRepository hospitals;
+    @Autowired HospitalRegistrationRepository registrations;
+    @Autowired HospitalMembershipRepository memberships;
+    @Autowired MembershipAuditEventRepository membershipAuditEvents;
+    @Autowired PatientRepository patients;
     @Autowired RefreshTokenRepository refreshTokens;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired SecurityAuditEventRepository auditEvents;
@@ -54,10 +62,20 @@ class AuthControllerTests {
 
     @BeforeEach
     void prepareAccount() {
+        jdbc.update("delete from appointment_events");
+        jdbc.update("delete from appointments");
+        jdbc.update("delete from doctor_schedule_exceptions");
+        jdbc.update("delete from doctor_schedules");
+        jdbc.update("delete from doctor_profiles");
         refreshTokens.deleteAll();
+        membershipAuditEvents.deleteAll();
+        memberships.deleteAll();
+        patients.deleteAll();
+        jdbc.update("delete from departments");
+        registrations.deleteAll();
         auditEvents.deleteAll();
-        accounts.deleteAll();
         hospitals.deleteAll();
+        accounts.deleteAll();
         Hospital activeHospital = new Hospital(java.util.UUID.randomUUID(), "Auth Test Hospital", "AUTH-TEST",
                 "Clinic", null, null, null, null, Instant.now());
         activeHospital.approve(TEST_HOSPITAL_ID);
@@ -236,7 +254,7 @@ class AuthControllerTests {
         loginStatus("doctor1", "CorrectHorseBattery9!", 401);
 
         jdbc.update("UPDATE auth_accounts SET active = TRUE, failed_login_attempts = 5, locked_until = ? WHERE username = ?",
-                Instant.now().minusSeconds(1), "doctor1");
+                Timestamp.from(Instant.now().minusSeconds(1)), "doctor1");
         loginStatus("doctor1", "wrong-password", 401);
         AuthAccount afterExpiredLock = accounts.findByUsername("doctor1").orElseThrow();
         assertEquals(1, afterExpiredLock.getFailedLoginAttempts());

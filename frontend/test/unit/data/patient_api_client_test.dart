@@ -42,18 +42,23 @@ void main() {
       expect(result.version, 0);
     });
 
-    test('preserves authorization status for blocked outbox handling', () async {
+    test('preserves authorization status for blocked outbox handling',
+        () async {
       final client = PatientApiClient(
         baseUri: Uri.parse('https://api.example.test'),
         client: MockClient((_) async => http.Response(
-              jsonEncode({'message': 'Active Hospital membership required'}),
+              jsonEncode({'error': 'Active Hospital membership required'}),
               403,
             )),
       );
 
       await expectLater(
-        client.create('token', {'uuid': 'd9428888-122b-4f79-b4c8-639e5d8110a1'}),
-        throwsA(isA<HospitalApiException>().having((e) => e.statusCode, 'statusCode', 403)),
+        client
+            .create('token', {'uuid': 'd9428888-122b-4f79-b4c8-639e5d8110a1'}),
+        throwsA(isA<HospitalApiException>()
+            .having((e) => e.statusCode, 'statusCode', 403)
+            .having((e) => e.message, 'message',
+                'Active Hospital membership required')),
       );
     });
   });

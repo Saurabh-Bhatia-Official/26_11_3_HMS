@@ -25,9 +25,15 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -41,13 +47,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
-        "caresync.security.jwt-secret=local-test-secret-change-before-deployment-123456789",
-        "spring.datasource.url=jdbc:h2:mem:caresync-patient-module-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
-        "spring.flyway.enabled=false"
+        "caresync.security.jwt-secret=local-test-secret-change-before-deployment-123456789"
 })
 @AutoConfigureMockMvc
 class PatientManagementControllerTests {
     @Autowired MockMvc mvc;
+    @Autowired JdbcTemplate jdbc;
     @Autowired ObjectMapper mapper;
     @Autowired PatientRepository patients;
     @Autowired HospitalRepository hospitals;
@@ -61,6 +66,8 @@ class PatientManagementControllerTests {
 
     @BeforeEach
     void clearIsolatedDatabase() {
+        jdbc.update("delete from appointment_events");
+        jdbc.update("delete from appointments");
         refreshTokens.deleteAll();
         patients.deleteAll();
         membershipAuditEvents.deleteAll();
@@ -96,6 +103,23 @@ class PatientManagementControllerTests {
         assertNotNull(stored.getCreatedByAccountId());
         assertTrue(securityAuditEvents.findAll().stream()
                 .anyMatch(event -> "PATIENT_CREATED".equals(event.getEventType())));
+    }
+
+    @Test
+    void clientSuppliedHospitalUuidCannotOverrideMembershipTenant() throws Exception {
+        Hospital authorized = hospital("Authorized Tenant", 234_567_890_140L);
+        Hospital attackerSelected = hospital("Untrusted Tenant", 234_567_890_141L);
+        String authorizedToken = token(authorized, MembershipRole.ADMIN, "patient-tenant-authority");
+        UUID uuid = UUID.randomUUID();
+        String body = createJson(uuid, "Tenant Bound Patient", null, null)
+                .replace("}", ",\"hospitalUuid\":\"" + attackerSelected.getId() + "\"}");
+
+        mvc.perform(post("/api/v1/patients").header("Authorization", bearer(authorizedToken))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+
+        Patient stored = patients.findByUuid(uuid).orElseThrow();
+        assertEquals(authorized.getId(), stored.getHospital().getId());
     }
 
     @Test
@@ -141,6 +165,64 @@ class PatientManagementControllerTests {
     }
 
     @Test
+    void concurrentRequestsKeepTenantContextIsolated() throws Exception {
+        Hospital first = hospital("Concurrent First Hospital", 234_567_890_142L);
+        Hospital second = hospital("Concurrent Second Hospital", 234_567_890_143L);
+        String firstToken = token(first, MembershipRole.ADMIN, "patient-concurrent-one");
+        String secondToken = token(second, MembershipRole.ADMIN, "patient-concurrent-two");
+        create(firstToken, UUID.randomUUID(), "First Tenant Patient", null);
+        create(secondToken, UUID.randomUUID(), "Second Tenant Patient", null);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            for (int attempt = 0; attempt < 10; attempt++) {
+                CountDownLatch start = new CountDownLatch(1);
+                Future<JsonNode> firstResponse = executor.submit(() -> {
+                    if (!start.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("start timed out");
+                    return mapper.readTree(mvc.perform(get("/api/v1/patients")
+                                    .header("Authorization", bearer(firstToken)))
+                            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+                });
+                Future<JsonNode> secondResponse = executor.submit(() -> {
+                    if (!start.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("start timed out");
+                    return mapper.readTree(mvc.perform(get("/api/v1/patients")
+                                    .header("Authorization", bearer(secondToken)))
+                            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+                });
+                start.countDown();
+                assertEquals("First Tenant Patient", firstResponse.get(20, TimeUnit.SECONDS)
+                        .path("items").get(0).path("name").asText());
+                assertEquals("Second Tenant Patient", secondResponse.get(20, TimeUnit.SECONDS)
+                        .path("items").get(0).path("name").asText());
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void inactiveOrRevokedMembershipCannotUsePreviouslyIssuedPatientSession() throws Exception {
+        Hospital hospital = hospital("Membership Enforcement Hospital", 234_567_890_144L);
+        String inactiveToken = token(hospital, MembershipRole.DOCTOR, "patient-inactive-member");
+        AuthAccount inactiveAccount = accounts.findByUsername("patient-inactive-member").orElseThrow();
+        HospitalMembership inactiveMembership = memberships.findByAccount_Id(inactiveAccount.getId()).orElseThrow();
+        inactiveMembership.deactivate(Instant.now());
+        memberships.saveAndFlush(inactiveMembership);
+
+        mvc.perform(get("/api/v1/patients").header("Authorization", bearer(inactiveToken)))
+                .andExpect(status().isUnauthorized());
+
+        String revokedToken = token(hospital, MembershipRole.NURSE, "patient-revoked-member");
+        AuthAccount revokedAccount = accounts.findByUsername("patient-revoked-member").orElseThrow();
+        HospitalMembership revokedMembership = memberships.findByAccount_Id(revokedAccount.getId()).orElseThrow();
+        revokedMembership.revoke(inactiveAccount.getId(), Instant.now());
+        memberships.saveAndFlush(revokedMembership);
+
+        mvc.perform(get("/api/v1/patients").header("Authorization", bearer(revokedToken)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void crossHospitalUuidLookupAndUpdateReturnNotFound() throws Exception {
         Hospital owner = hospital("Owner Hospital", 234_567_890_127L);
         Hospital other = hospital("Other Hospital", 234_567_890_128L);
@@ -155,11 +237,17 @@ class PatientManagementControllerTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateJson(0, "Unauthorized Update")))
                 .andExpect(status().isNotFound());
-        assertEquals("Scoped Patient", patients.findByUuid(uuid).orElseThrow().getName());
+        mvc.perform(delete("/api/v1/patients/{uuid}", uuid).header("Authorization", bearer(otherToken)))
+                .andExpect(status().isNotFound());
+        Patient unchanged = patients.findByUuid(uuid).orElseThrow();
+        assertEquals("Scoped Patient", unchanged.getName());
+        assertEquals(null, unchanged.getArchivedAt());
     }
 
     @Test
     void missingMembershipAndCentralAdminCannotAccessPatientApi() throws Exception {
+        mvc.perform(get("/api/v1/patients")).andExpect(status().isUnauthorized());
+
         Hospital hospital = hospital("Legacy Hospital", 234_567_890_129L);
         AuthAccount legacy = accounts.saveAndFlush(new AuthAccount("legacy-patient-user",
                 passwordEncoder.encode("StrongPassword9!"), "Legacy User", "DOCTOR", hospital.getHospitalId()));

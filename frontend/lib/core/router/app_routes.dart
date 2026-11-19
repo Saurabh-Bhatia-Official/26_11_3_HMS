@@ -14,6 +14,7 @@ abstract class AppRoutes {
   static const String lock = '/lock';
   static const String onlineSessionLoading = '/online-session-loading';
   static const String onlineHospital = '/online-hospital';
+  static const String onlineClinical = '/online-clinical';
 
   // ── Root (redirects to dashboard) ─────────────────────────────────────────
   static const String root = '/';
