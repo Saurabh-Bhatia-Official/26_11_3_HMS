@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
-import 'package:hospital_management/core/widgets/kpi_card.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
+import 'package:hospital_management/core/widgets/kpi_card.dart';
+import 'package:intl/intl.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
@@ -19,7 +20,8 @@ class ReportsScreen extends ConsumerWidget {
           OutlinedButton.icon(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Monthly financial report exported to PDF.')),
+                const SnackBar(
+                    content: Text('Monthly financial report exported to PDF.')),
               );
             },
             icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
@@ -32,13 +34,25 @@ class ReportsScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error loading reports: $e')),
         data: (data) {
+          final reportFrom = DateFormat('EEE, dd MMM yyyy')
+              .format(DateTime.parse(data['reportFrom'] as String));
+          final reportTo = DateFormat('EEE, dd MMM yyyy')
+              .format(DateTime.parse(data['reportTo'] as String));
+          final generatedAt = DateFormat('EEE, dd MMM yyyy, hh:mm a')
+              .format(DateTime.parse(data['generatedAt'] as String).toLocal());
           final revenuePaise = data['totalRevenuePaise'] as int;
           final duePaise = data['totalDuePaise'] as int;
           final opdCount = data['totalOpdVisits'] as int;
           final ipdCount = data['totalAdmissions'] as int;
           final departments = data['departments'] as List<Map<String, dynamic>>;
 
-          final totalRevFormatted = '₹${(revenuePaise / 100).toStringAsFixed(0)}';
+          final deptReportDate = DateFormat('EEE, dd MMM yyyy')
+              .format(DateTime.parse(data['reportFrom'] as String));
+          final deptGeneratedTime = DateFormat('hh:mm a')
+              .format(DateTime.parse(data['generatedAt'] as String).toLocal());
+
+          final totalRevFormatted =
+              '₹${(revenuePaise / 100).toStringAsFixed(0)}';
           final dueFormatted = '₹${(duePaise / 100).toStringAsFixed(0)}';
 
           return SingleChildScrollView(
@@ -46,6 +60,13 @@ class ReportsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  'Period: $reportFrom – $reportTo  •  Generated: $generatedAt',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                const Gap(16),
                 // Revenue summary
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -104,48 +125,112 @@ class ReportsScreen extends ConsumerWidget {
                       children: [
                         Text(
                           'Monthly Revenue Breakdown by Department',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const Gap(16),
                         Table(
                           columnWidths: const {
                             0: FlexColumnWidth(3),
-                            1: FlexColumnWidth(2),
+                            1: FlexColumnWidth(1.5),
                             2: FlexColumnWidth(2),
-                            3: FlexColumnWidth(2),
+                            3: FlexColumnWidth(1.5),
+                            4: FlexColumnWidth(2),
+                            5: FlexColumnWidth(1.5),
                           },
-                          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                          defaultVerticalAlignment:
+                              TableCellVerticalAlignment.middle,
                           children: [
                             const TableRow(
-                              decoration: BoxDecoration(color: Color(0x10000000)),
+                              decoration:
+                                  BoxDecoration(color: Color(0x10000000)),
                               children: [
-                                Padding(padding: EdgeInsets.all(12), child: Text('Department / Head', style: TextStyle(fontWeight: FontWeight.bold))),
-                                Padding(padding: EdgeInsets.all(12), child: Text('Transactions', style: TextStyle(fontWeight: FontWeight.bold))),
-                                Padding(padding: EdgeInsets.all(12), child: Text('Revenue (₹)', style: TextStyle(fontWeight: FontWeight.bold))),
-                                Padding(padding: EdgeInsets.all(12), child: Text('% Share', style: TextStyle(fontWeight: FontWeight.bold))),
+                                Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Text('Department / Head',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Text('Transactions',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Text('Revenue (₹)',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Text('% Share',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Text('Date',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Text('Time',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
                               ],
                             ),
                             if (departments.isEmpty)
                               const TableRow(
                                 children: [
-                                  Padding(padding: EdgeInsets.all(12), child: Text('No revenue transactions recorded')),
-                                  Padding(padding: EdgeInsets.all(12), child: Text('0')),
-                                  Padding(padding: EdgeInsets.all(12), child: Text('₹0.00')),
-                                  Padding(padding: EdgeInsets.all(12), child: Text('0%')),
+                                  Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Text(
+                                          'No revenue transactions recorded')),
+                                  Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Text('0')),
+                                  Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Text('₹0.00')),
+                                  Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Text('0%')),
+                                  Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Text('-')),
+                                  Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Text('-')),
                                 ],
                               )
                             else
                               ...departments.map((dept) {
                                 final deptTotal = dept['totalPaise'] as int;
                                 final pct = revenuePaise > 0
-                                    ? ((deptTotal / revenuePaise) * 100).toStringAsFixed(1)
+                                    ? ((deptTotal / revenuePaise) * 100)
+                                        .toStringAsFixed(1)
                                     : '0.0';
                                 return TableRow(
                                   children: [
-                                    Padding(padding: const EdgeInsets.all(12), child: Text(dept['name'] as String)),
-                                    Padding(padding: const EdgeInsets.all(12), child: Text(dept['count'] as String)),
-                                    Padding(padding: const EdgeInsets.all(12), child: Text('₹${(deptTotal / 100).toStringAsFixed(2)}')),
-                                    Padding(padding: const EdgeInsets.all(12), child: Text('$pct%')),
+                                    Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Text(dept['name'] as String)),
+                                    Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Text(dept['count'] as String)),
+                                    Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Text(
+                                            '₹${(deptTotal / 100).toStringAsFixed(2)}')),
+                                    Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Text('$pct%')),
+                                    Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Text(deptReportDate)),
+                                    Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Text(deptGeneratedTime)),
                                   ],
                                 );
                               }),

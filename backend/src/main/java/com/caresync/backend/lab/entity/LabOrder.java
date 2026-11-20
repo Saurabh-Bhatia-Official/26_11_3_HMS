@@ -104,7 +104,9 @@ public class LabOrder extends HospitalScopedEntity {
     }
 
     public void enterResults(List<LabResult> newResults, long userId) {
-        requireStatus("processing");
+        if (!"processing".equals(status) && !"resulted".equals(status) && !"verified".equals(status) && !"completed".equals(status)) {
+            throw BusinessException.conflict("Order must be processing, resulted, or verified before this action");
+        }
         results.clear();
         newResults.forEach(result -> {
             results.add(result);
@@ -112,7 +114,9 @@ public class LabOrder extends HospitalScopedEntity {
         });
         enteredBy = userId;
         resultedAt = Instant.now();
-        status = "resulted";
+        if ("processing".equals(status)) {
+            status = "resulted";
+        }
     }
 
     public void verify(long userId) {

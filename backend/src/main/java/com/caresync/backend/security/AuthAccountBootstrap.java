@@ -32,7 +32,27 @@ public class AuthAccountBootstrap implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (username.isBlank() && password.isBlank()) return;
+        if (accounts.count() != 0) {
+            log.info("Auth accounts already exist; skipping initial provisioning");
+            return;
+        }
+
+        if (username.isBlank() && password.isBlank()) {
+            // Seed standard CareSync demo accounts for local development
+            log.info("Provisioning default CareSync accounts (SuperAdmin, Admin, Doctor, Nurse, Staff, Lab, Pharmacy)...");
+            accounts.save(new AuthAccount("superadmin", passwords.encode("SuperAdmin@1234"), "Super Administrator", "SUPER_ADMIN", null));
+            accounts.save(new AuthAccount("admin", passwords.encode("Admin@1234"), "Hospital Administrator", "ADMIN", 1L));
+            accounts.save(new AuthAccount("doctor", passwords.encode("Doctor@1234"), "Duty Doctor", "DOCTOR", 1L));
+            accounts.save(new AuthAccount("nurse", passwords.encode("Nurse@1234"), "Staff Nurse", "NURSE", 1L));
+            accounts.save(new AuthAccount("reception", passwords.encode("Reception@1234"), "Front Desk Receptionist", "RECEPTIONIST", 1L));
+            accounts.save(new AuthAccount("staff", passwords.encode("Staff@1234"), "General Staff Member", "STAFF", 1L));
+            accounts.save(new AuthAccount("pharmacy", passwords.encode("Pharmacy@1234"), "Chief Pharmacist", "PHARMACIST", 1L));
+            accounts.save(new AuthAccount("lab", passwords.encode("Lab@1234"), "Laboratory Technician", "LAB_TECHNICIAN", 1L));
+            accounts.save(new AuthAccount("accounts", passwords.encode("Accounts@1234"), "Billing & Accounts Officer", "ACCOUNTS", 1L));
+            log.info("Default CareSync demo accounts created successfully");
+            return;
+        }
+
         if (username.isBlank() || password.length() < 12) {
             throw new IllegalStateException("Bootstrap requires a username and a password of at least 12 characters");
         }
@@ -46,10 +66,6 @@ public class AuthAccountBootstrap implements CommandLineRunner {
             if (scopedHospitalId <= 0) {
                 throw new IllegalStateException("CARESYNC_BOOTSTRAP_HOSPITAL_ID must be a positive integer");
             }
-        }
-        if (accounts.count() != 0) {
-            log.info("Bootstrap admin was not created because an auth account already exists");
-            return;
         }
         String role = scopedHospitalId == null ? "SUPER_ADMIN" : "ADMIN";
         accounts.save(new AuthAccount(username, passwords.encode(password), fullName, role, scopedHospitalId));

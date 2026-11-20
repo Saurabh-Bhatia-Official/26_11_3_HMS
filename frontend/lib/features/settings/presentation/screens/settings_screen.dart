@@ -1192,8 +1192,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                     itemCount: users.length,
                     separatorBuilder: (_, __) => const Gap(10),
                     itemBuilder: (context, idx) {
-                      final u = users[idx];
-                      final isDemo = u.id < 100;
+                      // allUsersProvider returns Map<String, dynamic>, so read
+                      // each user field using its map key rather than a model getter.
+                      final Map<String, dynamic> u =
+                          Map<String, dynamic>.from(users[idx] as Map);
+
+                      final userId = int.tryParse('${u['id'] ?? ''}') ?? 0;
+                      final username = (u['username'] ?? '').toString();
+                      final fullName = (u['fullName'] ?? '').toString();
+                      final role = (u['role'] ?? 'Staff').toString();
+                      final email = (u['email'] ?? '').toString();
+                      final hospitalName = u['hospitalName']?.toString();
+                      final isDemo = userId < 100;
+                      final roleColor = _getRoleColor(role);
+                      final displayName = fullName.isNotEmpty ? fullName : username;
+                      final avatarText = displayName.isNotEmpty
+                          ? displayName[0].toUpperCase()
+                          : '?';
 
                       return Card(
                         elevation: 0,
@@ -1206,10 +1221,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                           child: Row(
                             children: [
                               CircleAvatar(
-                                backgroundColor: _getRoleColor(u.role).withValues(alpha: 0.15),
-                                foregroundColor: _getRoleColor(u.role),
+                                backgroundColor: roleColor.withValues(alpha: 0.15),
+                                foregroundColor: roleColor,
                                 child: Text(
-                                  u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : u.username[0].toUpperCase(),
+                                  avatarText,
                                   style: const TextStyle(fontWeight: FontWeight.bold),
                                 ),
                               ),
@@ -1218,36 +1233,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
+                                    Wrap(
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      spacing: 8,
+                                      runSpacing: 6,
                                       children: [
                                         Text(
-                                          u.fullName,
+                                          displayName,
                                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                                         ),
-                                        const Gap(8),
                                         Text(
-                                          '(@${u.username})',
+                                          username.isNotEmpty ? '(@$username)' : '',
                                           style: TextStyle(color: colorScheme.outline, fontSize: 13),
                                         ),
-                                        const Gap(8),
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: _getRoleColor(u.role).withValues(alpha: 0.15),
+                                            color: roleColor.withValues(alpha: 0.15),
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: _getRoleColor(u.role).withValues(alpha: 0.4)),
+                                            border: Border.all(color: roleColor.withValues(alpha: 0.4)),
                                           ),
                                           child: Text(
-                                            u.role,
+                                            role,
                                             style: TextStyle(
-                                              color: _getRoleColor(u.role),
+                                              color: roleColor,
                                               fontWeight: FontWeight.bold,
                                               fontSize: 11,
                                             ),
                                           ),
                                         ),
-                                        if (isDemo) ...[
-                                          const Gap(8),
+                                        if (isDemo)
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(
@@ -1259,24 +1274,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                                               style: TextStyle(color: colorScheme.outline, fontSize: 10, fontWeight: FontWeight.bold),
                                             ),
                                           ),
-                                        ],
                                       ],
                                     ),
                                     const Gap(4),
-                                    Row(
+                                    Wrap(
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      spacing: 16,
+                                      runSpacing: 4,
                                       children: [
-                                        Icon(Icons.domain_rounded, size: 14, color: colorScheme.outline),
-                                        const Gap(4),
-                                        Text(
-                                          u.hospitalName != null ? 'Hospital: ${u.hospitalName}' : 'Default Network Entity',
-                                          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.domain_rounded, size: 14, color: colorScheme.outline),
+                                            const Gap(4),
+                                            Text(
+                                              hospitalName != null && hospitalName.isNotEmpty
+                                                  ? 'Hospital: $hospitalName'
+                                                  : 'Default Network Entity',
+                                              style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+                                            ),
+                                          ],
                                         ),
-                                        const Gap(16),
-                                        Icon(Icons.email_outlined, size: 14, color: colorScheme.outline),
-                                        const Gap(4),
-                                        Text(
-                                          u.email,
-                                          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.email_outlined, size: 14, color: colorScheme.outline),
+                                            const Gap(4),
+                                            Text(
+                                              email,
+                                              style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
@@ -1287,7 +1315,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                                 IconButton(
                                   icon: const Icon(Icons.delete_outline, color: Colors.red),
                                   tooltip: 'Delete User Account',
-                                  onPressed: () => _confirmDeleteUser(u.username, u.fullName),
+                                  onPressed: () => _confirmDeleteUser(username, fullName),
                                 ),
                             ],
                           ),

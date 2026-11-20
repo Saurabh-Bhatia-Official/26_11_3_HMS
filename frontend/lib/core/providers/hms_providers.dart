@@ -260,26 +260,59 @@ final dashboardStatsProvider =
 
 final reportsDataProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final db = ref.watch(appDatabaseProvider);
-  final local = await db.hmsDao.getReportsData();
-  if (!_remoteEnabled(ref)) return local;
-  try {
-    final now = DateTime.now().toUtc();
-    final firstOfMonth =
-        DateTime.utc(now.year, now.month, 1).toIso8601String().substring(0, 10);
-    final today = now.toIso8601String().substring(0, 10);
-    final remote = await HmsRemoteRepository(ref.read(backendApiClientProvider))
-        .reportSummary(from: firstOfMonth, to: today);
+  final now = DateTime.now();
+  final firstOfMonth = DateTime(now.year, now.month, 1);
+  final from = _dateOnly(firstOfMonth);
+  final to = _dateOnly(now);
+  final local = await db.hmsDao.getReportsData(from: from, to: to);
+  final generatedAt = now.toIso8601String();
+  final deptListWithDate = (local['departments'] as List<Map<String, dynamic>>)
+      .map((dept) {
+    return {
+      ...dept,
+      'reportFrom': from,
+      'reportTo': to,
+      'generatedAt': generatedAt,
+    };
+  }).toList();
+
+  if (!_remoteEnabled(ref)) {
     return {
       ...local,
+      'departments': deptListWithDate,
+      'reportFrom': from,
+      'reportTo': to,
+      'generatedAt': generatedAt,
+    };
+  }
+  try {
+    final remote = await HmsRemoteRepository(ref.read(backendApiClientProvider))
+        .reportSummary(from: from, to: to);
+    return {
+      ...local,
+      'departments': deptListWithDate,
       'totalRevenuePaise': remote['revenuePaise'],
       'totalDuePaise':
           remote['currentOutstandingPaise'] ?? local['totalDuePaise'],
+      'reportFrom': from,
+      'reportTo': to,
+      'generatedAt': generatedAt,
     };
   } on BackendConnectionException {
-    return local;
+    return {
+      ...local,
+      'departments': deptListWithDate,
+      'reportFrom': from,
+      'reportTo': to,
+      'generatedAt': generatedAt,
+    };
   }
 });
 
 bool _remoteEnabled(Ref ref) =>
     ref.watch(backendApiClientProvider).isConfigured &&
     (ref.watch(sessionProvider).user?.isRemote ?? false);
+
+String _dateOnly(DateTime value) => '${value.year.toString().padLeft(4, '0')}-'
+    '${value.month.toString().padLeft(2, '0')}-'
+    '${value.day.toString().padLeft(2, '0')}';
