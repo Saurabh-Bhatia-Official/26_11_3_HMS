@@ -48,16 +48,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _adminObscurePassword = true;
   bool _adminObscureConfirm = true;
 
+  // ── Hospital Staff & Role Credentials ──────────────────────────────────────
+  final _adminRoleUsernameController = TextEditingController();
+  final _adminRolePasswordController = TextEditingController(text: 'Admin@1234');
+  final _doctorUsernameController = TextEditingController();
+  final _doctorPasswordController = TextEditingController(text: 'Doctor@1234');
+  final _nurseUsernameController = TextEditingController();
+  final _nursePasswordController = TextEditingController(text: 'Nurse@1234');
+  final _staffUsernameController = TextEditingController();
+  final _staffPasswordController = TextEditingController(text: 'Staff@1234');
+  bool _customStaffExpanded = false;
+
   bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
     _currentTab = widget.initialTab;
+    _hospCodeController.addListener(_onHospCodeChanged);
+  }
+
+  void _onHospCodeChanged() {
+    final code = _hospCodeController.text.trim().toLowerCase();
+    if (code.isNotEmpty) {
+      if (_adminRoleUsernameController.text.isEmpty || _adminRoleUsernameController.text.endsWith('_admin')) {
+        _adminRoleUsernameController.text = '${code}_admin';
+      }
+      if (_doctorUsernameController.text.isEmpty || _doctorUsernameController.text.endsWith('_doctor')) {
+        _doctorUsernameController.text = '${code}_doctor';
+      }
+      if (_nurseUsernameController.text.isEmpty || _nurseUsernameController.text.endsWith('_nurse')) {
+        _nurseUsernameController.text = '${code}_nurse';
+      }
+      if (_staffUsernameController.text.isEmpty || _staffUsernameController.text.endsWith('_staff')) {
+        _staffUsernameController.text = '${code}_staff';
+      }
+    }
   }
 
   @override
   void dispose() {
+    _hospCodeController.removeListener(_onHospCodeChanged);
     _usernameController.dispose();
     _passwordController.dispose();
     _passwordFocusNode.dispose();
@@ -71,6 +102,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _adminEmailController.dispose();
     _adminPasswordController.dispose();
     _adminConfirmPasswordController.dispose();
+
+    _adminRoleUsernameController.dispose();
+    _adminRolePasswordController.dispose();
+    _doctorUsernameController.dispose();
+    _doctorPasswordController.dispose();
+    _nurseUsernameController.dispose();
+    _nursePasswordController.dispose();
+    _staffUsernameController.dispose();
+    _staffPasswordController.dispose();
     super.dispose();
   }
 
@@ -128,7 +168,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final adminEmail = _adminEmailController.text.trim();
     final adminPassword = _adminPasswordController.text;
 
-    // 1. Verify username is available
+    // 1. Verify superadmin username is available
     final isTaken = await db.isUsernameTaken(adminUsername);
     if (isTaken) {
       if (!mounted) return;
@@ -144,8 +184,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     try {
-      // 2. Insert new Hospital Entity
+      // 2. Prepare new Hospital Entity
       final newHospital = HospitalModel(
+        id: 0,
         uuid: 'hosp-${DateTime.now().millisecondsSinceEpoch}',
         name: hospName,
         code: hospCode,
@@ -155,50 +196,132 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         email: adminEmail,
         status: 'Active',
       );
-      final newHospId = await db.hmsDao.insertHospital(newHospital);
+
+      final cAdminUser = _adminRoleUsernameController.text.trim().isNotEmpty
+          ? _adminRoleUsernameController.text.trim()
+          : '${hospCode.toLowerCase()}_admin';
+      final cAdminPass = _adminRolePasswordController.text.isNotEmpty
+          ? _adminRolePasswordController.text
+          : 'Admin@1234';
+
+      final cDocUser = _doctorUsernameController.text.trim().isNotEmpty
+          ? _doctorUsernameController.text.trim()
+          : '${hospCode.toLowerCase()}_doctor';
+      final cDocPass = _doctorPasswordController.text.isNotEmpty
+          ? _doctorPasswordController.text
+          : 'Doctor@1234';
+
+      final cNurseUser = _nurseUsernameController.text.trim().isNotEmpty
+          ? _nurseUsernameController.text.trim()
+          : '${hospCode.toLowerCase()}_nurse';
+      final cNursePass = _nursePasswordController.text.isNotEmpty
+          ? _nursePasswordController.text
+          : 'Nurse@1234';
+
+      final cStaffUser = _staffUsernameController.text.trim().isNotEmpty
+          ? _staffUsernameController.text.trim()
+          : '${hospCode.toLowerCase()}_staff';
+      final cStaffPass = _staffPasswordController.text.isNotEmpty
+          ? _staffPasswordController.text
+          : 'Staff@1234';
+
+      // 3. Create hospital and provision all roles with separate credentials
+      final newHospId = await db.hmsDao.createHospitalWithDefaultStaff(
+        hospital: newHospital,
+        superAdminUsername: adminUsername,
+        superAdminFullName: adminFullName,
+        superAdminEmail: adminEmail,
+        superAdminPassword: adminPassword,
+        adminUsername: cAdminUser,
+        adminPassword: cAdminPass,
+        doctorUsername: cDocUser,
+        doctorPassword: cDocPass,
+        nurseUsername: cNurseUser,
+        nursePassword: cNursePass,
+        staffUsername: cStaffUser,
+        staffPassword: cStaffPass,
+      );
+
       final savedHospital = newHospital.copyWith(id: newHospId);
 
-      // 3. Register Super Admin User
-      final regError = await ref.read(sessionProvider.notifier).registerUser(
-            fullName: adminFullName,
-            username: adminUsername,
-            email: adminEmail,
-            password: adminPassword,
-            role: 'Super Admin',
-            hospitalId: newHospId,
-            hospitalName: hospName,
+      // 4. Authenticate as Super Admin for this new hospital
+      await ref.read(sessionProvider.notifier).login(
+            adminUsername,
+            adminPassword,
+            selectedHospitalId: newHospId,
+            selectedHospitalName: hospName,
           );
 
-      if (regError != null) {
-        if (!mounted) return;
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(regError),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-
-      // 4. Set active hospital and refresh
+      // Refresh hospitals list
       ref.invalidate(allHospitalsProvider);
       ref.read(activeHospitalProvider.notifier).switchHospital(savedHospital);
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Hospital "$hospName" created! Super Admin account "$adminUsername" is ready. You can now add other staff via Settings.'),
-          backgroundColor: Colors.teal.shade800,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 5),
+      // 5. Show credentials review dialog
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.green),
+              const Gap(10),
+              Expanded(
+                child: Text(
+                  'Hospital "$hospName" Created!',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'All role accounts have been provisioned with their separate credentials for this hospital:',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  const Gap(12),
+                  _buildCredentialRow('Super Admin', adminUsername, adminPassword),
+                  _buildCredentialRow('Hospital Admin', cAdminUser, cAdminPass),
+                  _buildCredentialRow('Duty Doctor', cDocUser, cDocPass),
+                  _buildCredentialRow('Staff Nurse', cNurseUser, cNursePass),
+                  _buildCredentialRow('Front Desk Staff', cStaffUser, cStaffPass),
+                  _buildCredentialRow('Lab Technician', '${hospCode.toLowerCase()}_lab', 'Lab@1234'),
+                  _buildCredentialRow('Pharmacist', '${hospCode.toLowerCase()}_pharmacy', 'Pharmacy@1234'),
+                  const Gap(12),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: const Text(
+                      'You are now logged in as Super Admin. You can test sign-in with any of the above credentials anytime.',
+                      style: TextStyle(fontSize: 11, color: Colors.blue),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Proceed to Dashboard'),
+            ),
+          ],
         ),
       );
 
-      context.go(AppRoutes.dashboard);
+      if (mounted) context.go(AppRoutes.dashboard);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -210,6 +333,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       );
     }
+  }
+
+  static Widget _buildCredentialRow(String role, String username, String password) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 4,
+            child: Text(role, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+          Expanded(
+            flex: 4,
+            child: Text(username, style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+          ),
+          Expanded(
+            flex: 4,
+            child: Text(password, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+          ),
+        ],
+      ),
+    );
   }
 
   void _prefill(String username, String password) {
@@ -468,41 +613,79 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     Icon(Icons.badge_outlined, size: 16, color: colorScheme.primary),
                     const Gap(6),
-                    Text(
-                      'Demo Staff Credentials (Click to prefill):',
-                      style: textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.primary,
+                    Expanded(
+                      child: Text(
+                        'Credentials for ${_selectedHospital?.name ?? "CareSync"} (Click to prefill):',
+                        style: textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.primary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
                 const Gap(8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    ActionChip(
-                      label: const Text('Super Admin', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('superadmin', 'SuperAdmin@1234'),
-                    ),
-                    ActionChip(
-                      label: const Text('Admin', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('admin', 'Admin@1234'),
-                    ),
-                    ActionChip(
-                      label: const Text('Doctor', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('doctor', 'Doctor@1234'),
-                    ),
-                    ActionChip(
-                      label: const Text('Nurse', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('nurse', 'Nurse@1234'),
-                    ),
-                    ActionChip(
-                      label: const Text('Reception', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('reception', 'Reception@1234'),
-                    ),
-                  ],
+                FutureBuilder<List<Map<String, dynamic>>>(
+                  future: ref.read(appDatabaseProvider).hmsDao.getAllUsers(hospitalId: _selectedHospital?.id),
+                  builder: (context, snapshot) {
+                    final users = snapshot.data ?? [];
+                    if (users.isEmpty) {
+                      return Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          ActionChip(
+                            label: const Text('Super Admin', style: TextStyle(fontSize: 11)),
+                            onPressed: () => _prefill('superadmin', 'superadmin@1234'),
+                          ),
+                          ActionChip(
+                            label: const Text('Admin', style: TextStyle(fontSize: 11)),
+                            onPressed: () => _prefill('admin', 'admin@1234'),
+                          ),
+                          ActionChip(
+                            label: const Text('Doctor', style: TextStyle(fontSize: 11)),
+                            onPressed: () => _prefill('doctor', 'doctor@1234'),
+                          ),
+                          ActionChip(
+                            label: const Text('Nurse', style: TextStyle(fontSize: 11)),
+                            onPressed: () => _prefill('nurse', 'nurse@1234'),
+                          ),
+                          ActionChip(
+                            label: const Text('Staff', style: TextStyle(fontSize: 11)),
+                            onPressed: () => _prefill('staff', 'staff@1234'),
+                          ),
+                          ActionChip(
+                            label: const Text('Reception', style: TextStyle(fontSize: 11)),
+                            onPressed: () => _prefill('reception', 'reception@1234'),
+                          ),
+                        ],
+                      );
+                    }
+                    return Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: users.map((u) {
+                        final uname = u['username'] as String;
+                        final role = u['role'] as String;
+                        final defaultPass = switch (role.toLowerCase()) {
+                          'super admin' => 'superadmin@1234',
+                          'admin' => 'admin@1234',
+                          'doctor' => 'doctor@1234',
+                          'nurse' => 'nurse@1234',
+                          'receptionist' => 'reception@1234',
+                          'staff' => 'staff@1234',
+                          'pharmacist' => 'pharmacy@1234',
+                          'lab technician' => 'lab@1234',
+                          _ => '${role.toLowerCase()}@1234',
+                        };
+                        return ActionChip(
+                          label: Text('$uname ($role)', style: const TextStyle(fontSize: 11)),
+                          onPressed: () => _prefill(uname, defaultPass),
+                        );
+                      }).toList(),
+                    );
+                  },
                 ),
               ],
             ),
@@ -748,6 +931,136 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               if (value != _adminPasswordController.text) return 'Passwords do not match';
               return null;
             },
+          ),
+          const Gap(20),
+
+          // ── Branch Staff & Role Accounts Header ────────────────────────────
+          Row(
+            children: [
+              Icon(Icons.badge_outlined, size: 18, color: colorScheme.primary),
+              const Gap(6),
+              Text(
+                'Branch Staff & Role Accounts',
+                style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
+              ),
+            ],
+          ),
+          const Divider(height: 16),
+          Text(
+            'Separate role accounts (Admin, Doctor, Nurse, Staff) are provisioned for this hospital with individual passwords:',
+            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+          ),
+          const Gap(12),
+
+          // Admin Credentials
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _adminRoleUsernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Admin Username',
+                    prefixIcon: Icon(Icons.manage_accounts_outlined),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const Gap(12),
+              Expanded(
+                child: TextFormField(
+                  controller: _adminRolePasswordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Admin Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Gap(12),
+
+          // Doctor Credentials
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _doctorUsernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Doctor Username',
+                    prefixIcon: Icon(Icons.medical_services_outlined),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const Gap(12),
+              Expanded(
+                child: TextFormField(
+                  controller: _doctorPasswordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Doctor Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Gap(12),
+
+          // Nurse Credentials
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _nurseUsernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nurse Username',
+                    prefixIcon: Icon(Icons.local_hospital_outlined),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const Gap(12),
+              Expanded(
+                child: TextFormField(
+                  controller: _nursePasswordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nurse Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Gap(12),
+
+          // Staff / Reception Credentials
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _staffUsernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Staff / Receptionist Username',
+                    prefixIcon: Icon(Icons.person_outline),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const Gap(12),
+              Expanded(
+                child: TextFormField(
+                  controller: _staffPasswordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Staff Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
           ),
           const Gap(22),
 

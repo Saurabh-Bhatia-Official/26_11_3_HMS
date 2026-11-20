@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:hospital_management/core/auth/hospital_switch_auth.dart';
 import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/data/database/app_database.dart';
@@ -33,8 +34,10 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
     final lower = clean.toLowerCase().replaceAll('-', '').replaceAll(' ', '');
     if (lower.contains('multi')) return 'Multispeciality Hospital';
     if (lower.contains('general')) return 'General Hospital';
-    if (lower.contains('clinic') || lower.contains('outpatient')) return 'Clinic / Outpatient';
-    if (lower.contains('trauma') || lower.contains('emergency')) return 'Trauma & Emergency Center';
+    if (lower.contains('clinic') || lower.contains('outpatient'))
+      return 'Clinic / Outpatient';
+    if (lower.contains('trauma') || lower.contains('emergency'))
+      return 'Trauma & Emergency Center';
     if (lower.contains('diagnos')) return 'Diagnostic Clinic';
     if (lower.contains('surgery')) return 'Day Surgery Center';
     return _facilityTypes.first;
@@ -63,9 +66,12 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            Icon(isEditing ? Icons.edit_note : Icons.add_business_rounded, color: Theme.of(context).colorScheme.primary),
+            Icon(isEditing ? Icons.edit_note : Icons.add_business_rounded,
+                color: Theme.of(context).colorScheme.primary),
             const Gap(8),
-            Text(isEditing ? 'Edit Hospital Entity' : 'Register New Hospital / Branch'),
+            Text(isEditing
+                ? 'Edit Hospital Entity'
+                : 'Register New Hospital / Branch'),
           ],
         ),
         content: SizedBox(
@@ -83,7 +89,8 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                       hintText: 'e.g. CareSync North Clinic',
                       prefixIcon: Icon(Icons.local_hospital_outlined),
                     ),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Required' : null,
                   ),
                   const Gap(12),
                   Row(
@@ -96,7 +103,8 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                             hintText: 'e.g. CS-NORTH',
                             prefixIcon: Icon(Icons.tag),
                           ),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                          validator: (v) =>
+                              v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
                       ),
                       const Gap(12),
@@ -109,7 +117,10 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                             prefixIcon: Icon(Icons.category_outlined),
                           ),
                           items: _facilityTypes.map((t) {
-                            return DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis));
+                            return DropdownMenuItem(
+                                value: t,
+                                child:
+                                    Text(t, overflow: TextOverflow.ellipsis));
                           }).toList(),
                           onChanged: (val) {
                             if (val != null) typeCtrl.text = val;
@@ -165,7 +176,8 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton.icon(
             icon: const Icon(Icons.save, size: 16),
             label: Text(isEditing ? 'Save Changes' : 'Register Hospital'),
@@ -187,14 +199,18 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                 if (mounted) {
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Updated hospital entity ${updated.name}')),
+                    SnackBar(
+                        content:
+                            Text('Updated hospital entity ${updated.name}')),
                   );
                 }
               } else {
+                final code = codeCtrl.text.trim().toUpperCase();
+                final name = nameCtrl.text.trim();
                 final newHospital = HospitalModel(
                   uuid: 'hosp-${DateTime.now().millisecondsSinceEpoch}',
-                  name: nameCtrl.text.trim(),
-                  code: codeCtrl.text.trim().toUpperCase(),
+                  name: name,
+                  code: code,
                   type: typeCtrl.text.trim(),
                   address: addressCtrl.text.trim(),
                   phone: phoneCtrl.text.trim(),
@@ -202,13 +218,28 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                   taxId: taxIdCtrl.text.trim(),
                   status: 'Active',
                 );
-                await db.hmsDao.insertHospital(newHospital);
+                await db.hmsDao.createHospitalWithDefaultStaff(
+                  hospital: newHospital,
+                  superAdminUsername: '${code.toLowerCase()}_superadmin',
+                  superAdminFullName: '$name Super Administrator',
+                  superAdminEmail: emailCtrl.text.trim().isNotEmpty ? emailCtrl.text.trim() : 'superadmin@${code.toLowerCase()}.health',
+                  superAdminPassword: 'SuperAdmin@1234',
+                  adminUsername: '${code.toLowerCase()}_admin',
+                  adminPassword: 'Admin@1234',
+                  doctorUsername: '${code.toLowerCase()}_doctor',
+                  doctorPassword: 'Doctor@1234',
+                  nurseUsername: '${code.toLowerCase()}_nurse',
+                  nursePassword: 'Nurse@1234',
+                  staffUsername: '${code.toLowerCase()}_staff',
+                  staffPassword: 'Staff@1234',
+                );
                 ref.invalidate(allHospitalsProvider);
                 if (mounted) {
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Registered new hospital entity ${newHospital.name}!'),
+                      content: Text(
+                          'Registered hospital $name with Super Admin, Admin, Doctor, Nurse & Staff accounts!'),
                       backgroundColor: Colors.teal.shade800,
                     ),
                   );
@@ -225,7 +256,8 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
     if (totalCount <= 1) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Cannot delete the sole hospital entity in the network.'),
+          content:
+              Text('Cannot delete the sole hospital entity in the network.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -247,7 +279,8 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
           'This action removes the entity record from the system network.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade800),
             onPressed: () async {
@@ -257,7 +290,9 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
               ref.invalidate(allHospitalsProvider);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Removed hospital entity ${hospital.name}')),
+                  SnackBar(
+                      content:
+                          Text('Removed hospital entity ${hospital.name}')),
                 );
               }
             },
@@ -293,7 +328,8 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
       ),
       body: hospitalsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, st) => Center(child: Text('Error loading hospitals: $err')),
+        error: (err, st) =>
+            Center(child: Text('Error loading hospitals: $err')),
         data: (hospitals) {
           final filtered = hospitals.where((h) {
             if (_searchQuery.isEmpty) return true;
@@ -320,7 +356,8 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                       ],
                     ),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: colorScheme.primary.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -330,7 +367,8 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                           color: colorScheme.primary,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(Icons.domain_rounded, color: colorScheme.onPrimary, size: 32),
+                        child: Icon(Icons.domain_rounded,
+                            color: colorScheme.onPrimary, size: 32),
                       ),
                       const Gap(16),
                       Expanded(
@@ -350,21 +388,26 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                                   ),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: Colors.green.shade700,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: const Text(
                                     'ACTIVE',
-                                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ),
                               ],
                             ),
                             const Gap(4),
                             Text(
-                              activeHospital?.name ?? 'CareSync Central Hospital',
+                              activeHospital?.name ??
+                                  'CareSync Central Hospital',
                               style: textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: colorScheme.onPrimaryContainer,
@@ -374,7 +417,8 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                             Text(
                               'Code: ${activeHospital?.code ?? "CS-CENTRAL"} • Type: ${activeHospital?.type ?? "Multi-Specialty Hospital"} • ${activeHospital?.address ?? "Main Medical Campus"}',
                               style: textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                                color: colorScheme.onPrimaryContainer
+                                    .withValues(alpha: 0.8),
                               ),
                             ),
                           ],
@@ -402,11 +446,13 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                         children: [
                           Text(
                             'All Hospital Entities (${filtered.length})',
-                            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                            style: textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           Text(
                             'Select any hospital below to instantly switch the active operating context for clinical, ward, and financial records.',
-                            style: textTheme.bodySmall?.copyWith(color: colorScheme.outline),
+                            style: textTheme.bodySmall
+                                ?.copyWith(color: colorScheme.outline),
                           ),
                         ],
                       ),
@@ -430,7 +476,8 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                                 )
                               : null,
                         ),
-                        onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                        onChanged: (val) =>
+                            setState(() => _searchQuery = val.trim()),
                       ),
                     ),
                   ],
@@ -442,7 +489,8 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 48),
-                      child: Text('No hospitals found matching "$_searchQuery".'),
+                      child:
+                          Text('No hospitals found matching "$_searchQuery".'),
                     ),
                   )
                 else
@@ -460,7 +508,9 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: BorderSide(
-                            color: isActive ? colorScheme.primary : colorScheme.outlineVariant,
+                            color: isActive
+                                ? colorScheme.primary
+                                : colorScheme.outlineVariant,
                             width: isActive ? 1.8 : 1,
                           ),
                         ),
@@ -491,26 +541,31 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Wrap(
-                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
                                       spacing: 8,
                                       runSpacing: 4,
                                       children: [
                                         Text(
                                           h.name,
-                                          style: textTheme.titleMedium?.copyWith(
+                                          style:
+                                              textTheme.titleMedium?.copyWith(
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
                                             color: colorScheme.primaryContainer,
-                                            borderRadius: BorderRadius.circular(4),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
                                           ),
                                           child: Text(
                                             h.code,
                                             style: TextStyle(
-                                              color: colorScheme.onPrimaryContainer,
+                                              color: colorScheme
+                                                  .onPrimaryContainer,
                                               fontSize: 11,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -518,19 +573,27 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                                         ),
                                         if (isActive)
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 2),
                                             decoration: BoxDecoration(
                                               color: Colors.green.shade700,
-                                              borderRadius: BorderRadius.circular(4),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                             ),
                                             child: const Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Icon(Icons.check, size: 12, color: Colors.white),
+                                                Icon(Icons.check,
+                                                    size: 12,
+                                                    color: Colors.white),
                                                 Gap(4),
                                                 Text(
                                                   'CURRENTLY ACTIVE',
-                                                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                                  style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.bold),
                                                 ),
                                               ],
                                             ),
@@ -542,13 +605,17 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                                       spacing: 16,
                                       runSpacing: 4,
                                       children: [
-                                        Text('Type: ${h.type}', style: textTheme.bodySmall),
+                                        Text('Type: ${h.type}',
+                                            style: textTheme.bodySmall),
                                         if (h.address.isNotEmpty)
-                                          Text('Address: ${h.address}', style: textTheme.bodySmall),
+                                          Text('Address: ${h.address}',
+                                              style: textTheme.bodySmall),
                                         if (h.phone.isNotEmpty)
-                                          Text('Phone: ${h.phone}', style: textTheme.bodySmall),
+                                          Text('Phone: ${h.phone}',
+                                              style: textTheme.bodySmall),
                                         if (h.email.isNotEmpty)
-                                          Text('Email: ${h.email}', style: textTheme.bodySmall),
+                                          Text('Email: ${h.email}',
+                                              style: textTheme.bodySmall),
                                       ],
                                     ),
                                   ],
@@ -560,36 +627,62 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                                 children: [
                                   if (!isActive)
                                     FilledButton.icon(
-                                      onPressed: () {
-                                        ref.read(activeHospitalProvider.notifier).switchHospital(h);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Switched operating context to ${h.name} (${h.code})'),
-                                            backgroundColor: Colors.teal.shade800,
-                                          ),
+                                      onPressed: () async {
+                                        final switched =
+                                            await authenticateAndSwitchHospital(
+                                          context: context,
+                                          ref: ref,
+                                          hospital: h,
                                         );
+                                        if (switched && mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                  'Switched operating context to ${h.name} (${h.code})'),
+                                              backgroundColor:
+                                                  Colors.teal.shade800,
+                                            ),
+                                          );
+                                        }
                                       },
-                                      icon: const Icon(Icons.check_circle_outline, size: 16),
+                                      icon: const Icon(
+                                          Icons.check_circle_outline,
+                                          size: 16),
                                       label: const Text('Select Hospital'),
                                     )
                                   else
                                     OutlinedButton.icon(
                                       onPressed: null,
-                                      icon: const Icon(Icons.check, size: 16, color: Colors.green),
-                                      label: const Text('Active Context', style: TextStyle(color: Colors.green)),
+                                      icon: const Icon(Icons.check,
+                                          size: 16, color: Colors.green),
+                                      label: const Text('Active Context',
+                                          style:
+                                              TextStyle(color: Colors.green)),
                                     ),
                                   const Gap(8),
-                                  if (checker.can(Modules.hospitals, AppActions.edit))
+                                  IconButton(
+                                    icon: const Icon(Icons.badge_outlined, size: 20),
+                                    tooltip: 'View Staff & Logins',
+                                    onPressed: () => _showHospitalCredentialsDialog(context, h),
+                                  ),
+                                  if (checker.can(
+                                      Modules.hospitals, AppActions.edit))
                                     IconButton(
                                       icon: const Icon(Icons.edit_outlined),
                                       tooltip: 'Edit Hospital Details',
-                                      onPressed: () => _showAddEditHospitalDialog(hospital: h),
+                                      onPressed: () =>
+                                          _showAddEditHospitalDialog(
+                                              hospital: h),
                                     ),
-                                  if (checker.can(Modules.hospitals, AppActions.delete))
+                                  if (checker.can(
+                                      Modules.hospitals, AppActions.delete))
                                     IconButton(
-                                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                      icon: const Icon(Icons.delete_outline,
+                                          color: Colors.red),
                                       tooltip: 'Delete Hospital Entity',
-                                      onPressed: () => _confirmDeleteHospital(h, hospitals.length),
+                                      onPressed: () => _confirmDeleteHospital(
+                                          h, hospitals.length),
                                     ),
                                 ],
                               ),
@@ -606,5 +699,83 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
       ),
     );
   }
-}
 
+  void _showHospitalCredentialsDialog(BuildContext context, HospitalModel hospital) {
+    final db = ref.read(appDatabaseProvider);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.badge_outlined, color: Colors.blue),
+            const Gap(10),
+            Expanded(
+              child: Text(
+                'Staff & Logins - ${hospital.name}',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: db.hmsDao.getAllUsers(hospitalId: hospital.id),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 100,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final users = snapshot.data ?? [];
+              if (users.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('No user accounts registered for this hospital.'),
+                );
+              }
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: users.map((u) {
+                    final role = u['role'] as String? ?? 'Staff';
+                    final username = u['username'] as String? ?? '';
+                    final fullName = u['full_name'] as String? ?? '';
+                    final defaultPass = switch (role.toLowerCase()) {
+                      'super admin' => 'superadmin@1234',
+                      'admin' => 'admin@1234',
+                      'doctor' => 'doctor@1234',
+                      'nurse' => 'nurse@1234',
+                      'staff' => 'staff@1234',
+                      'receptionist' => 'reception@1234',
+                      'pharmacist' => 'pharmacy@1234',
+                      'lab technician' => 'lab@1234',
+                      _ => '${role.toLowerCase()}@1234',
+                    };
+                    return ListTile(
+                      dense: true,
+                      leading: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.blue.shade50,
+                        child: Text(role.isNotEmpty ? role[0] : 'U', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ),
+                      title: Text('$fullName ($username)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      subtitle: Text('Role: $role • Pass: $defaultPass', style: const TextStyle(fontSize: 11)),
+                    );
+                  }).toList(),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -355,6 +355,83 @@ void main() {
       expect((reports['departments'] as List).isNotEmpty, isTrue);
     });
 
+    test('reports limit monthly revenue to the requested dates', () async {
+      await db.hmsDao.insertInvoice(const InvoiceModel(
+        id: 0,
+        invoiceNo: 'INV-CURRENT',
+        patientName: 'Current Patient',
+        uhid: 'UHID-CURRENT',
+        billType: 'OPD',
+        subtotalPaise: 15000,
+        taxPaise: 0,
+        totalPaise: 15000,
+        paidPaise: 10000,
+        duePaise: 5000,
+        paymentMode: 'Cash',
+        status: 'Partial',
+        dateTime: 'current',
+        items: [],
+      ));
+      await db.hmsDao.insertInvoice(const InvoiceModel(
+        id: 0,
+        invoiceNo: 'INV-OLD',
+        patientName: 'Old Patient',
+        uhid: 'UHID-OLD',
+        billType: 'IPD',
+        subtotalPaise: 20000,
+        taxPaise: 0,
+        totalPaise: 20000,
+        paidPaise: 20000,
+        duePaise: 0,
+        paymentMode: 'Cash',
+        status: 'Paid',
+        dateTime: 'old',
+        items: [],
+      ));
+      await db.customStatement(
+          "UPDATE invoices SET created_at = '2020-01-02T00:00:00' WHERE invoice_no = 'INV-OLD'");
+
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final reports = await db.hmsDao.getReportsData(from: today, to: today);
+
+      expect(reports['totalRevenuePaise'], equals(10000));
+      expect(reports['totalDuePaise'], equals(5000));
+      expect(reports['departments'], hasLength(1));
+    });
+
+    test('medicine insertion rejects negative stock, reorder, and MRP values',
+        () async {
+      MedicineModel medicine({
+        int stockQty = 0,
+        int reorderLevel = 0,
+        int mrpPaise = 0,
+      }) =>
+          MedicineModel(
+            id: 0,
+            name: 'Test Medicine',
+            genericName: 'Test',
+            category: 'Other',
+            stockQty: stockQty,
+            reorderLevel: reorderLevel,
+            unit: 'Piece',
+            supplier: 'Test Supplier',
+            mrpPaise: mrpPaise,
+          );
+
+      await expectLater(
+        db.hmsDao.insertMedicine(medicine(stockQty: -1)),
+        throwsArgumentError,
+      );
+      await expectLater(
+        db.hmsDao.insertMedicine(medicine(reorderLevel: -1)),
+        throwsArgumentError,
+      );
+      await expectLater(
+        db.hmsDao.insertMedicine(medicine(mrpPaise: -1)),
+        throwsArgumentError,
+      );
+    });
+
     test('8. Pharmacy 1-click restock increases stock quantity in SQLite',
         () async {
       final medId = await db.hmsDao.insertMedicine(const MedicineModel(
