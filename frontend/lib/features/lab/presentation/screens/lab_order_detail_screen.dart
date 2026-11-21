@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
 import 'package:hospital_management/data/database/app_database.dart';
@@ -26,7 +27,8 @@ class LabOrderDetailScreen extends ConsumerStatefulWidget {
   final bool startInEditMode;
 
   @override
-  ConsumerState<LabOrderDetailScreen> createState() => _LabOrderDetailScreenState();
+  ConsumerState<LabOrderDetailScreen> createState() =>
+      _LabOrderDetailScreenState();
 }
 
 class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
@@ -187,8 +189,8 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
         if (!_initialized) {
           _initParameters(order.parameters);
           _isEditingReport =
-                  !_finalLabReportStatuses.contains(order.status.toLowerCase()) ||
-              widget.startInEditMode;
+              !_finalLabReportStatuses.contains(order.status.toLowerCase()) ||
+                  widget.startInEditMode;
         }
 
         final patientName = order.patientName;
@@ -213,7 +215,9 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
               OutlinedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Laboratory report printed for $patientName (#${widget.orderId}).')),
+                    SnackBar(
+                        content: Text(
+                            'Laboratory report printed for $patientName (#${widget.orderId}).')),
                   );
                 },
                 icon: const Icon(Icons.print_outlined, size: 18),
@@ -249,8 +253,7 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.verified_outlined, size: 18),
-                  label: Text(
-                      _isSaving ? 'Saving…' : 'Save & Complete Report'),
+                  label: Text(_isSaving ? 'Saving…' : 'Save & Complete Report'),
                 ),
               ],
               const Gap(16),
@@ -280,7 +283,9 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                                 children: [
                                   Text(
                                     testName,
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                   const Gap(12),
                                   StatusChip(label: status),
@@ -289,7 +294,8 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                               const Gap(4),
                               Text(
                                 'Patient: $patientName ($uhid) • Doctor: $doctorName • Sample: $sampleType',
-                                style: TextStyle(color: colorScheme.onSurfaceVariant),
+                                style: TextStyle(
+                                    color: colorScheme.onSurfaceVariant),
                               ),
                             ],
                           ),
@@ -308,7 +314,10 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                       children: [
                         Text(
                           'Parameter Results & Reference Ranges',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const Gap(16),
                         Table(
@@ -319,22 +328,46 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                             3: FlexColumnWidth(2),
                             4: FlexColumnWidth(1.5),
                           },
-                          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                          defaultVerticalAlignment:
+                              TableCellVerticalAlignment.middle,
                           children: [
                             const TableRow(
-                              decoration: BoxDecoration(color: Color(0x10000000)),
+                              decoration:
+                                  BoxDecoration(color: Color(0x10000000)),
                               children: [
-                                Padding(padding: EdgeInsets.all(12), child: Text('Investigation', style: TextStyle(fontWeight: FontWeight.bold))),
-                                Padding(padding: EdgeInsets.all(12), child: Text('Observed Value', style: TextStyle(fontWeight: FontWeight.bold))),
-                                Padding(padding: EdgeInsets.all(12), child: Text('Unit', style: TextStyle(fontWeight: FontWeight.bold))),
-                                Padding(padding: EdgeInsets.all(12), child: Text('Biological Ref Interval', style: TextStyle(fontWeight: FontWeight.bold))),
-                                Padding(padding: EdgeInsets.all(12), child: Text('Flag', style: TextStyle(fontWeight: FontWeight.bold))),
+                                Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Text('Investigation',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Text('Observed Value',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Text('Unit',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Text('Biological Ref Interval',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Text('Flag',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
                               ],
                             ),
                             for (final p in _parameters)
                               TableRow(
                                 children: [
-                                  Padding(padding: const EdgeInsets.all(12), child: Text(p['param'] as String)),
+                                  Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Text(p['param'] as String)),
                                   Padding(
                                     padding: const EdgeInsets.all(8),
                                     child: isViewingReport
@@ -346,9 +379,9 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                                                     .isEmpty
                                                 ? '—'
                                                 : (p['controller']
-                                                            as TextEditingController)
-                                                        .text
-                                                        .trim(),
+                                                        as TextEditingController)
+                                                    .text
+                                                    .trim(),
                                           )
                                         : TextFormField(
                                             controller: p['controller']
@@ -359,23 +392,26 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                                             onChanged: (_) => setState(() {}),
                                           ),
                                   ),
-                                  Padding(padding: const EdgeInsets.all(12), child: Text(p['unit'] as String)),
-                                  Padding(padding: const EdgeInsets.all(12), child: Text('${p["refLow"]} - ${p["refHigh"]}')),
+                                  Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Text(p['unit'] as String)),
+                                  Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Text(
+                                          '${p["refLow"]} - ${p["refHigh"]}')),
                                   Padding(
                                     padding: const EdgeInsets.all(12),
-                                    child: double.tryParse(
-                                                (p['controller']
-                                                        as TextEditingController)
-                                                    .text
-                                                    .trim()) ==
+                                    child: double.tryParse((p['controller']
+                                                    as TextEditingController)
+                                                .text
+                                                .trim()) ==
                                             null
                                         ? const Text('—')
                                         : _buildFlag(
-                                            double.parse(
-                                                (p['controller']
-                                                        as TextEditingController)
-                                                    .text
-                                                    .trim()),
+                                            double.parse((p['controller']
+                                                    as TextEditingController)
+                                                .text
+                                                .trim()),
                                             p['refLow'] as double,
                                             p['refHigh'] as double,
                                           ),
@@ -400,20 +436,36 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
     if (val < low) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(color: Colors.blue.shade100, borderRadius: BorderRadius.circular(4)),
-        child: Text('LOW', style: TextStyle(color: Colors.blue.shade900, fontWeight: FontWeight.bold, fontSize: 11)),
+        decoration: BoxDecoration(
+            color: Colors.blue.shade100,
+            borderRadius: BorderRadius.circular(4)),
+        child: Text('LOW',
+            style: TextStyle(
+                color: Colors.blue.shade900,
+                fontWeight: FontWeight.bold,
+                fontSize: 11)),
       );
     } else if (val > high) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(4)),
-        child: Text('HIGH', style: TextStyle(color: Colors.red.shade900, fontWeight: FontWeight.bold, fontSize: 11)),
+        decoration: BoxDecoration(
+            color: Colors.red.shade100, borderRadius: BorderRadius.circular(4)),
+        child: Text('HIGH',
+            style: TextStyle(
+                color: Colors.red.shade900,
+                fontWeight: FontWeight.bold,
+                fontSize: 11)),
       );
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(4)),
-      child: Text('NORMAL', style: TextStyle(color: Colors.green.shade900, fontWeight: FontWeight.bold, fontSize: 11)),
+      decoration: BoxDecoration(
+          color: Colors.green.shade100, borderRadius: BorderRadius.circular(4)),
+      child: Text('NORMAL',
+          style: TextStyle(
+              color: Colors.green.shade900,
+              fontWeight: FontWeight.bold,
+              fontSize: 11)),
     );
   }
 }

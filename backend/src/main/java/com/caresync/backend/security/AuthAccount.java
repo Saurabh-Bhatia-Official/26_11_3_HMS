@@ -85,5 +85,12 @@ public class AuthAccount {
     }
     public void recordSuccess() { failedLoginAttempts = 0; lockedUntil = null; }
     public void invalidateTokens() { tokenVersion++; }
+    public void changeRole(String role) {
+        if (!SecurityRole.supports(role) || "SUPER_ADMIN".equals(role)) {
+            throw new IllegalArgumentException("Unsupported Hospital account role");
+        }
+        this.role = role;
+        tokenVersion++;
+    }
     public void deactivate() { active = false; tokenVersion++; }
 }

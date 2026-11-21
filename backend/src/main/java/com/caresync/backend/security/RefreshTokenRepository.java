@@ -22,6 +22,10 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
 
     List<RefreshToken> findAllByFamilyId(String familyId);
 
+    List<RefreshToken> findAllByAccount_Id(Long accountId);
+
+    boolean existsByFamilyIdAndRevokedFalseAndExpiresAtAfter(String familyId, Instant now);
+
     @Modifying
     @Query("delete from RefreshToken t where t.expiresAt < :cutoff and " +
             "(t.familyId is null or not exists (select activeToken from RefreshToken activeToken " +

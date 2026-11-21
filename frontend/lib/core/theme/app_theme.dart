@@ -32,10 +32,10 @@ class AppTheme {
       chipTheme: _chipTheme(base),
       dividerTheme: const DividerThemeData(space: 1, thickness: 1),
       extensions: [
-        AppColours(
+        const AppColours(
           warning: _warningColor,
           success: _successColor,
-          criticalBg: const Color(0xFFFFEBEE),
+          criticalBg: Color(0xFFFFEBEE),
           criticalFg: _errorColor,
         ),
       ],
@@ -63,11 +63,11 @@ class AppTheme {
       chipTheme: _chipTheme(base),
       dividerTheme: const DividerThemeData(space: 1, thickness: 1),
       extensions: [
-        AppColours(
-          warning: const Color(0xFFFFB74D),
-          success: const Color(0xFF81C784),
-          criticalBg: const Color(0xFF4E0000),
-          criticalFg: const Color(0xFFCF6679),
+        const AppColours(
+          warning: Color(0xFFFFB74D),
+          success: Color(0xFF81C784),
+          criticalBg: Color(0xFF4E0000),
+          criticalFg: Color(0xFFCF6679),
         ),
       ],
     );
@@ -113,14 +113,14 @@ class AppTheme {
   static InputDecorationTheme _inputDecorationTheme(ThemeData base) =>
       InputDecorationTheme(
         filled: true,
-        fillColor: base.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        fillColor: base.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: base.colorScheme.outline),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: base.colorScheme.outline.withOpacity(0.5)),
+          borderSide: BorderSide(color: base.colorScheme.outline.withValues(alpha: 0.5)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -168,10 +168,6 @@ class AppTheme {
 // ── Custom theme extension ───────────────────────────────────────────────────
 
 class AppColours extends ThemeExtension<AppColours> {
-  final Color warning;
-  final Color success;
-  final Color criticalBg;
-  final Color criticalFg;
 
   const AppColours({
     required this.warning,
@@ -179,6 +175,10 @@ class AppColours extends ThemeExtension<AppColours> {
     required this.criticalBg,
     required this.criticalFg,
   });
+  final Color warning;
+  final Color success;
+  final Color criticalBg;
+  final Color criticalFg;
 
   @override
   AppColours copyWith({

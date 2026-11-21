@@ -103,7 +103,7 @@ class _HospitalsScreenState extends ConsumerState<HospitalsScreen> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           isExpanded: true,
-                          value: _normalizeFacilityType(typeCtrl.text),
+                          initialValue: _normalizeFacilityType(typeCtrl.text),
                           decoration: const InputDecoration(
                             labelText: 'Facility Type',
                             prefixIcon: Icon(Icons.category_outlined),

@@ -11,14 +11,6 @@ import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
 
 class DashboardStats {
-  final int todayOpdVisits;
-  final int todayAppointments;
-  final int currentAdmissions;
-  final int todayRevenuePaise;
-  final int availableBeds;
-  final int totalBeds;
-  final int pendingLabOrders;
-  final int lowStockMedicines;
 
   const DashboardStats({
     required this.todayOpdVisits,
@@ -30,6 +22,14 @@ class DashboardStats {
     required this.pendingLabOrders,
     required this.lowStockMedicines,
   });
+  final int todayOpdVisits;
+  final int todayAppointments;
+  final int currentAdmissions;
+  final int todayRevenuePaise;
+  final int availableBeds;
+  final int totalBeds;
+  final int pendingLabOrders;
+  final int lowStockMedicines;
 
   double get bedOccupancyRate =>
       totalBeds == 0 ? 0 : ((totalBeds - availableBeds) / totalBeds) * 100;

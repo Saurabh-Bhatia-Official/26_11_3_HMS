@@ -105,7 +105,7 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                     const Gap(8),
                     if (uniquePatients.isNotEmpty)
                       DropdownButtonFormField<String>(
-                        value: uniquePatients.containsKey(selectedUhid) ? selectedUhid : uniquePatients.keys.first,
+                        initialValue: uniquePatients.containsKey(selectedUhid) ? selectedUhid : uniquePatients.keys.first,
                         isExpanded: true,
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.person_outline),

@@ -24,6 +24,10 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.caresync.backend.membership.service.MembershipService;
+import com.caresync.backend.tenant.TenantContextFilter;
+import com.caresync.backend.tenant.TenantContextHolder;
+
 @Configuration
 @EnableScheduling
 public class SecurityConfiguration {
@@ -71,6 +75,7 @@ public class SecurityConfiguration {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, JwtDecoder decoder, AuthService authService,
+                                           MembershipService membershipService, TenantContextHolder tenantContextHolder,
                                            @Qualifier("corsConfigurationSource") CorsConfigurationSource corsSource) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
@@ -124,6 +129,7 @@ public class SecurityConfiguration {
                         .addHeaderWriter(new StaticHeadersWriter("Permissions-Policy",
                                 "camera=(), microphone=(), geolocation=()")))
                 .addFilterBefore(new BearerTokenFilter(decoder, authService), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new TenantContextFilter(membershipService, tenantContextHolder), BearerTokenFilter.class)
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, exception) -> {
                             response.setStatus(401);

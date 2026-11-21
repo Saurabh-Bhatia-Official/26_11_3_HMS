@@ -3,31 +3,18 @@ import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'tables/patients_table.dart';
-import 'tables/patient_allergies_table.dart';
-import 'tables/settings_table.dart';
-import 'daos/patients_dao.dart';
-import 'daos/settings_dao.dart';
-import 'daos/hms_dao.dart';
+import 'package:hospital_management/data/database/tables/patients_table.dart';
+import 'package:hospital_management/data/database/tables/patient_allergies_table.dart';
+import 'package:hospital_management/data/database/tables/settings_table.dart';
+import 'package:hospital_management/data/database/daos/patients_dao.dart';
+import 'package:hospital_management/data/database/daos/settings_dao.dart';
+import 'package:hospital_management/data/database/daos/hms_dao.dart';
+import 'package:hospital_management/data/database/daos/patient_sync_dao.dart';
 
 part 'app_database.g.dart';
 
 /// User record returned for authentication
 class UserAuthRecord {
-  final int id;
-  final String uuid;
-  final String username;
-  final String fullName;
-  final String role;
-  final String email;
-  final String? avatarPath;
-  final String passwordHash;
-  final int? hospitalId;
-  final String? hospitalName;
-  final int? failedAttempts;
-  final String? lockedUntil;
-  final bool isDeleted;
-
   UserAuthRecord({
     required this.id,
     required this.uuid,
@@ -43,6 +30,19 @@ class UserAuthRecord {
     this.lockedUntil,
     this.isDeleted = false,
   });
+  final int id;
+  final String uuid;
+  final String username;
+  final String fullName;
+  final String role;
+  final String email;
+  final String? avatarPath;
+  final String passwordHash;
+  final int? hospitalId;
+  final String? hospitalName;
+  final int? failedAttempts;
+  final String? lockedUntil;
+  final bool isDeleted;
 }
 
 /// Singleton Drift database for the Hospital Management System.
@@ -79,12 +79,13 @@ class AppDatabase extends _$AppDatabase {
   // ── Schema ────────────────────────────────────────────────────────────────
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
+          await _createPatientSyncTables();
           // Seed default settings
           await settingsDao.upsertSetting('uhid_prefix', 'UHID');
           await settingsDao.upsertSetting('uhid_sequence', '0');
@@ -92,12 +93,47 @@ class AppDatabase extends _$AppDatabase {
           await settingsDao.upsertSetting('currency_symbol', '₹');
         },
         onUpgrade: (m, from, to) async {
-          // Future migrations go here
+          if (from < 2) {
+            await _createPatientSyncTables();
+          }
         },
       );
 
-  // ── Connection ────────────────────────────────────────────────────────────
+  Future<void> _createPatientSyncTables() async {
+    await customStatement('''
+              CREATE TABLE patient_sync_states (
+                patient_uuid TEXT NOT NULL PRIMARY KEY,
+                server_patient_id INTEGER,
+                canonical_uhid TEXT,
+                server_version INTEGER,
+                server_status TEXT,
+                sync_state TEXT NOT NULL DEFAULT 'PENDING',
+                last_error_code TEXT,
+                updated_at TEXT NOT NULL
+              )
+            ''');
+    await customStatement('''
+              CREATE TABLE patient_sync_outbox (
+                operation_id TEXT NOT NULL PRIMARY KEY,
+                patient_uuid TEXT NOT NULL,
+                operation TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                base_version INTEGER,
+                created_at TEXT NOT NULL,
+                attempt_count INTEGER NOT NULL DEFAULT 0,
+                state TEXT NOT NULL DEFAULT 'PENDING',
+                last_error_code TEXT
+              )
+            ''');
+    await customStatement(
+      'CREATE INDEX patient_sync_outbox_order_idx ON patient_sync_outbox(state, created_at, operation_id)',
+    );
+    await customStatement(
+      'CREATE INDEX patient_sync_outbox_patient_idx ON patient_sync_outbox(patient_uuid, state)',
+    );
+  }
 
+  // ── Connection ────────────────────────────────────────────────────────────
   static QueryExecutor _openConnection() {
     return driftDatabase(
       name: 'hospital_hms',
@@ -109,6 +145,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   late final HmsDao hmsDao = HmsDao(this);
+  late final PatientSyncDao patientSyncDao = PatientSyncDao(this);
 
   // ── Public Helpers ────────────────────────────────────────────────────────
 
@@ -488,9 +525,9 @@ class AppDatabase extends _$AppDatabase {
 }
 
 class RolePermissionRow {
+  const RolePermissionRow(this.module, this.action);
   final String module;
   final String action;
-  const RolePermissionRow(this.module, this.action);
 }
 
 /// Riverpod provider for AppDatabase singleton

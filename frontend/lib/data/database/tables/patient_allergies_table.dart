@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart';
-import 'patients_table.dart';
+import 'package:hospital_management/data/database/tables/patients_table.dart';
 
 /// Drift table for patient allergies.
 @DataClassName('PatientAllergyRow')

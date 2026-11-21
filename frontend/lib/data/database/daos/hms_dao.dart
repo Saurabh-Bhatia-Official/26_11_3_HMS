@@ -7,9 +7,8 @@ import 'package:hospital_management/data/models/hms_models.dart';
 /// Uses direct SQLite operations via Drift to provide persistent storage
 /// across desktop sessions without hardcoded mock data.
 class HmsDao {
-  final AppDatabase db;
-
   HmsDao(this.db);
+  final AppDatabase db;
 
   String _esc(String? s) {
     if (s == null) return '';

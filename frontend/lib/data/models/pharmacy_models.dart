@@ -2,24 +2,6 @@ import 'dart:convert';
 
 /// Pharmacy Medicine master item model.
 class MedicineModel {
-  final int id;
-  final String name;
-  final String genericName;
-  final String category;
-  final int stockQty;
-  final int reorderLevel;
-  final String unit;
-  final String supplier;
-  final String uuid;
-  final String form;
-  final String strength;
-  final String manufacturer;
-  final double taxRatePct;
-  final String hsnCode;
-  final String rackLocation;
-  final int mrpPaise;
-  final String createdAt;
-  final String updatedAt;
 
   const MedicineModel({
     required this.id,
@@ -41,10 +23,6 @@ class MedicineModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  String get mrpFormatted => mrpPaise > 0 ? '₹${(mrpPaise / 100).toStringAsFixed(2)}' : '-';
-  bool get isLowStock => stockQty <= reorderLevel;
-  bool get isOutOfStock => stockQty <= 0;
 
   factory MedicineModel.fromMap(Map<String, dynamic> map) {
     return MedicineModel(
@@ -69,6 +47,31 @@ class MedicineModel {
     );
   }
 
+  factory MedicineModel.fromJson(String source) =>
+      MedicineModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String name;
+  final String genericName;
+  final String category;
+  final int stockQty;
+  final int reorderLevel;
+  final String unit;
+  final String supplier;
+  final String uuid;
+  final String form;
+  final String strength;
+  final String manufacturer;
+  final double taxRatePct;
+  final String hsnCode;
+  final String rackLocation;
+  final int mrpPaise;
+  final String createdAt;
+  final String updatedAt;
+
+  String get mrpFormatted => mrpPaise > 0 ? '₹${(mrpPaise / 100).toStringAsFixed(2)}' : '-';
+  bool get isLowStock => stockQty <= reorderLevel;
+  bool get isOutOfStock => stockQty <= 0;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'name': name,
@@ -91,9 +94,6 @@ class MedicineModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory MedicineModel.fromJson(String source) =>
-      MedicineModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   MedicineModel copyWith({
     int? id,
@@ -156,19 +156,6 @@ class MedicineModel {
 
 /// Pharmacy Medicine Batch with expiry and pricing
 class MedicineBatchModel {
-  final int id;
-  final int medicineId;
-  final String medicineName;
-  final String batchNo;
-  final String expiryDate;
-  final int stockQty;
-  final int mrpPaise;
-  final int costPaise;
-  final String uuid;
-  final String manufactureDate;
-  final int supplierId;
-  final String createdAt;
-  final String updatedAt;
 
   const MedicineBatchModel({
     required this.id,
@@ -185,6 +172,40 @@ class MedicineBatchModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
+
+  factory MedicineBatchModel.fromMap(Map<String, dynamic> map) {
+    return MedicineBatchModel(
+      id: map['id'] as int? ?? 0,
+      medicineId: map['medicine_id'] as int? ?? 0,
+      medicineName: map['medicine_name'] as String? ?? '',
+      batchNo: map['batch_no'] as String? ?? '',
+      expiryDate: map['expiry_date'] as String? ?? '',
+      stockQty: map['stock_qty'] as int? ?? 0,
+      mrpPaise: map['mrp_paise'] as int? ?? 0,
+      costPaise: (map['cost_paise'] ?? map['purchase_price_paise']) as int? ?? 0,
+      uuid: map['uuid'] as String? ?? '',
+      manufactureDate: map['manufacture_date'] as String? ?? '',
+      supplierId: map['supplier_id'] as int? ?? 0,
+      createdAt: map['created_at'] as String? ?? '',
+      updatedAt: map['updated_at'] as String? ?? '',
+    );
+  }
+
+  factory MedicineBatchModel.fromJson(String source) =>
+      MedicineBatchModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final int medicineId;
+  final String medicineName;
+  final String batchNo;
+  final String expiryDate;
+  final int stockQty;
+  final int mrpPaise;
+  final int costPaise;
+  final String uuid;
+  final String manufactureDate;
+  final int supplierId;
+  final String createdAt;
+  final String updatedAt;
 
   String get mrpFormatted => '₹${(mrpPaise / 100).toStringAsFixed(2)}';
   String get costFormatted => '₹${(costPaise / 100).toStringAsFixed(2)}';
@@ -208,24 +229,6 @@ class MedicineBatchModel {
     }
   }
 
-  factory MedicineBatchModel.fromMap(Map<String, dynamic> map) {
-    return MedicineBatchModel(
-      id: map['id'] as int? ?? 0,
-      medicineId: map['medicine_id'] as int? ?? 0,
-      medicineName: map['medicine_name'] as String? ?? '',
-      batchNo: map['batch_no'] as String? ?? '',
-      expiryDate: map['expiry_date'] as String? ?? '',
-      stockQty: map['stock_qty'] as int? ?? 0,
-      mrpPaise: map['mrp_paise'] as int? ?? 0,
-      costPaise: (map['cost_paise'] ?? map['purchase_price_paise']) as int? ?? 0,
-      uuid: map['uuid'] as String? ?? '',
-      manufactureDate: map['manufacture_date'] as String? ?? '',
-      supplierId: map['supplier_id'] as int? ?? 0,
-      createdAt: map['created_at'] as String? ?? '',
-      updatedAt: map['updated_at'] as String? ?? '',
-    );
-  }
-
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'medicine_id': medicineId,
@@ -243,9 +246,6 @@ class MedicineBatchModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory MedicineBatchModel.fromJson(String source) =>
-      MedicineBatchModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   MedicineBatchModel copyWith({
     int? id,
@@ -298,16 +298,6 @@ class MedicineBatchModel {
 
 /// Pharmacy Supplier / Vendor record model
 class SupplierModel {
-  final int id;
-  final String uuid;
-  final String name;
-  final String contactPerson;
-  final String phone;
-  final String email;
-  final String address;
-  final String gstNo;
-  final String createdAt;
-  final String updatedAt;
 
   const SupplierModel({
     required this.id,
@@ -337,6 +327,19 @@ class SupplierModel {
     );
   }
 
+  factory SupplierModel.fromJson(String source) =>
+      SupplierModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final String name;
+  final String contactPerson;
+  final String phone;
+  final String email;
+  final String address;
+  final String gstNo;
+  final String createdAt;
+  final String updatedAt;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -351,9 +354,6 @@ class SupplierModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory SupplierModel.fromJson(String source) =>
-      SupplierModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   SupplierModel copyWith({
     int? id,
@@ -395,15 +395,6 @@ class SupplierModel {
 
 /// Purchase Order item line
 class PurchaseItemModel {
-  final int id;
-  final int medicineId;
-  final String medicineName;
-  final String batchNo;
-  final String expiryDate;
-  final int qty;
-  final int unitPricePaise;
-  final int mrpPaise;
-  final int totalPaise;
 
   const PurchaseItemModel({
     required this.id,
@@ -431,6 +422,18 @@ class PurchaseItemModel {
     );
   }
 
+  factory PurchaseItemModel.fromJson(String source) =>
+      PurchaseItemModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final int medicineId;
+  final String medicineName;
+  final String batchNo;
+  final String expiryDate;
+  final int qty;
+  final int unitPricePaise;
+  final int mrpPaise;
+  final int totalPaise;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'medicine_id': medicineId,
@@ -444,22 +447,10 @@ class PurchaseItemModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory PurchaseItemModel.fromJson(String source) =>
-      PurchaseItemModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Pharmacy Purchase Order / Inward Consignment
 class PurchaseOrderModel {
-  final int id;
-  final String uuid;
-  final int supplierId;
-  final String supplierName;
-  final String invoiceNo;
-  final String invoiceDate;
-  final int totalAmountPaise;
-  final String status;
-  final List<PurchaseItemModel> items;
 
   const PurchaseOrderModel({
     required this.id,
@@ -472,8 +463,6 @@ class PurchaseOrderModel {
     this.status = 'received',
     this.items = const [],
   });
-
-  String get totalFormatted => '₹${(totalAmountPaise / 100).toStringAsFixed(2)}';
 
   factory PurchaseOrderModel.fromMap(Map<String, dynamic> map) {
     List<PurchaseItemModel> itemsList = [];
@@ -494,6 +483,20 @@ class PurchaseOrderModel {
     );
   }
 
+  factory PurchaseOrderModel.fromJson(String source) =>
+      PurchaseOrderModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int supplierId;
+  final String supplierName;
+  final String invoiceNo;
+  final String invoiceDate;
+  final int totalAmountPaise;
+  final String status;
+  final List<PurchaseItemModel> items;
+
+  String get totalFormatted => '₹${(totalAmountPaise / 100).toStringAsFixed(2)}';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -507,21 +510,10 @@ class PurchaseOrderModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory PurchaseOrderModel.fromJson(String source) =>
-      PurchaseOrderModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Stock audit adjustment model
 class StockAdjustmentModel {
-  final int id;
-  final int medicineId;
-  final String medicineName;
-  final String batchNo;
-  final int adjustmentQty;
-  final String reason;
-  final String adjustedBy;
-  final String adjustedAt;
 
   const StockAdjustmentModel({
     required this.id,
@@ -547,6 +539,17 @@ class StockAdjustmentModel {
     );
   }
 
+  factory StockAdjustmentModel.fromJson(String source) =>
+      StockAdjustmentModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final int medicineId;
+  final String medicineName;
+  final String batchNo;
+  final int adjustmentQty;
+  final String reason;
+  final String adjustedBy;
+  final String adjustedAt;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'medicine_id': medicineId,
@@ -559,18 +562,10 @@ class StockAdjustmentModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory StockAdjustmentModel.fromJson(String source) =>
-      StockAdjustmentModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Dispensation record line item
 class DispensationItemModel {
-  final String medicineName;
-  final String batchNo;
-  final int qty;
-  final int unitPricePaise;
-  final int totalPaise;
 
   const DispensationItemModel({
     required this.medicineName,
@@ -590,6 +585,14 @@ class DispensationItemModel {
     );
   }
 
+  factory DispensationItemModel.fromJson(String source) =>
+      DispensationItemModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final String medicineName;
+  final String batchNo;
+  final int qty;
+  final int unitPricePaise;
+  final int totalPaise;
+
   Map<String, dynamic> toMap() => {
         'medicine_name': medicineName,
         'batch_no': batchNo,
@@ -599,21 +602,10 @@ class DispensationItemModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory DispensationItemModel.fromJson(String source) =>
-      DispensationItemModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Pharmacy Dispensation transaction
 class DispensationModel {
-  final int id;
-  final int prescriptionId;
-  final String patientName;
-  final String uhid;
-  final String dispensedAt;
-  final String dispensedBy;
-  final int totalAmountPaise;
-  final List<DispensationItemModel> items;
 
   const DispensationModel({
     required this.id,
@@ -625,8 +617,6 @@ class DispensationModel {
     required this.totalAmountPaise,
     this.items = const [],
   });
-
-  String get totalFormatted => '₹${(totalAmountPaise / 100).toStringAsFixed(2)}';
 
   factory DispensationModel.fromMap(Map<String, dynamic> map) {
     List<DispensationItemModel> itemsList = [];
@@ -646,6 +636,19 @@ class DispensationModel {
     );
   }
 
+  factory DispensationModel.fromJson(String source) =>
+      DispensationModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final int prescriptionId;
+  final String patientName;
+  final String uhid;
+  final String dispensedAt;
+  final String dispensedBy;
+  final int totalAmountPaise;
+  final List<DispensationItemModel> items;
+
+  String get totalFormatted => '₹${(totalAmountPaise / 100).toStringAsFixed(2)}';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'prescription_id': prescriptionId,
@@ -658,8 +661,5 @@ class DispensationModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory DispensationModel.fromJson(String source) =>
-      DispensationModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 

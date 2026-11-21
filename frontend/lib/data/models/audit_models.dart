@@ -2,15 +2,6 @@ import 'dart:convert';
 
 /// System Audit Log record model for security, HIPAA/compliance tracking.
 class AuditLogModel {
-  final int id;
-  final String userName;
-  final String action;
-  final String entity;
-  final String details;
-  final String timestamp;
-  final int userId;
-  final String ipAddress;
-  final String createdAt;
 
   const AuditLogModel({
     required this.id,
@@ -38,6 +29,18 @@ class AuditLogModel {
     );
   }
 
+  factory AuditLogModel.fromJson(String source) =>
+      AuditLogModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String userName;
+  final String action;
+  final String entity;
+  final String details;
+  final String timestamp;
+  final int userId;
+  final String ipAddress;
+  final String createdAt;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'user_name': userName,
@@ -51,9 +54,6 @@ class AuditLogModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory AuditLogModel.fromJson(String source) =>
-      AuditLogModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   AuditLogModel copyWith({
     int? id,
@@ -100,13 +100,6 @@ class AuditLogModel {
 
 /// In-app system and clinical notification model
 class NotificationModel {
-  final int id;
-  final String title;
-  final String message;
-  final String type; // info, warning, alert, success
-  final bool isRead;
-  final String createdAt;
-  final String? linkRoute;
 
   const NotificationModel({
     required this.id,
@@ -132,6 +125,16 @@ class NotificationModel {
     );
   }
 
+  factory NotificationModel.fromJson(String source) =>
+      NotificationModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String title;
+  final String message;
+  final String type; // info, warning, alert, success
+  final bool isRead;
+  final String createdAt;
+  final String? linkRoute;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'title': title,
@@ -143,8 +146,5 @@ class NotificationModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory NotificationModel.fromJson(String source) =>
-      NotificationModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 

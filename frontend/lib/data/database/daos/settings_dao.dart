@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
-import 'package:hospital_management/data/database/tables/settings_table.dart';
 import 'package:hospital_management/data/database/app_database.dart';
+import 'package:hospital_management/data/database/tables/settings_table.dart';
 
 part 'settings_dao.g.dart';
 

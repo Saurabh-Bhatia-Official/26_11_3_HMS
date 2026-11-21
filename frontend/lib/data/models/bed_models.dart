@@ -2,21 +2,6 @@ import 'dart:convert';
 
 /// Bed record model representing hospital beds and occupancy status.
 class BedModel {
-  final int id;
-  final String bedNo;
-  final String ward;
-  final String type;
-  final int tariffPaise;
-  final String status;
-  final String? patientName;
-  final String? uhid;
-  final int roomId;
-  final int wardId;
-  final String roomNo;
-  final int floor;
-  final String createdAt;
-  final String updatedAt;
-
   const BedModel({
     required this.id,
     required this.bedNo,
@@ -63,6 +48,23 @@ class BedModel {
     );
   }
 
+  factory BedModel.fromJson(String source) =>
+      BedModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String bedNo;
+  final String ward;
+  final String type;
+  final int tariffPaise;
+  final String status;
+  final String? patientName;
+  final String? uhid;
+  final int roomId;
+  final int wardId;
+  final String roomNo;
+  final int floor;
+  final String createdAt;
+  final String updatedAt;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'bed_no': bedNo,
@@ -81,9 +83,6 @@ class BedModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory BedModel.fromJson(String source) =>
-      BedModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   BedModel copyWith({
     int? id,
@@ -138,16 +137,6 @@ class BedModel {
 
 /// Hospital Ward model
 class WardModel {
-  final int id;
-  final String uuid;
-  final String name;
-  final String description;
-  final bool isActive;
-  final int totalBeds;
-  final int occupiedBeds;
-  final String createdAt;
-  final String updatedAt;
-
   const WardModel({
     required this.id,
     required this.uuid,
@@ -159,10 +148,6 @@ class WardModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  int get availableBeds => (totalBeds - occupiedBeds).clamp(0, totalBeds);
-  double get occupancyRate =>
-      totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0.0;
 
   factory WardModel.fromMap(Map<String, dynamic> map) {
     return WardModel(
@@ -180,6 +165,22 @@ class WardModel {
     );
   }
 
+  factory WardModel.fromJson(String source) =>
+      WardModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final String name;
+  final String description;
+  final bool isActive;
+  final int totalBeds;
+  final int occupiedBeds;
+  final String createdAt;
+  final String updatedAt;
+
+  int get availableBeds => (totalBeds - occupiedBeds).clamp(0, totalBeds);
+  double get occupancyRate =>
+      totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0.0;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -193,9 +194,6 @@ class WardModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory WardModel.fromJson(String source) =>
-      WardModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   WardModel copyWith({
     int? id,
@@ -361,9 +359,6 @@ class RoomModel {
 
   String toJson() => jsonEncode(toApiMap());
 
-  factory RoomModel.fromJson(String source) =>
-      RoomModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
-
   RoomModel copyWith({
     int? id,
     String? uuid,
@@ -411,15 +406,6 @@ class RoomModel {
 
 /// Bed transfer event audit model
 class BedTransferModel {
-  final int id;
-  final String uuid;
-  final int admissionId;
-  final String fromBedNo;
-  final String toBedNo;
-  final String transferredAt;
-  final String reason;
-  final String transferredBy;
-
   const BedTransferModel({
     required this.id,
     required this.uuid,
@@ -444,6 +430,17 @@ class BedTransferModel {
     );
   }
 
+  factory BedTransferModel.fromJson(String source) =>
+      BedTransferModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int admissionId;
+  final String fromBedNo;
+  final String toBedNo;
+  final String transferredAt;
+  final String reason;
+  final String transferredBy;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -456,9 +453,6 @@ class BedTransferModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory BedTransferModel.fromJson(String source) =>
-      BedTransferModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   BedTransferModel copyWith({
     int? id,

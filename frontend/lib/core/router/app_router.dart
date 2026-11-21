@@ -3,15 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/auth/auto_lock_service.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
+import 'package:hospital_management/core/auth/online_hospital_session.dart';
 import 'package:hospital_management/core/auth/session_service.dart';
 import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/app_shell.dart';
+import 'package:hospital_management/data/models/hms_models.dart';
 import 'package:hospital_management/features/appointments/presentation/screens/appointment_form_screen.dart';
 import 'package:hospital_management/features/appointments/presentation/screens/appointment_list_screen.dart';
+import 'package:hospital_management/features/appointments/presentation/screens/online_clinical_workspace.dart';
 import 'package:hospital_management/features/audit/presentation/screens/audit_log_screen.dart';
 import 'package:hospital_management/features/auth/presentation/screens/lock_screen.dart';
 import 'package:hospital_management/features/auth/presentation/screens/login_screen.dart';
+import 'package:hospital_management/features/auth/presentation/screens/online_hospital_dashboard.dart';
 import 'package:hospital_management/features/beds/presentation/screens/bed_board_screen.dart';
 import 'package:hospital_management/features/billing/presentation/screens/billing_list_screen.dart';
 import 'package:hospital_management/features/billing/presentation/screens/invoice_detail_screen.dart';
@@ -33,7 +37,6 @@ import 'package:hospital_management/features/reports/presentation/screens/report
 import 'package:hospital_management/features/settings/presentation/screens/settings_screen.dart';
 import 'package:hospital_management/features/staff/presentation/screens/staff_form_screen.dart';
 import 'package:hospital_management/features/staff/presentation/screens/staff_list_screen.dart';
-import 'package:hospital_management/data/models/hms_models.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final routerNotifier = _RouterNotifier(ref);
@@ -43,6 +46,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.dashboard,
     refreshListenable: routerNotifier,
     redirect: (BuildContext context, GoRouterState state) {
+      final online = ref.read(onlineHospitalSessionProvider);
+      if (online.isRestoring) {
+        return state.matchedLocation == AppRoutes.onlineSessionLoading
+            ? null
+            : AppRoutes.onlineSessionLoading;
+      }
+      if (online.isAuthenticated) {
+        return state.matchedLocation == AppRoutes.onlineHospital ||
+                state.matchedLocation == AppRoutes.onlineClinical
+            ? null
+            : AppRoutes.onlineHospital;
+      }
+      if (state.matchedLocation == AppRoutes.onlineHospital ||
+          state.matchedLocation == AppRoutes.onlineClinical ||
+          state.matchedLocation == AppRoutes.onlineSessionLoading) {
+        final localSession = ref.read(sessionProvider);
+        return localSession.isAuthenticated
+            ? AppRoutes.dashboard
+            : AppRoutes.login;
+      }
+
       final session = ref.read(sessionProvider);
       final isLocked = ref.read(autoLockProvider);
 
@@ -103,6 +127,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.lock,
         name: 'lock',
         builder: (context, state) => const LockScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.onlineSessionLoading,
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
+      ),
+      GoRoute(
+        path: AppRoutes.onlineHospital,
+        name: 'online-hospital',
+        builder: (context, state) => const OnlineHospitalDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.onlineClinical,
+        name: 'online-clinical',
+        builder: (context, state) => const OnlineClinicalWorkspace(),
       ),
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
@@ -376,6 +415,8 @@ String? _routeToModule(String location) {
 class _RouterNotifier extends ChangeNotifier {
   _RouterNotifier(this._ref) {
     _ref.listen<SessionState>(sessionProvider, (_, __) => notifyListeners());
+    _ref.listen<OnlineHospitalSessionState>(
+        onlineHospitalSessionProvider, (_, __) => notifyListeners());
     _ref.listen<bool>(autoLockProvider, (_, __) => notifyListeners());
     _ref.listen<AsyncValue<PermissionMap>>(
         permissionsProvider, (_, __) => notifyListeners());

@@ -382,7 +382,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: const [
+                              initialValue: const [
                                 'Scheduled Consultation',
                                 'Walk-in Token',
                                 'Follow-up Visit',

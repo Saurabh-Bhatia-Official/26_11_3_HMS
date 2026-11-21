@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/auth/session_service.dart';
+import 'package:hospital_management/core/auth/online_hospital_session.dart';
 import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
+import 'package:hospital_management/data/remote/hospital_api_client.dart';
 
-enum AuthTab { signIn, createHospital }
+enum AuthTab { signIn, createHospital, centralReview }
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({
@@ -32,6 +34,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordFocusNode = FocusNode();
   bool _obscurePassword = true;
   HospitalModel? _selectedHospital;
+  HospitalApiRecord? _selectedOnlineHospital;
+  bool _onlineSignIn = false;
+  bool _enterHospitalId = false;
+  bool _loadingOnlineHospitals = false;
+  bool _reviewingRegistrations = false;
+  String? _onlineHospitalError;
+  String? _onlineLoginMessage;
+  List<HospitalApiRecord> _onlineHospitals = [];
+  final _hospitalIdController = TextEditingController();
 
   // ── Create Hospital & Super Admin Form ──────────────────────────────────────
   final _createFormKey = GlobalKey<FormState>();
@@ -49,6 +60,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _adminObscureConfirm = true;
 
   bool _isSubmitting = false;
+  final _centralUsernameController = TextEditingController();
+  final _centralPasswordController = TextEditingController();
+  String? _centralAccessToken;
+  List<Map<String, dynamic>> _pendingOnlineRegistrations = [];
+  String? _reviewMessage;
 
   @override
   void initState() {
@@ -71,6 +87,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _adminEmailController.dispose();
     _adminPasswordController.dispose();
     _adminConfirmPasswordController.dispose();
+    _hospitalIdController.dispose();
+    _centralUsernameController.dispose();
+    _centralPasswordController.dispose();
     super.dispose();
   }
 
@@ -78,6 +97,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submitSignIn() async {
     if (_isSubmitting) return;
     if (!(_signInFormKey.currentState?.validate() ?? false)) return;
+
+    if (_onlineSignIn) {
+      await _submitOnlineSignIn();
+      return;
+    }
 
     final username = _usernameController.text.trim();
     final password = _passwordController.text;
@@ -111,6 +135,170 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _loadOnlineHospitals() async {
+    setState(() {
+      _loadingOnlineHospitals = true;
+      _onlineHospitalError = null;
+    });
+    try {
+      final hospitals = await ref.read(hospitalApiClientProvider).listHospitals();
+      if (!mounted) return;
+      setState(() {
+        _onlineHospitals = hospitals;
+        _selectedOnlineHospital = hospitals.isEmpty ? null : hospitals.first;
+        _loadingOnlineHospitals = false;
+      });
+    } on HospitalApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _onlineHospitalError = error.message;
+        _loadingOnlineHospitals = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _onlineHospitalError = 'Cannot connect to the CareSync server.';
+        _loadingOnlineHospitals = false;
+      });
+    }
+  }
+
+  Future<void> _lookupOnlineHospital() async {
+    final id = _hospitalIdController.text.trim();
+    if (!RegExp(r'^\d{12}$').hasMatch(id)) {
+      setState(() => _onlineHospitalError = 'Enter a valid 12-digit Hospital ID.');
+      return;
+    }
+    setState(() {
+      _loadingOnlineHospitals = true;
+      _onlineHospitalError = null;
+      _selectedOnlineHospital = null;
+    });
+    try {
+      final hospital = await ref.read(hospitalApiClientProvider).lookupHospital(id);
+      if (!mounted) return;
+      setState(() {
+        _selectedOnlineHospital = hospital;
+        _loadingOnlineHospitals = false;
+      });
+    } on HospitalApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _onlineHospitalError = error.message;
+        _loadingOnlineHospitals = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _onlineHospitalError = 'Cannot connect to the CareSync server.';
+        _loadingOnlineHospitals = false;
+      });
+    }
+  }
+
+  Future<void> _submitOnlineSignIn() async {
+    if (_selectedOnlineHospital == null) {
+      setState(() => _onlineHospitalError = 'Select or find an approved hospital first.');
+      return;
+    }
+    setState(() {
+      _isSubmitting = true;
+      _onlineLoginMessage = null;
+    });
+    try {
+      final error = await ref.read(onlineHospitalSessionProvider.notifier).login(
+            hospitalId: _selectedOnlineHospital!.hospitalId,
+            username: _usernameController.text.trim(),
+            password: _passwordController.text,
+          );
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+        _onlineLoginMessage = error;
+      });
+      if (error == null) context.go(AppRoutes.onlineHospital);
+    } on HospitalApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+        _onlineLoginMessage = error.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+        _onlineLoginMessage = 'Cannot connect to the CareSync server.';
+      });
+    }
+  }
+
+  Future<void> _loginCentralAdministrator() async {
+    if (_centralUsernameController.text.trim().isEmpty || _centralPasswordController.text.isEmpty) {
+      setState(() => _reviewMessage = 'Enter the Central Super Admin username and password.');
+      return;
+    }
+    setState(() {
+      _reviewingRegistrations = true;
+      _reviewMessage = null;
+    });
+    try {
+      final login = await ref.read(hospitalApiClientProvider).centralAdminLogin(
+            username: _centralUsernameController.text.trim(),
+            password: _centralPasswordController.text,
+          );
+      final token = login['accessToken'] as String;
+      final user = login['user'] as Map<String, dynamic>;
+      if (user['role'] != 'SUPER_ADMIN' || user['hospitalId'] != null) {
+        throw const HospitalApiException('This account is not a Central Super Admin.');
+      }
+      final pending = await ref.read(hospitalApiClientProvider).pendingRegistrations(token);
+      if (!mounted) return;
+      setState(() {
+        _centralAccessToken = token;
+        _pendingOnlineRegistrations = pending;
+        _reviewingRegistrations = false;
+      });
+    } on HospitalApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _reviewingRegistrations = false;
+        _reviewMessage = error.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _reviewingRegistrations = false;
+        _reviewMessage = 'Cannot connect or the server returned an invalid response.';
+      });
+    }
+  }
+
+  Future<void> _reviewRegistration(String registrationId, {required bool approve}) async {
+    final token = _centralAccessToken;
+    if (token == null) return;
+    try {
+      if (approve) {
+        final result = await ref.read(hospitalApiClientProvider).approveRegistration(registrationId, token);
+        if (!mounted) return;
+        setState(() {
+          _pendingOnlineRegistrations.removeWhere((row) => row['registrationId'] == registrationId);
+          _reviewMessage = 'Approved ${result['name']}. Hospital ID: ${result['hospitalId']}';
+        });
+      } else {
+        await ref.read(hospitalApiClientProvider).rejectRegistration(registrationId, token);
+        if (!mounted) return;
+        setState(() {
+          _pendingOnlineRegistrations.removeWhere((row) => row['registrationId'] == registrationId);
+          _reviewMessage = 'Registration rejected.';
+        });
+      }
+    } on HospitalApiException catch (error) {
+      if (mounted) setState(() => _reviewMessage = error.message);
+    } catch (_) {
+      if (mounted) setState(() => _reviewMessage = 'Cannot complete the review request.');
+    }
+  }
+
   // ── Create Hospital & Super Admin Submission ────────────────────────────────
   Future<void> _submitCreateHospitalAndSuperAdmin() async {
     if (_isSubmitting) return;
@@ -118,7 +306,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     setState(() => _isSubmitting = true);
 
-    final db = ref.read(appDatabaseProvider);
     final hospName = _hospNameController.text.trim();
     final hospCode = _hospCodeController.text.trim().toUpperCase();
     final hospAddress = _hospAddressController.text.trim();
@@ -128,77 +315,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final adminEmail = _adminEmailController.text.trim();
     final adminPassword = _adminPasswordController.text;
 
-    // 1. Verify username is available
-    final isTaken = await db.isUsernameTaken(adminUsername);
-    if (isTaken) {
-      if (!mounted) return;
-      setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Username "$adminUsername" is already in use. Please select another.'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
     try {
-      // 2. Insert new Hospital Entity
-      final newHospital = HospitalModel(
-        uuid: 'hosp-${DateTime.now().millisecondsSinceEpoch}',
+      final result = await ref.read(hospitalApiClientProvider).registerHospital(
         name: hospName,
         code: hospCode,
         type: _hospType,
         address: hospAddress,
-        phone: '',
         email: adminEmail,
-        status: 'Active',
+        adminUsername: adminUsername,
+        adminPassword: adminPassword,
+        adminFullName: adminFullName,
       );
-      final newHospId = await db.hmsDao.insertHospital(newHospital);
-      final savedHospital = newHospital.copyWith(id: newHospId);
-
-      // 3. Register Super Admin User
-      final regError = await ref.read(sessionProvider.notifier).registerUser(
-            fullName: adminFullName,
-            username: adminUsername,
-            email: adminEmail,
-            password: adminPassword,
-            role: 'Super Admin',
-            hospitalId: newHospId,
-            hospitalName: hospName,
-          );
-
-      if (regError != null) {
-        if (!mounted) return;
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(regError),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-
-      // 4. Set active hospital and refresh
-      ref.invalidate(allHospitalsProvider);
-      ref.read(activeHospitalProvider.notifier).switchHospital(savedHospital);
-
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Hospital "$hospName" created! Super Admin account "$adminUsername" is ready. You can now add other staff via Settings.'),
-          backgroundColor: Colors.teal.shade800,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 5),
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(Icons.hourglass_top_rounded),
+          title: const Text('Registration submitted'),
+          content: Text(
+            'Registration ${result['registrationId']} is ${result['status']}. '
+            'The Central Super Admin must approve it. Your 12-digit Hospital ID will be issued after approval.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Done'),
+            ),
+          ],
         ),
       );
-
-      context.go(AppRoutes.dashboard);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -212,11 +358,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _prefill(String username, String password) {
-    setState(() {
-      _usernameController.text = username;
-      _passwordController.text = password;
-    });
+  Future<void> _submitOfflineLocalHospitalSetup() async {
+    if (_isSubmitting || !(_createFormKey.currentState?.validate() ?? false)) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final db = ref.read(appDatabaseProvider);
+      final username = _adminUsernameController.text.trim();
+      if (await db.isUsernameTaken(username)) {
+        throw const HospitalApiException('That local username is already in use.');
+      }
+      final hospital = HospitalModel(
+        uuid: 'hosp-${DateTime.now().millisecondsSinceEpoch}',
+        name: _hospNameController.text.trim(),
+        code: _hospCodeController.text.trim().toUpperCase(),
+        type: _hospType,
+        address: _hospAddressController.text.trim(),
+        email: _adminEmailController.text.trim(),
+        status: 'Active',
+      );
+      final localId = await db.hmsDao.insertHospital(hospital);
+      final error = await ref.read(sessionProvider.notifier).registerUser(
+            fullName: _adminFullNameController.text.trim(),
+            username: username,
+            email: _adminEmailController.text.trim(),
+            password: _adminPasswordController.text,
+            role: 'Super Admin',
+            hospitalId: localId,
+            hospitalName: hospital.name,
+          );
+      if (error != null) throw HospitalApiException(error);
+      ref.invalidate(allHospitalsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Saved on this device only; this is not an online hospital registration.'),
+        ));
+        setState(() => _isSubmitting = false);
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
   }
 
   @override
@@ -312,6 +495,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           icon: Icon(Icons.domain_add_rounded, size: 18),
                           label: Text('Create Hospital', style: TextStyle(fontWeight: FontWeight.w600)),
                         ),
+                        ButtonSegment(
+                          value: AuthTab.centralReview,
+                          icon: Icon(Icons.fact_check_outlined, size: 18),
+                          label: Text('Review', style: TextStyle(fontWeight: FontWeight.w600)),
+                        ),
                       ],
                       selected: {_currentTab},
                       onSelectionChanged: (newSelection) {
@@ -323,8 +511,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     // ── Tab View Content ─────────────────────────────────────
                     if (_currentTab == AuthTab.signIn)
                       _buildSignInForm(context, colorScheme, textTheme, hospitals)
+                    else if (_currentTab == AuthTab.createHospital)
+                      _buildCreateHospitalForm(context, colorScheme, textTheme)
                     else
-                      _buildCreateHospitalForm(context, colorScheme, textTheme),
+                      _buildCentralReviewForm(context, colorScheme, textTheme),
                   ],
                 ),
               ),
@@ -342,15 +532,90 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     TextTheme textTheme,
     List<HospitalModel> hospitals,
   ) {
+    final onlineSession = ref.watch(onlineHospitalSessionProvider);
     return Form(
       key: _signInFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_onlineSignIn && onlineSession.error != null) ...[
+            const Gap(8),
+            Text(onlineSession.error!, style: TextStyle(color: colorScheme.error)),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onlineSession.isLoading
+                    ? null
+                    : () => ref.read(onlineHospitalSessionProvider.notifier).restore(),
+                child: const Text('Retry session restore'),
+              ),
+            ),
+          ],
+          const Gap(14),
           // ── Hospital Selector ──────────────────────────────────────────────
-          if (hospitals.isNotEmpty) ...[
+          if (_onlineSignIn) ...[
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => setState(() {
+                  _enterHospitalId = !_enterHospitalId;
+                  _selectedOnlineHospital = null;
+                  _onlineHospitalError = null;
+                }),
+                icon: Icon(_enterHospitalId ? Icons.list_alt : Icons.pin_outlined, size: 16),
+                label: Text(_enterHospitalId ? 'Choose from hospital list' : 'I have a Hospital ID'),
+              ),
+            ),
+            if (_enterHospitalId)
+              Row(children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _hospitalIdController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 12,
+                    decoration: const InputDecoration(labelText: '12-digit Hospital ID'),
+                    validator: (value) => RegExp(r'^\d{12}$').hasMatch(value?.trim() ?? '')
+                        ? null
+                        : 'Enter a valid 12-digit Hospital ID',
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Find hospital',
+                  onPressed: _loadingOnlineHospitals ? null : _lookupOnlineHospital,
+                  icon: const Icon(Icons.search),
+                ),
+              ])
+            else if (_loadingOnlineHospitals)
+              const Center(child: CircularProgressIndicator())
+            else if (_onlineHospitals.isNotEmpty)
+              DropdownButtonFormField<HospitalApiRecord>(
+                initialValue: _onlineHospitals.any((hospital) => hospital.hospitalId == _selectedOnlineHospital?.hospitalId)
+                    ? _onlineHospitals.firstWhere((hospital) => hospital.hospitalId == _selectedOnlineHospital?.hospitalId)
+                    : null,
+                decoration: const InputDecoration(labelText: 'Hospital', prefixIcon: Icon(Icons.local_hospital_outlined)),
+                items: _onlineHospitals.map((hospital) => DropdownMenuItem(
+                  value: hospital,
+                  child: Text('${hospital.name} · ${hospital.hospitalId}', overflow: TextOverflow.ellipsis),
+                )).toList(),
+                onChanged: (hospital) => setState(() => _selectedOnlineHospital = hospital),
+                validator: (hospital) => hospital == null ? 'Choose an approved hospital' : null,
+              )
+            else
+              Text(_onlineHospitalError ?? 'No approved Hospitals are available.',
+                  style: TextStyle(color: colorScheme.error)),
+            if (_selectedOnlineHospital != null && _enterHospitalId)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text('Hospital: ${_selectedOnlineHospital!.name} (${_selectedOnlineHospital!.hospitalId})'),
+              ),
+            if (_onlineHospitalError != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(_onlineHospitalError!, style: TextStyle(color: colorScheme.error)),
+              ),
+          ] else if (hospitals.isNotEmpty) ...[
             DropdownButtonFormField<HospitalModel>(
-              value: hospitals.any((h) => h.id == _selectedHospital?.id)
+              initialValue: hospitals.any((h) => h.id == _selectedHospital?.id)
                   ? hospitals.firstWhere((h) => h.id == _selectedHospital?.id)
                   : hospitals.first,
               decoration: const InputDecoration(
@@ -423,6 +688,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           const Gap(22),
 
           // ── Submit Button ──────────────────────────────────────────────────
+          if (_onlineLoginMessage != null) ...[
+            Text(_onlineLoginMessage!, style: TextStyle(color: colorScheme.primary)),
+            const Gap(12),
+          ],
           FilledButton.icon(
             onPressed: _isSubmitting ? null : _submitSignIn,
             icon: _isSubmitting
@@ -448,63 +717,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: TextButton.icon(
               onPressed: () => setState(() => _currentTab = AuthTab.createHospital),
               icon: const Icon(Icons.domain_add_rounded, size: 16),
-              label: const Text('Register New Hospital (Super Admin)'),
+              label: const Text('Register Hospital online'),
             ),
           ),
-          const Gap(16),
-
-          // ── Demo credentials selector ──────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: colorScheme.outlineVariant),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.badge_outlined, size: 16, color: colorScheme.primary),
-                    const Gap(6),
-                    Text(
-                      'Demo Staff Credentials (Click to prefill):',
-                      style: textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                const Gap(8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    ActionChip(
-                      label: const Text('Super Admin', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('superadmin', 'SuperAdmin@1234'),
-                    ),
-                    ActionChip(
-                      label: const Text('Admin', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('admin', 'Admin@1234'),
-                    ),
-                    ActionChip(
-                      label: const Text('Doctor', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('doctor', 'Doctor@1234'),
-                    ),
-                    ActionChip(
-                      label: const Text('Nurse', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('nurse', 'Nurse@1234'),
-                    ),
-                    ActionChip(
-                      label: const Text('Reception', style: TextStyle(fontSize: 11)),
-                      onPressed: () => _prefill('reception', 'Reception@1234'),
-                    ),
-                  ],
-                ),
-              ],
+          Center(
+            child: TextButton.icon(
+              onPressed: () => setState(() => _currentTab = AuthTab.centralReview),
+              icon: const Icon(Icons.fact_check_outlined, size: 16),
+              label: const Text('Central Super Admin: review registrations'),
             ),
           ),
         ],
@@ -599,7 +819,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const Gap(12),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _hospType,
+                  initialValue: _hospType,
                   decoration: const InputDecoration(
                     labelText: 'Type',
                     prefixIcon: Icon(Icons.category_outlined),
@@ -722,7 +942,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             textInputAction: TextInputAction.next,
             validator: (value) {
               if (value == null || value.isEmpty) return 'Password is required';
-              if (value.length < 6) return 'At least 6 characters required';
+              if (value.length < 12) return 'At least 12 characters required';
               return null;
             },
           ),
@@ -773,6 +993,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           const Gap(16),
 
           // ── Switch to Sign In Link ─────────────────────────────────────────
+          OutlinedButton.icon(
+            onPressed: _isSubmitting ? null : _submitOfflineLocalHospitalSetup,
+            icon: const Icon(Icons.phone_android),
+            label: const Text('Save to this device only (offline setup)'),
+          ),
+          const Gap(12),
           Center(
             child: TextButton.icon(
               onPressed: () => setState(() => _currentTab = AuthTab.signIn),
@@ -782,6 +1008,83 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCentralReviewForm(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Central Super Admin review', style: textTheme.titleMedium),
+        const Gap(12),
+        TextFormField(
+          controller: _centralUsernameController,
+          decoration: const InputDecoration(labelText: 'Central Super Admin username'),
+          enabled: _centralAccessToken == null,
+        ),
+        const Gap(10),
+        TextFormField(
+          controller: _centralPasswordController,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: 'Password'),
+          enabled: _centralAccessToken == null,
+        ),
+        const Gap(12),
+        if (_centralAccessToken == null)
+          FilledButton(
+            onPressed: _reviewingRegistrations ? null : _loginCentralAdministrator,
+            child: Text(_reviewingRegistrations ? 'Connecting…' : 'Load pending registrations'),
+          )
+        else
+          OutlinedButton(
+            onPressed: () => setState(() {
+              _centralAccessToken = null;
+              _pendingOnlineRegistrations = [];
+              _centralPasswordController.clear();
+            }),
+            child: const Text('End review session'),
+          ),
+        if (_reviewMessage != null) ...[
+          const Gap(10),
+          Text(_reviewMessage!, style: TextStyle(color: colorScheme.primary)),
+        ],
+        const Gap(12),
+        if (_centralAccessToken != null && _pendingOnlineRegistrations.isEmpty)
+          const Text('There are no pending registrations.'),
+        for (final registration in _pendingOnlineRegistrations)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(registration['name'] as String? ?? 'Hospital', style: textTheme.titleSmall),
+                  Text('${registration['type']} · ${registration['code']}'),
+                  Text('First admin: ${registration['firstAdminFullName']} (${registration['firstAdminUsername']})'),
+                  if ((registration['address'] as String?)?.isNotEmpty == true)
+                    Text(registration['address'] as String),
+                  const Gap(8),
+                  Wrap(spacing: 8, children: [
+                    FilledButton.tonal(
+                      onPressed: () => _reviewRegistration(registration['registrationId'] as String, approve: true),
+                      child: const Text('Approve'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () => _reviewRegistration(registration['registrationId'] as String, approve: false),
+                      child: const Text('Reject'),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+        Center(
+          child: TextButton(
+            onPressed: () => setState(() => _currentTab = AuthTab.signIn),
+            child: const Text('Back to sign in'),
+          ),
+        ),
+      ],
     );
   }
 }
