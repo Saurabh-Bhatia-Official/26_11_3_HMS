@@ -1,5 +1,7 @@
 package com.caresync.backend.security;
 
+import java.time.Instant;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -8,8 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-
-import java.time.Instant;
 
 @Entity
 @Table(name = "auth_accounts", uniqueConstraints = @UniqueConstraint(name = "uk_auth_account_username", columnNames = "username"),
@@ -93,4 +93,10 @@ public class AuthAccount {
         tokenVersion++;
     }
     public void deactivate() { active = false; tokenVersion++; }
+    public void resetPasswordHash(String encodedPassword) {
+    this.passwordHash = encodedPassword;
+    this.failedLoginAttempts = 0;
+    this.lockedUntil = null;
+    this.tokenVersion++;
+}
 }
