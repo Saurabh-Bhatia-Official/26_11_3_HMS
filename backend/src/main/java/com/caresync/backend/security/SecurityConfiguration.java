@@ -109,6 +109,10 @@ public class SecurityConfiguration {
         "/api/v1/facilities/beds/**"
 )
 .hasAnyAuthority(SecurityRole.allAuthorities())
+.requestMatchers(
+        "/api/v1/opd/**"
+)
+.hasAnyAuthority(SecurityRole.allAuthorities())
         .anyRequest().denyAll()
 )
 
