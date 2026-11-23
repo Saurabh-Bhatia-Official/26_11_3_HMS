@@ -57,7 +57,8 @@ class AllergyBanner extends StatelessWidget {
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
-                  children: allergies.map((a) => _AllergyChip(label: a)).toList(),
+                  children:
+                      allergies.map((a) => _AllergyChip(label: a)).toList(),
                 ),
               ],
             ),

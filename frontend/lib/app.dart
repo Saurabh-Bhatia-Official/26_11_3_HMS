@@ -33,4 +33,3 @@ class HospitalApp extends ConsumerWidget {
     );
   }
 }
-

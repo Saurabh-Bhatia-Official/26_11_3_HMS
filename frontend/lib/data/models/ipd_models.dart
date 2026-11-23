@@ -2,9 +2,33 @@ import 'dart:convert';
 
 /// Inpatient Admission model representing admitted patients, bed occupancy and care summary.
 class IpdAdmissionModel {
+  final int id;
+  final String uuid;
+  final String visitUuid;
+  final String patientName;
+  final String uhid;
+  final String ward;
+  final String bedNo;
+  final String doctorName;
+  final String admitDate;
+  final int days;
+  final String diagnosis;
+  final String status;
+  final int depositPaise;
+  final List<Map<String, dynamic>> notes;
+  final List<Map<String, dynamic>> medications;
+  final int patientId;
+  final int bedId;
+  final int admittingDoctorId;
+  final String dischargeDate;
+  final String dischargeSummary;
+  final String createdAt;
+  final String updatedAt;
 
   const IpdAdmissionModel({
     required this.id,
+    this.uuid = '',
+    this.visitUuid = '',
     required this.patientName,
     required this.uhid,
     required this.ward,
@@ -51,6 +75,8 @@ class IpdAdmissionModel {
 
     return IpdAdmissionModel(
       id: map['id'] as int? ?? 0,
+      uuid: map['uuid'] as String? ?? '',
+      visitUuid: map['visit_uuid'] as String? ?? '',
       patientName: map['patient_name'] as String? ?? '',
       uhid: map['uhid'] as String? ?? '',
       ward: map['ward'] as String? ?? '',
@@ -75,26 +101,6 @@ class IpdAdmissionModel {
 
   factory IpdAdmissionModel.fromJson(String source) =>
       IpdAdmissionModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
-  final int id;
-  final String patientName;
-  final String uhid;
-  final String ward;
-  final String bedNo;
-  final String doctorName;
-  final String admitDate;
-  final int days;
-  final String diagnosis;
-  final String status;
-  final int depositPaise;
-  final List<Map<String, dynamic>> notes;
-  final List<Map<String, dynamic>> medications;
-  final int patientId;
-  final int bedId;
-  final int admittingDoctorId;
-  final String dischargeDate;
-  final String dischargeSummary;
-  final String createdAt;
-  final String updatedAt;
 
   String get depositFormatted => '₹${(depositPaise / 100).toStringAsFixed(0)}';
 
@@ -104,6 +110,8 @@ class IpdAdmissionModel {
 
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
+        'uuid': uuid,
+        'visit_uuid': visitUuid,
         'patient_name': patientName,
         'uhid': uhid,
         'ward': ward,
@@ -129,6 +137,8 @@ class IpdAdmissionModel {
 
   IpdAdmissionModel copyWith({
     int? id,
+    String? uuid,
+    String? visitUuid,
     String? patientName,
     String? uhid,
     String? ward,
@@ -151,6 +161,8 @@ class IpdAdmissionModel {
   }) {
     return IpdAdmissionModel(
       id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
+      visitUuid: visitUuid ?? this.visitUuid,
       patientName: patientName ?? this.patientName,
       uhid: uhid ?? this.uhid,
       ward: ward ?? this.ward,
@@ -192,7 +204,6 @@ class IpdAdmissionModel {
 
 /// Nursing clinical care note model
 class NursingNoteModel {
-
   const NursingNoteModel({
     required this.id,
     required this.uuid,
@@ -240,7 +251,6 @@ class NursingNoteModel {
 
 /// Doctor daily round note model
 class DoctorRoundNoteModel {
-
   const DoctorRoundNoteModel({
     required this.id,
     required this.uuid,
@@ -288,7 +298,6 @@ class DoctorRoundNoteModel {
 
 /// Inpatient Medication Administration Record (eMAR)
 class MedicationAdministrationModel {
-
   const MedicationAdministrationModel({
     required this.id,
     required this.uuid,
@@ -318,7 +327,8 @@ class MedicationAdministrationModel {
   }
 
   factory MedicationAdministrationModel.fromJson(String source) =>
-      MedicationAdministrationModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+      MedicationAdministrationModel.fromMap(
+          jsonDecode(source) as Map<String, dynamic>);
   final int id;
   final String uuid;
   final int admissionId;
@@ -351,7 +361,6 @@ class MedicationAdministrationModel {
 
 /// Discharge summary card & documentation model
 class DischargeSummaryModel {
-
   const DischargeSummaryModel({
     required this.id,
     required this.admissionId,
@@ -416,4 +425,3 @@ class DischargeSummaryModel {
 
   String toJson() => jsonEncode(toMap());
 }
-

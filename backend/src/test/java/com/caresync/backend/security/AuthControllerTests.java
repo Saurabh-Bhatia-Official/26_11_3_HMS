@@ -1,41 +1,43 @@
 package com.caresync.backend.security;
 
-import com.caresync.backend.hospital.entity.Hospital;
-import com.caresync.backend.hospital.repository.HospitalRegistrationRepository;
-import com.caresync.backend.hospital.repository.HospitalRepository;
-import com.caresync.backend.membership.repository.HospitalMembershipRepository;
-import com.caresync.backend.membership.repository.MembershipAuditEventRepository;
-import com.caresync.backend.patient.repository.PatientRepository;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtClaimsSet;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
-import org.springframework.security.oauth2.jwt.JwsHeader;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.jdbc.core.JdbcTemplate;
-import java.time.Instant;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+
+import com.caresync.backend.hospital.entity.Hospital;
+import com.caresync.backend.hospital.repository.HospitalRegistrationRepository;
+import com.caresync.backend.hospital.repository.HospitalRepository;
+import com.caresync.backend.membership.repository.HospitalMembershipRepository;
+import com.caresync.backend.membership.repository.MembershipAuditEventRepository;
+import com.caresync.backend.patient.repository.PatientRepository;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest(properties = {
         "caresync.security.jwt-secret=local-test-secret-change-before-deployment-123456789",
@@ -347,7 +349,7 @@ class AuthControllerTests {
     void expiredRefreshIsDeniedAndCleanupRemovesOnlyExpiredRows() throws Exception {
         AuthAccount account = accounts.findByUsername("doctor1").orElseThrow();
         String token = "expired-test-refresh-token";
-        refreshTokens.save(new RefreshToken(account, sha256(token), Instant.now().minusSeconds(1), TEST_HOSPITAL_ID, "test-family"));
+        refreshTokens.save(new RefreshToken(account, sha256(token), Instant.now().minusSeconds(1), 42L, "test-family"));
         mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(java.util.Map.of("refreshToken", token))))
                 .andExpect(status().isUnauthorized());
@@ -355,9 +357,8 @@ class AuthControllerTests {
     }
 
     private JsonNode login(String username, String password) throws Exception {
-        return mapper.readTree(mvc.perform(post("/api/auth/hospital-login").contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(java.util.Map.of("username", username, "password", password,
-                                "hospitalId", Long.toString(TEST_HOSPITAL_ID)))))
+        return mapper.readTree(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(java.util.Map.of("username", username, "password", password))))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
     }
 
@@ -419,7 +420,7 @@ class AuthControllerTests {
                 .subject("doctor1").issueTime(java.util.Date.from(Instant.now()))
                 .expirationTime(java.util.Date.from(Instant.now().plusSeconds(300)))
                 .claim("uid", accounts.findByUsername("doctor1").orElseThrow().getId())
-                .claim("name", "Test Doctor").claim("role", "DOCTOR").claim("hospitalId", TEST_HOSPITAL_ID).claim("ver", 0L).build();
+                .claim("name", "Test Doctor").claim("role", "DOCTOR").claim("hospitalId", 42L).claim("ver", 0L).build();
         var signed = new com.nimbusds.jwt.SignedJWT(
                 new com.nimbusds.jose.JWSHeader(com.nimbusds.jose.JWSAlgorithm.HS384), claims);
         signed.sign(new com.nimbusds.jose.crypto.MACSigner(

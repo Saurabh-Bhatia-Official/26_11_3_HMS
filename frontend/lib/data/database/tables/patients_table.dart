@@ -41,8 +41,7 @@ class Patients extends Table {
   /// Absolute on-device path to the patient photo file.
   TextColumn get photoPath => text().nullable()();
 
-  BoolColumn get isVip =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isVip => boolean().withDefault(const Constant(false))();
 
   TextColumn get notes => text().nullable()();
 
@@ -54,8 +53,7 @@ class Patients extends Table {
   IntColumn get createdBy => integer().nullable()();
   IntColumn get updatedBy => integer().nullable()();
 
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 
   @override
   List<Index> get indexes => [

@@ -1,15 +1,16 @@
 package com.caresync.backend.patient.repository;
 
-import com.caresync.backend.patient.entity.Patient;
-import com.caresync.backend.patient.entity.PatientStatus;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.util.Optional;
-import java.util.UUID;
+import com.caresync.backend.patient.entity.Patient;
+import com.caresync.backend.patient.entity.PatientStatus;
 
 public interface PatientRepository extends JpaRepository<Patient, Long> {
     boolean existsByHospital_IdAndUhid(UUID hospitalId, String uhid);
@@ -17,6 +18,10 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     Optional<Patient> findByUuid(@Param("uuid") UUID uuid);
 
     Optional<Patient> findByUuidAndHospital_IdAndArchivedAtIsNull(UUID uuid, UUID hospitalId);
+
+    Optional<Patient> findByIdAndHospital_HospitalIdAndArchivedAtIsNull(Long id, Long hospitalId);
+
+    Optional<Patient> findByUuidAndHospital_HospitalIdAndArchivedAtIsNull(UUID uuid, Long hospitalId);
 
     @Query("""
             select p from Patient p

@@ -27,7 +27,8 @@ class _IpdListScreenState extends ConsumerState<IpdListScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${item.patientName} discharged. Bed ${item.bedNo} marked for cleaning.'),
+          content: Text(
+              '${item.patientName} discharged. Bed ${item.bedNo} marked for cleaning.'),
           backgroundColor: Colors.teal.shade800,
         ),
       );
@@ -43,20 +44,23 @@ class _IpdListScreenState extends ConsumerState<IpdListScreen> {
           'Are you sure you want to delete IPD admission record for ${item.patientName} (${item.uhid})?\n\nThis will remove the admission record and immediately release Bed ${item.bedNo} back to Available status.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Back')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Back')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () async {
               Navigator.pop(ctx);
               final db = ref.read(appDatabaseProvider);
-              await db.hmsDao.deleteIpdAdmission(item.id, item.bedNo, item.patientName);
+              await db.hmsDao
+                  .deleteIpdAdmission(item.id, item.bedNo, item.patientName);
               ref.invalidate(ipdAdmissionsListProvider);
               ref.invalidate(bedsListProvider);
               ref.invalidate(dashboardStatsProvider);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Admission for ${item.patientName} removed. Bed ${item.bedNo} is now Available.'),
+                    content: Text(
+                        'Admission for ${item.patientName} removed. Bed ${item.bedNo} is now Available.'),
                     backgroundColor: Colors.red.shade800,
                   ),
                 );
@@ -113,19 +117,22 @@ class _IpdListScreenState extends ConsumerState<IpdListScreen> {
                 side: BorderSide(color: colorScheme.outlineVariant),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
                     const Icon(Icons.apartment),
                     const Gap(8),
-                    const Text('Ward: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Ward: ',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     DropdownButton<String>(
                       value: wardOptions.contains(_selectedWard)
                           ? _selectedWard
                           : 'All Wards',
                       underline: const SizedBox.shrink(),
                       items: wardOptions
-                          .map((w) => DropdownMenuItem(value: w, child: Text(w)))
+                          .map(
+                              (w) => DropdownMenuItem(value: w, child: Text(w)))
                           .toList(),
                       onChanged: (v) {
                         if (v != null) setState(() => _selectedWard = v);
@@ -135,7 +142,9 @@ class _IpdListScreenState extends ConsumerState<IpdListScreen> {
                     admissionsAsync.when(
                       data: (list) => Text(
                         'Total Inpatients: ${list.length}',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.onSurfaceVariant),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurfaceVariant),
                       ),
                       loading: () => const SizedBox.shrink(),
                       error: (_, __) => const SizedBox.shrink(),
@@ -148,14 +157,19 @@ class _IpdListScreenState extends ConsumerState<IpdListScreen> {
             Expanded(
               child: admissionsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error loading IPD admissions: $e')),
+                error: (e, _) =>
+                    Center(child: Text('Error loading IPD admissions: $e')),
                 data: (admissions) {
                   final filtered = _selectedWard == 'All Wards'
                       ? admissions
-                      : admissions.where((a) => a.ward.contains(_selectedWard.replaceAll(' Ward', ''))).toList();
+                      : admissions
+                          .where((a) => a.ward
+                              .contains(_selectedWard.replaceAll(' Ward', '')))
+                          .toList();
 
                   if (filtered.isEmpty) {
-                    return const Center(child: Text('No active inpatient admissions.'));
+                    return const Center(
+                        child: Text('No active inpatient admissions.'));
                   }
 
                   return Card(
@@ -167,27 +181,39 @@ class _IpdListScreenState extends ConsumerState<IpdListScreen> {
                       itemBuilder: (context, index) {
                         final item = filtered[index];
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
                           leading: CircleAvatar(
                             radius: 22,
                             backgroundColor: colorScheme.primaryContainer,
-                            child: Icon(Icons.hotel, color: colorScheme.onPrimaryContainer),
+                            child: Icon(Icons.hotel,
+                                color: colorScheme.onPrimaryContainer),
                           ),
                           title: Row(
                             children: [
-                              Text(item.patientName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              Text(item.patientName,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16)),
                               const Gap(8),
-                              Text(item.uhid, style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant)),
+                              Text(item.uhid,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurfaceVariant)),
                               const Gap(12),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: Colors.blue.shade100,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   '${item.ward} • Bed ${item.bedNo}',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade900),
                                 ),
                               ),
                               const Gap(8),
@@ -205,7 +231,8 @@ class _IpdListScreenState extends ConsumerState<IpdListScreen> {
                             children: [
                               if (item.status != 'Discharged') ...[
                                 OutlinedButton.icon(
-                                  icon: const Icon(Icons.check_circle_outline, size: 16),
+                                  icon: const Icon(Icons.check_circle_outline,
+                                      size: 16),
                                   label: const Text('Discharge'),
                                   onPressed: () => _dischargePatient(item),
                                 ),
@@ -217,7 +244,8 @@ class _IpdListScreenState extends ConsumerState<IpdListScreen> {
                               ),
                               const Gap(4),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.red, size: 20),
                                 tooltip: 'Delete Admission Record',
                                 onPressed: () => _confirmDeleteAdmission(item),
                               ),

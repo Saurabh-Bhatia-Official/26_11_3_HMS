@@ -1,23 +1,27 @@
+
 package com.caresync.backend.opd.dto;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 public record OpdVisitRequest(
 
-        @NotNull @Positive
+        // Required for walk-in visits; derived from appointment otherwise
+        @Positive
         Long patientId,
 
-        @NotNull @Positive
-        Long doctorId,
+        // Required for walk-in visits; derived from appointment otherwise
+        UUID doctorUuid,
 
-        @NotNull @Positive
-        Long departmentId,
+        // Optional for walk-in visits; derived from appointment otherwise
+        UUID departmentUuid,
 
-        @Positive
-        Long appointmentId,
+        // Used for appointment-based check-in
+        UUID appointmentUuid,
 
+        // Defaults to hospital-local current date in the service
         LocalDate visitDate
+
 ) {}

@@ -11,12 +11,10 @@ class Wards extends Table {
   TextColumn get uuid => text().unique()();
   TextColumn get name => text().unique()();
   TextColumn get description => text().withDefault(const Constant(''))();
-  BoolColumn get isActive =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 // ---------------------------------------------------------------------------
@@ -28,12 +26,10 @@ class Rooms extends Table {
   IntColumn get wardId => integer().references(Wards, #id)();
   TextColumn get roomNo => text()();
   IntColumn get floor => integer().withDefault(const Constant(0))();
-  BoolColumn get isActive =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 
   @override
   List<Set<Column>> get uniqueKeys => [
@@ -51,17 +47,14 @@ class Beds extends Table {
   TextColumn get uuid => text().unique()();
   IntColumn get roomId => integer().references(Rooms, #id)();
   TextColumn get bedNo => text()();
-  TextColumn get bedType =>
-      text().withDefault(const Constant('general'))();
+  TextColumn get bedType => text().withDefault(const Constant('general'))();
+
   /// Daily bed tariff in paise
-  IntColumn get dailyTariffPaise =>
-      integer().withDefault(const Constant(0))();
-  TextColumn get status =>
-      text().withDefault(const Constant('available'))();
+  IntColumn get dailyTariffPaise => integer().withDefault(const Constant(0))();
+  TextColumn get status => text().withDefault(const Constant('available'))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 
   @override
   List<Set<Column>> get uniqueKeys => [

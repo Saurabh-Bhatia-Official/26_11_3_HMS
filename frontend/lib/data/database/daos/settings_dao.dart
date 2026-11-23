@@ -14,7 +14,8 @@ class SettingsDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> upsertSetting(String key, String value) async {
     final now = DateTime.now().toIso8601String();
-    final existing = await (select(settings)..where((t) => t.key.equals(key))).getSingleOrNull();
+    final existing = await (select(settings)..where((t) => t.key.equals(key)))
+        .getSingleOrNull();
     if (existing != null) {
       await (update(settings)..where((t) => t.key.equals(key))).write(
         SettingsCompanion(

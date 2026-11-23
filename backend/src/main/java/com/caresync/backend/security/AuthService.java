@@ -229,7 +229,7 @@ public class AuthService {
         random.nextBytes(bytes);
         String refresh = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         refreshTokens.save(new RefreshToken(account, hash(refresh), Instant.now().plusSeconds(REFRESH_LIFETIME_SECONDS), hospitalId, familyId));
-        return new AuthDtos.TokenResponse(accessTokens.issue(account, hospitalId, familyId), refresh, "Bearer", AccessTokenService.LIFETIME_SECONDS,
+        return new AuthDtos.TokenResponse(accessTokens.issue(account, hospitalId), refresh, "Bearer", AccessTokenService.LIFETIME_SECONDS,
                 new AuthDtos.UserResponse(account.getId(), account.getUsername(), account.getFullName(), account.getRole(), hospitalId));
     }
 

@@ -20,18 +20,25 @@ class OnlineHospitalDashboardScreen extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: 'Refresh server session',
-            onPressed: session.isLoading ? null : () => ref.read(onlineHospitalSessionProvider.notifier).refresh(),
+            onPressed: session.isLoading
+                ? null
+                : () =>
+                    ref.read(onlineHospitalSessionProvider.notifier).refresh(),
             icon: const Icon(Icons.refresh),
           ),
           IconButton(
             tooltip: 'Sign out',
             onPressed: () async {
-              final serverRevoked = await ref.read(onlineHospitalSessionProvider.notifier).logout();
+              final serverRevoked = await ref
+                  .read(onlineHospitalSessionProvider.notifier)
+                  .logout();
               if (!context.mounted) return;
               context.go(AppRoutes.login);
               if (!serverRevoked) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Signed out locally; the server could not confirm token revocation.')),
+                  const SnackBar(
+                      content: Text(
+                          'Signed out locally; the server could not confirm token revocation.')),
                 );
               }
             },
@@ -57,15 +64,21 @@ class OnlineHospitalDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHospitalContent(BuildContext context, OnlineHospitalProfile hospital,
-      OnlineHospitalUser user, ColorScheme colors) {
+  Widget _buildHospitalContent(
+      BuildContext context,
+      OnlineHospitalProfile hospital,
+      OnlineHospitalUser user,
+      ColorScheme colors) {
     return ListView(
       shrinkWrap: true,
       children: [
         Icon(Icons.local_hospital_outlined, size: 64, color: colors.primary),
         const SizedBox(height: 16),
-        Text(hospital.name, textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall),
-        Text('${hospital.type} · ${hospital.code}', textAlign: TextAlign.center),
+        Text(hospital.name,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineSmall),
+        Text('${hospital.type} · ${hospital.code}',
+            textAlign: TextAlign.center),
         const SizedBox(height: 24),
         Card(
           child: Padding(
@@ -73,14 +86,18 @@ class OnlineHospitalDashboardScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Verified Hospital account', style: Theme.of(context).textTheme.titleMedium),
+                Text('Verified Hospital account',
+                    style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 12),
                 Text('Hospital ID: ${hospital.hospitalId}'),
                 Text('Signed in as: ${user.fullName} (${user.username})'),
                 Text('Role: ${user.role}'),
-                if (hospital.address?.isNotEmpty == true) Text('Address: ${hospital.address}'),
-                if (hospital.email?.isNotEmpty == true) Text('Email: ${hospital.email}'),
-                if (hospital.phone?.isNotEmpty == true) Text('Phone: ${hospital.phone}'),
+                if (hospital.address?.isNotEmpty == true)
+                  Text('Address: ${hospital.address}'),
+                if (hospital.email?.isNotEmpty == true)
+                  Text('Email: ${hospital.email}'),
+                if (hospital.phone?.isNotEmpty == true)
+                  Text('Phone: ${hospital.phone}'),
               ],
             ),
           ),
@@ -89,7 +106,8 @@ class OnlineHospitalDashboardScreen extends ConsumerWidget {
         const Card(
           child: Padding(
             padding: EdgeInsets.all(16),
-            child: Text('Your online session is scoped to this approved Hospital. Clinical modules will appear here as their server APIs are integrated.'),
+            child: Text(
+                'Your online session is scoped to this approved Hospital. Clinical modules will appear here as their server APIs are integrated.'),
           ),
         ),
         const SizedBox(height: 16),
@@ -102,20 +120,24 @@ class OnlineHospitalDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildError(BuildContext context, WidgetRef ref, String? error, ColorScheme colors) {
+  Widget _buildError(
+      BuildContext context, WidgetRef ref, String? error, ColorScheme colors) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.cloud_off_outlined, color: colors.error, size: 48),
         const SizedBox(height: 12),
-        Text(error ?? 'The Hospital profile could not be loaded.', textAlign: TextAlign.center),
+        Text(error ?? 'The Hospital profile could not be loaded.',
+            textAlign: TextAlign.center),
         const SizedBox(height: 12),
         FilledButton(
-          onPressed: () => ref.read(onlineHospitalSessionProvider.notifier).refresh(),
+          onPressed: () =>
+              ref.read(onlineHospitalSessionProvider.notifier).refresh(),
           child: const Text('Try again'),
         ),
         TextButton(
-          onPressed: () => ref.read(onlineHospitalSessionProvider.notifier).logout(),
+          onPressed: () =>
+              ref.read(onlineHospitalSessionProvider.notifier).logout(),
           child: const Text('Sign out'),
         ),
       ],

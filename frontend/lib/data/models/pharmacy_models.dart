@@ -2,7 +2,6 @@ import 'dart:convert';
 
 /// Pharmacy Medicine master item model.
 class MedicineModel {
-
   const MedicineModel({
     required this.id,
     required this.name,
@@ -68,7 +67,8 @@ class MedicineModel {
   final String createdAt;
   final String updatedAt;
 
-  String get mrpFormatted => mrpPaise > 0 ? '₹${(mrpPaise / 100).toStringAsFixed(2)}' : '-';
+  String get mrpFormatted =>
+      mrpPaise > 0 ? '₹${(mrpPaise / 100).toStringAsFixed(2)}' : '-';
   bool get isLowStock => stockQty <= reorderLevel;
   bool get isOutOfStock => stockQty <= 0;
 
@@ -156,7 +156,6 @@ class MedicineModel {
 
 /// Pharmacy Medicine Batch with expiry and pricing
 class MedicineBatchModel {
-
   const MedicineBatchModel({
     required this.id,
     required this.medicineId,
@@ -182,7 +181,8 @@ class MedicineBatchModel {
       expiryDate: map['expiry_date'] as String? ?? '',
       stockQty: map['stock_qty'] as int? ?? 0,
       mrpPaise: map['mrp_paise'] as int? ?? 0,
-      costPaise: (map['cost_paise'] ?? map['purchase_price_paise']) as int? ?? 0,
+      costPaise:
+          (map['cost_paise'] ?? map['purchase_price_paise']) as int? ?? 0,
       uuid: map['uuid'] as String? ?? '',
       manufactureDate: map['manufacture_date'] as String? ?? '',
       supplierId: map['supplier_id'] as int? ?? 0,
@@ -211,22 +211,27 @@ class MedicineBatchModel {
   String get costFormatted => '₹${(costPaise / 100).toStringAsFixed(2)}';
 
   bool get isExpired {
-    try {
-      final exp = DateTime.parse(expiryDate);
-      return DateTime.now().isAfter(exp);
-    } catch (_) {
-      return false;
-    }
+    final expiry = _expiryDateUtc;
+    return expiry != null && !expiry.isAfter(_todayUtc);
   }
 
   bool get isNearExpiry {
-    try {
-      final exp = DateTime.parse(expiryDate);
-      final diff = exp.difference(DateTime.now()).inDays;
-      return diff >= 0 && diff <= 90;
-    } catch (_) {
-      return false;
-    }
+    final expiry = _expiryDateUtc;
+    final today = _todayUtc;
+    return expiry != null &&
+        expiry.isAfter(today) &&
+        !expiry.isAfter(today.add(const Duration(days: 90)));
+  }
+
+  DateTime? get _expiryDateUtc {
+    final expiry = DateTime.tryParse(expiryDate);
+    if (expiry == null) return null;
+    return DateTime.utc(expiry.year, expiry.month, expiry.day);
+  }
+
+  DateTime get _todayUtc {
+    final now = DateTime.now().toUtc();
+    return DateTime.utc(now.year, now.month, now.day);
   }
 
   Map<String, dynamic> toMap() => {
@@ -298,7 +303,6 @@ class MedicineBatchModel {
 
 /// Pharmacy Supplier / Vendor record model
 class SupplierModel {
-
   const SupplierModel({
     required this.id,
     required this.uuid,
@@ -395,7 +399,6 @@ class SupplierModel {
 
 /// Purchase Order item line
 class PurchaseItemModel {
-
   const PurchaseItemModel({
     required this.id,
     required this.medicineId,
@@ -451,7 +454,6 @@ class PurchaseItemModel {
 
 /// Pharmacy Purchase Order / Inward Consignment
 class PurchaseOrderModel {
-
   const PurchaseOrderModel({
     required this.id,
     required this.uuid,
@@ -468,7 +470,9 @@ class PurchaseOrderModel {
     List<PurchaseItemModel> itemsList = [];
     final raw = map['items'];
     if (raw is List) {
-      itemsList = raw.map((e) => PurchaseItemModel.fromMap(e as Map<String, dynamic>)).toList();
+      itemsList = raw
+          .map((e) => PurchaseItemModel.fromMap(e as Map<String, dynamic>))
+          .toList();
     }
     return PurchaseOrderModel(
       id: map['id'] as int? ?? 0,
@@ -495,7 +499,8 @@ class PurchaseOrderModel {
   final String status;
   final List<PurchaseItemModel> items;
 
-  String get totalFormatted => '₹${(totalAmountPaise / 100).toStringAsFixed(2)}';
+  String get totalFormatted =>
+      '₹${(totalAmountPaise / 100).toStringAsFixed(2)}';
 
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
@@ -514,7 +519,6 @@ class PurchaseOrderModel {
 
 /// Stock audit adjustment model
 class StockAdjustmentModel {
-
   const StockAdjustmentModel({
     required this.id,
     required this.medicineId,
@@ -566,7 +570,6 @@ class StockAdjustmentModel {
 
 /// Dispensation record line item
 class DispensationItemModel {
-
   const DispensationItemModel({
     required this.medicineName,
     required this.batchNo,
@@ -606,7 +609,6 @@ class DispensationItemModel {
 
 /// Pharmacy Dispensation transaction
 class DispensationModel {
-
   const DispensationModel({
     required this.id,
     required this.prescriptionId,
@@ -622,7 +624,9 @@ class DispensationModel {
     List<DispensationItemModel> itemsList = [];
     final raw = map['items'];
     if (raw is List) {
-      itemsList = raw.map((e) => DispensationItemModel.fromMap(e as Map<String, dynamic>)).toList();
+      itemsList = raw
+          .map((e) => DispensationItemModel.fromMap(e as Map<String, dynamic>))
+          .toList();
     }
     return DispensationModel(
       id: map['id'] as int? ?? 0,
@@ -647,7 +651,8 @@ class DispensationModel {
   final int totalAmountPaise;
   final List<DispensationItemModel> items;
 
-  String get totalFormatted => '₹${(totalAmountPaise / 100).toStringAsFixed(2)}';
+  String get totalFormatted =>
+      '₹${(totalAmountPaise / 100).toStringAsFixed(2)}';
 
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
@@ -662,4 +667,3 @@ class DispensationModel {
 
   String toJson() => jsonEncode(toMap());
 }
-

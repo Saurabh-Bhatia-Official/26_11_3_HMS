@@ -1,12 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/auth/session_service.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
 import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
+import 'package:hospital_management/data/remote/backend_api_client.dart';
+import 'package:hospital_management/data/remote/hms_sync_service.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -61,9 +66,7 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Back'),
-          ),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Back')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () async {
@@ -76,8 +79,7 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      'Appointment #${item.tokenNo} for ${item.patientName} cancelled and deleted.',
-                    ),
+                        'Appointment #${item.tokenNo} for ${item.patientName} cancelled and deleted.'),
                     backgroundColor: Colors.red.shade800,
                   ),
                 );
@@ -185,7 +187,7 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
             width: 120,
             child: pw.Text(
               label,
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.Expanded(child: pw.Text(value)),
@@ -196,7 +198,6 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
 
   Future<void> _startOpd(AppointmentModel item) async {
     final status = item.status.trim().toLowerCase();
-
     if (status == 'cancelled') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -207,16 +208,36 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
     }
 
     final isResuming = status == 'in consultation';
-
     try {
       final db = ref.read(appDatabaseProvider);
-
       final visitId = await db.hmsDao.startOpdForAppointment(item);
-
+      if (ref.read(sessionProvider).user?.isRemote ?? false) {
+        final visit = await db.hmsDao.getOpdVisitById(visitId);
+        final patient = await db.patientsDao.findPatientByUhid(item.uhid);
+        if (visit == null || patient == null) {
+          throw const BackendApiException(
+              'The patient must be synced before this visit can be synced.');
+        }
+        await db.hmsDao.enqueueSyncOperation(
+          operationId: visit.uuid,
+          resourceType: 'visit',
+          method: 'POST',
+          path: '/api/visits',
+          payloadJson: jsonEncode({
+            'uuid': visit.uuid,
+            'patientUuid': patient.uuid,
+            'visitType': 'opd',
+            'visitDate':
+                DateTime.now().toUtc().toIso8601String().substring(0, 10),
+            'status': 'open',
+          }),
+        );
+        final errors = await ref.read(hmsSyncServiceProvider).syncPending();
+        if (errors.isNotEmpty) throw BackendApiException(errors.first);
+      }
       ref.invalidate(opdQueueProvider);
       ref.invalidate(appointmentsListProvider);
       ref.invalidate(dashboardStatsProvider);
-
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(

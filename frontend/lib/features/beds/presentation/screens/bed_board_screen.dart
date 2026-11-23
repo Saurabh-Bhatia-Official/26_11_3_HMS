@@ -53,8 +53,11 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Bed ${bed.bedNo}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                Text('${bed.ward} • ${bed.type}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('Bed ${bed.bedNo}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 18)),
+                Text('${bed.ward} • ${bed.type}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
           ],
@@ -63,12 +66,17 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Current Status: ${bed.status}', style: TextStyle(fontWeight: FontWeight.bold, color: statusColor)),
-            Text('Tariff: ₹${(bed.tariffPaise / 100).toStringAsFixed(0)} / day', style: const TextStyle(fontSize: 12)),
+            Text('Current Status: ${bed.status}',
+                style:
+                    TextStyle(fontWeight: FontWeight.bold, color: statusColor)),
+            Text('Tariff: ₹${(bed.tariffPaise / 100).toStringAsFixed(0)} / day',
+                style: const TextStyle(fontSize: 12)),
             const Divider(height: 24),
             if (bed.status == 'Occupied') ...[
-              Text('Occupied By: ${bed.patientName ?? "Patient"}', style: const TextStyle(fontWeight: FontWeight.w600)),
-              Text('UHID: ${bed.uhid ?? "-"}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text('Occupied By: ${bed.patientName ?? "Patient"}',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text('UHID: ${bed.uhid ?? "-"}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
               const Gap(16),
               SizedBox(
                 width: double.infinity,
@@ -77,7 +85,8 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                     Navigator.pop(ctx);
                     context.go(AppRoutes.ipd);
                   },
-                  icon: const Icon(Icons.medical_information_outlined, size: 18),
+                  icon:
+                      const Icon(Icons.medical_information_outlined, size: 18),
                   label: const Text('View Inpatient Chart'),
                 ),
               ),
@@ -85,7 +94,8 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(foregroundColor: Colors.orange.shade800),
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange.shade800),
                   onPressed: () async {
                     Navigator.pop(ctx);
                     final db = ref.read(appDatabaseProvider);
@@ -94,7 +104,9 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                     ref.invalidate(dashboardStatsProvider);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Bed ${bed.bedNo} sent for cleaning.')),
+                        SnackBar(
+                            content:
+                                Text('Bed ${bed.bedNo} sent for cleaning.')),
                       );
                     }
                   },
@@ -103,7 +115,8 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                 ),
               ),
             ] else if (bed.status == 'Available') ...[
-              const Text('This bed is clean, sanitized, and ready for patient intake.'),
+              const Text(
+                  'This bed is clean, sanitized, and ready for patient intake.'),
               const Gap(16),
               SizedBox(
                 width: double.infinity,
@@ -128,7 +141,9 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                     ref.invalidate(dashboardStatsProvider);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Bed ${bed.bedNo} marked for cleaning.')),
+                        SnackBar(
+                            content:
+                                Text('Bed ${bed.bedNo} marked for cleaning.')),
                       );
                     }
                   },
@@ -148,7 +163,9 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                     ref.invalidate(dashboardStatsProvider);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Bed ${bed.bedNo} marked for maintenance.')),
+                        SnackBar(
+                            content: Text(
+                                'Bed ${bed.bedNo} marked for maintenance.')),
                       );
                     }
                   },
@@ -157,12 +174,14 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                 ),
               ),
             ] else if (bed.status == 'Cleaning') ...[
-              const Text('Housekeeping is currently cleaning and sanitizing this bed.'),
+              const Text(
+                  'Housekeeping is currently cleaning and sanitizing this bed.'),
               const Gap(16),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: Colors.green.shade700),
                   onPressed: () async {
                     Navigator.pop(ctx);
                     final db = ref.read(appDatabaseProvider);
@@ -171,7 +190,9 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                     ref.invalidate(dashboardStatsProvider);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Bed ${bed.bedNo} is now Available!')),
+                        SnackBar(
+                            content:
+                                Text('Bed ${bed.bedNo} is now Available!')),
                       );
                     }
                   },
@@ -185,7 +206,8 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: Colors.green.shade700),
                   onPressed: () async {
                     Navigator.pop(ctx);
                     final db = ref.read(appDatabaseProvider);
@@ -194,7 +216,9 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                     ref.invalidate(dashboardStatsProvider);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Bed ${bed.bedNo} restored to Available!')),
+                        SnackBar(
+                            content: Text(
+                                'Bed ${bed.bedNo} restored to Available!')),
                       );
                     }
                   },
@@ -206,7 +230,9 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
             const Divider(height: 24),
             Row(
               children: [
-                if (ref.read(permissionCheckerProvider).can(Modules.beds, AppActions.edit)) ...[
+                if (ref
+                    .read(permissionCheckerProvider)
+                    .can(Modules.beds, AppActions.edit)) ...[
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () {
@@ -219,21 +245,28 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                   ),
                   const Gap(8),
                 ],
-                if (ref.read(permissionCheckerProvider).can(Modules.beds, AppActions.delete))
+                if (ref
+                    .read(permissionCheckerProvider)
+                    .can(Modules.beds, AppActions.delete))
                   Expanded(
                     child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                      style:
+                          OutlinedButton.styleFrom(foregroundColor: Colors.red),
                       onPressed: () async {
                         Navigator.pop(ctx);
                         final confirm = await showDialog<bool>(
                           context: context,
                           builder: (c) => AlertDialog(
                             title: const Text('Delete Bed'),
-                            content: Text('Are you sure you want to remove Bed ${bed.bedNo} from ${bed.ward} Ward?'),
+                            content: Text(
+                                'Are you sure you want to remove Bed ${bed.bedNo} from ${bed.ward} Ward?'),
                             actions: [
-                              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                              TextButton(
+                                  onPressed: () => Navigator.pop(c, false),
+                                  child: const Text('Cancel')),
                               FilledButton(
-                                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.red),
                                 onPressed: () => Navigator.pop(c, true),
                                 child: const Text('Delete'),
                               ),
@@ -247,7 +280,8 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                           ref.invalidate(dashboardStatsProvider);
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Bed ${bed.bedNo} deleted.')),
+                              SnackBar(
+                                  content: Text('Bed ${bed.bedNo} deleted.')),
                             );
                           }
                         }
@@ -273,9 +307,12 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
   void _showAddEditBedDialog({BedModel? bed}) {
     final isEditing = bed != null;
     final bedNoController = TextEditingController(text: bed?.bedNo ?? '');
-    final wardController = TextEditingController(text: bed?.ward ?? (_selectedWard != 'All Wards' ? _selectedWard : 'General Ward'));
+    final wardController = TextEditingController(
+        text: bed?.ward ??
+            (_selectedWard != 'All Wards' ? _selectedWard : 'General Ward'));
     final typeController = TextEditingController(text: bed?.type ?? 'General');
-    final tariffController = TextEditingController(text: bed != null ? (bed.tariffPaise / 100).toStringAsFixed(0) : '800');
+    final tariffController = TextEditingController(
+        text: bed != null ? (bed.tariffPaise / 100).toStringAsFixed(0) : '800');
     String status = bed?.status ?? 'Available';
     final formKey = GlobalKey<FormState>();
 
@@ -283,7 +320,8 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setModalState) => AlertDialog(
-          title: Text(isEditing ? 'Edit Bed ${bed.bedNo}' : 'Add New Hospital Bed'),
+          title: Text(
+              isEditing ? 'Edit Bed ${bed.bedNo}' : 'Add New Hospital Bed'),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
@@ -292,52 +330,82 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                 children: [
                   TextFormField(
                     controller: bedNoController,
-                    decoration: const InputDecoration(labelText: 'Bed Identifier / Number *', hintText: 'e.g. ICU-01, B-101'),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Bed number is required' : null,
+                    decoration: const InputDecoration(
+                        labelText: 'Bed Identifier / Number *',
+                        hintText: 'e.g. ICU-01, B-101'),
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Bed number is required'
+                        : null,
                   ),
                   const Gap(12),
                   TextFormField(
                     controller: wardController,
-                    decoration: const InputDecoration(labelText: 'Ward Name *', hintText: 'e.g. ICU, Male General, Deluxe'),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Ward name is required' : null,
+                    decoration: const InputDecoration(
+                        labelText: 'Ward Name *',
+                        hintText: 'e.g. ICU, Male General, Deluxe'),
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Ward name is required'
+                        : null,
                   ),
                   const Gap(12),
                   DropdownButtonFormField<String>(
-                    initialValue: const ['General', 'ICU', 'Private AC', 'Semi-Private', 'Emergency', 'Pediatric'].contains(typeController.text)
+                    initialValue: const [
+                      'General',
+                      'ICU',
+                      'Private AC',
+                      'Semi-Private',
+                      'Emergency',
+                      'Pediatric'
+                    ].contains(typeController.text)
                         ? typeController.text
                         : 'General',
                     decoration: const InputDecoration(labelText: 'Bed Type'),
                     items: const [
-                      DropdownMenuItem(value: 'General', child: Text('General')),
-                      DropdownMenuItem(value: 'ICU', child: Text('ICU / Critical Care')),
-                      DropdownMenuItem(value: 'Private AC', child: Text('Private AC')),
-                      DropdownMenuItem(value: 'Semi-Private', child: Text('Semi-Private')),
-                      DropdownMenuItem(value: 'Emergency', child: Text('Emergency / Trauma')),
-                      DropdownMenuItem(value: 'Pediatric', child: Text('Pediatric')),
+                      DropdownMenuItem(
+                          value: 'General', child: Text('General')),
+                      DropdownMenuItem(
+                          value: 'ICU', child: Text('ICU / Critical Care')),
+                      DropdownMenuItem(
+                          value: 'Private AC', child: Text('Private AC')),
+                      DropdownMenuItem(
+                          value: 'Semi-Private', child: Text('Semi-Private')),
+                      DropdownMenuItem(
+                          value: 'Emergency',
+                          child: Text('Emergency / Trauma')),
+                      DropdownMenuItem(
+                          value: 'Pediatric', child: Text('Pediatric')),
                     ],
                     onChanged: (v) {
-                      if (v != null) setModalState(() => typeController.text = v);
+                      if (v != null)
+                        setModalState(() => typeController.text = v);
                     },
                   ),
                   const Gap(12),
                   TextFormField(
                     controller: tariffController,
-                    decoration: const InputDecoration(labelText: 'Daily Tariff (₹) *', hintText: 'e.g. 1200'),
+                    decoration: const InputDecoration(
+                        labelText: 'Daily Tariff (₹) *', hintText: 'e.g. 1200'),
                     keyboardType: TextInputType.number,
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Tariff is required';
-                      if (double.tryParse(v.trim()) == null) return 'Must be a valid number';
+                      if (v == null || v.trim().isEmpty)
+                        return 'Tariff is required';
+                      if (double.tryParse(v.trim()) == null)
+                        return 'Must be a valid number';
                       return null;
                     },
                   ),
                   const Gap(12),
                   DropdownButtonFormField<String>(
                     initialValue: status,
-                    decoration: const InputDecoration(labelText: 'Initial Status'),
+                    decoration:
+                        const InputDecoration(labelText: 'Initial Status'),
                     items: const [
-                      DropdownMenuItem(value: 'Available', child: Text('Available')),
-                      DropdownMenuItem(value: 'Cleaning', child: Text('Cleaning')),
-                      DropdownMenuItem(value: 'Maintenance', child: Text('Maintenance')),
+                      DropdownMenuItem(
+                          value: 'Available', child: Text('Available')),
+                      DropdownMenuItem(
+                          value: 'Cleaning', child: Text('Cleaning')),
+                      DropdownMenuItem(
+                          value: 'Maintenance', child: Text('Maintenance')),
                     ],
                     onChanged: (v) {
                       if (v != null) setModalState(() => status = v);
@@ -358,7 +426,9 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                 Navigator.pop(dialogCtx);
 
                 final db = ref.read(appDatabaseProvider);
-                final tariffPaise = ((double.tryParse(tariffController.text.trim()) ?? 0) * 100).round();
+                final tariffPaise =
+                    ((double.tryParse(tariffController.text.trim()) ?? 0) * 100)
+                        .round();
 
                 if (isEditing) {
                   final updatedBed = bed.copyWith(
@@ -371,7 +441,8 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                   await db.hmsDao.updateBed(updatedBed);
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Bed ${updatedBed.bedNo} updated.')),
+                      SnackBar(
+                          content: Text('Bed ${updatedBed.bedNo} updated.')),
                     );
                   }
                 } else {
@@ -386,7 +457,9 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                   await db.hmsDao.insertBed(newBed);
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Bed ${newBed.bedNo} added to ${newBed.ward} Ward.')),
+                      SnackBar(
+                          content: Text(
+                              'Bed ${newBed.bedNo} added to ${newBed.ward} Ward.')),
                     );
                   }
                 }
@@ -450,19 +523,22 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                 side: BorderSide(color: colorScheme.outlineVariant),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
                     const Icon(Icons.hotel_outlined),
                     const Gap(8),
-                    const Text('Ward: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Ward: ',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     DropdownButton<String>(
                       value: wardOptions.contains(_selectedWard)
                           ? _selectedWard
                           : 'All Wards',
                       underline: const SizedBox.shrink(),
                       items: wardOptions
-                          .map((w) => DropdownMenuItem(value: w, child: Text(w)))
+                          .map(
+                              (w) => DropdownMenuItem(value: w, child: Text(w)))
                           .toList(),
                       onChanged: (v) {
                         if (v != null) setState(() => _selectedWard = v);
@@ -498,18 +574,21 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.hotel_outlined, size: 64, color: colorScheme.outline),
+                          Icon(Icons.hotel_outlined,
+                              size: 64, color: colorScheme.outline),
                           const Gap(16),
                           Text(
                             _selectedWard == 'All Wards'
                                 ? 'No beds configured yet'
                                 : 'No beds in $_selectedWard',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           const Gap(8),
                           Text(
                             'Click "Add Bed" to create wards and assign hospital beds.',
-                            style: TextStyle(color: colorScheme.onSurfaceVariant),
+                            style:
+                                TextStyle(color: colorScheme.onSurfaceVariant),
                           ),
                           const Gap(16),
                           FilledButton.icon(
@@ -523,7 +602,8 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                   }
 
                   return GridView.builder(
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
                       maxCrossAxisExtent: 240,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
@@ -538,7 +618,9 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                         elevation: 1.5,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: statusColor.withValues(alpha: 0.4), width: 1.5),
+                          side: BorderSide(
+                              color: statusColor.withValues(alpha: 0.4),
+                              width: 1.5),
                         ),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
@@ -551,17 +633,23 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         bed.bedNo,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16),
                                       ),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: statusColor.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(4),
+                                          color: statusColor.withValues(
+                                              alpha: 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
                                         ),
                                         child: Text(
                                           bed.status,
@@ -577,24 +665,32 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
                                   const Gap(4),
                                   Text(
                                     '${bed.ward} • ${bed.type}',
-                                    style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: colorScheme.onSurfaceVariant),
                                   ),
                                   const Gap(12),
                                   if (bed.patientName != null) ...[
                                     Text(
                                       bed.patientName!,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     Text(
                                       bed.uhid ?? '',
-                                      style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: colorScheme.onSurfaceVariant),
                                     ),
                                   ] else ...[
                                     Text(
                                       'Tariff: ₹${(bed.tariffPaise / 100).toStringAsFixed(0)}/day',
-                                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade600),
                                     ),
                                   ],
                                 ],

@@ -1,5 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hospital_management/core/auth/session_service.dart';
 import 'package:hospital_management/data/database/app_database.dart';
+import 'package:hospital_management/data/remote/backend_api_client.dart';
+import 'package:hospital_management/data/remote/hms_sync_service.dart';
 import 'package:hospital_management/data/repositories/patient_repository_impl.dart';
 import 'package:hospital_management/domain/entities/patient.dart';
 import 'package:hospital_management/domain/entities/patient_allergy.dart';
@@ -27,7 +32,9 @@ Future<void> _syncIfOnline(Ref ref) async {
   if (!ref.read(onlineHospitalSessionProvider).isAuthenticated) return;
   try {
     final result = await ref.read(patientSyncCoordinatorProvider).synchronize();
-    if (result.blocked) throw PatientSyncBlockedException(result.error ?? 'Hospital authorization is required.');
+    if (result.blocked)
+      throw PatientSyncBlockedException(
+          result.error ?? 'Hospital authorization is required.');
   } catch (_) {
     rethrow;
   }
@@ -77,9 +84,8 @@ final selectedPatientProvider =
 });
 
 /// Fetches allergies for the given patient ID.
-final patientAllergiesProvider =
-    FutureProvider.family.autoDispose<List<PatientAllergy>, int>(
-        (ref, patientId) async {
+final patientAllergiesProvider = FutureProvider.family
+    .autoDispose<List<PatientAllergy>, int>((ref, patientId) async {
   final repo = ref.read(patientRepositoryProvider);
   return repo.getAllergies(patientId);
 });

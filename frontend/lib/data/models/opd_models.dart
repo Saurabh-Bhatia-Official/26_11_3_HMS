@@ -2,9 +2,39 @@ import 'dart:convert';
 
 /// OPD Visit record model including patient vitals, diagnosis and clinical notes.
 class OpdVisitModel {
+  final int id;
+  final String uuid;
+  final String tokenNo;
+  final String patientName;
+  final String uhid;
+  final String doctorName;
+  final String department;
+  final String ageGender;
+  final String status;
+  final String complaint;
+  final String history;
+  final String examination;
+  final String diagnosis;
+  final String advice;
+  final String bpSys;
+  final String bpDia;
+  final String pulse;
+  final String temp;
+  final String spo2;
+  final String weight;
+  final String height;
+  final List<Map<String, String>> medications;
+  final int patientId;
+  final int doctorId;
+  final String visitDate;
+  final String icdCode;
+  final String followUpDate;
+  final String createdAt;
+  final String updatedAt;
 
   const OpdVisitModel({
     required this.id,
+    this.uuid = '',
     required this.tokenNo,
     required this.patientName,
     required this.uhid,
@@ -48,6 +78,7 @@ class OpdVisitModel {
 
     return OpdVisitModel(
       id: map['id'] as int? ?? 0,
+      uuid: map['uuid'] as String? ?? '',
       tokenNo: map['token_no'] as String? ?? '01',
       patientName: map['patient_name'] as String? ?? '',
       uhid: map['uhid'] as String? ?? '',
@@ -80,35 +111,6 @@ class OpdVisitModel {
 
   factory OpdVisitModel.fromJson(String source) =>
       OpdVisitModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
-  final int id;
-  final String tokenNo;
-  final String patientName;
-  final String uhid;
-  final String doctorName;
-  final String department;
-  final String ageGender;
-  final String status;
-  final String complaint;
-  final String history;
-  final String examination;
-  final String diagnosis;
-  final String advice;
-  final String bpSys;
-  final String bpDia;
-  final String pulse;
-  final String temp;
-  final String spo2;
-  final String weight;
-  final String height;
-  final List<Map<String, String>> medications;
-  final int patientId;
-  final int doctorId;
-  final String visitDate;
-  final String icdCode;
-  final String followUpDate;
-  final String createdAt;
-  final String updatedAt;
-
   String get vitalsSummary =>
       'BP $bpSys/$bpDia, Pulse $pulse, Temp $temp°F, SpO2 $spo2%';
 
@@ -128,6 +130,7 @@ class OpdVisitModel {
 
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
+        'uuid': uuid,
         'token_no': tokenNo,
         'patient_name': patientName,
         'uhid': uhid,
@@ -161,6 +164,7 @@ class OpdVisitModel {
 
   OpdVisitModel copyWith({
     int? id,
+    String? uuid,
     String? tokenNo,
     String? patientName,
     String? uhid,
@@ -191,6 +195,7 @@ class OpdVisitModel {
   }) {
     return OpdVisitModel(
       id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
       tokenNo: tokenNo ?? this.tokenNo,
       patientName: patientName ?? this.patientName,
       uhid: uhid ?? this.uhid,
@@ -240,7 +245,6 @@ class OpdVisitModel {
 
 /// Clinical Vitals record model
 class VitalsModel {
-
   const VitalsModel({
     required this.id,
     required this.uuid,
@@ -299,7 +303,8 @@ class VitalsModel {
       : '-';
 
   String get pulseDisplay => pulse != null ? '$pulse bpm' : '-';
-  String get tempDisplay => temperatureC != null ? '${temperatureC!.toStringAsFixed(1)} °C' : '-';
+  String get tempDisplay =>
+      temperatureC != null ? '${temperatureC!.toStringAsFixed(1)} °C' : '-';
   String get spo2Display => spo2 != null ? '$spo2%' : '-';
   String get bmiDisplay => bmi != null ? bmi!.toStringAsFixed(1) : '-';
 
@@ -325,7 +330,6 @@ class VitalsModel {
 
 /// Clinical Consultation model
 class ConsultationModel {
-
   const ConsultationModel({
     required this.id,
     required this.uuid,
@@ -398,4 +402,3 @@ class ConsultationModel {
 
   String toJson() => jsonEncode(toMap());
 }
-

@@ -1,0 +1,26 @@
+$kind: http-request
+name: 'Get Invoice by ID'
+order: 5000
+method: GET
+url: '{{base_url}}/api/billing/invoices/{{invoice_id}}'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has invoice fields", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+          pm.expect(jsonData).to.have.property("invoiceNo");
+          pm.expect(jsonData).to.have.property("status");
+          pm.expect(jsonData).to.have.property("items");
+          pm.expect(jsonData.items).to.be.an("array");
+      });

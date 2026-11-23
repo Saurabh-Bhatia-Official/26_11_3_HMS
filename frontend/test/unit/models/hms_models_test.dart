@@ -292,6 +292,36 @@ void main() {
       expect(batch.mrpFormatted, equals('₹35.00'));
       expect(batch.isExpired, isFalse);
       expect(MedicineBatchModel.fromJson(batch.toJson()).batchNo, equals('B2026-12'));
+
+      final today = DateTime.now().toUtc();
+      final todayDate = DateTime.utc(today.year, today.month, today.day);
+      final expiresToday = batch.copyWith(
+        expiryDate: todayDate.toIso8601String().substring(0, 10),
+      );
+      final expiresTomorrow = batch.copyWith(
+        expiryDate: todayDate
+            .add(const Duration(days: 1))
+            .toIso8601String()
+            .substring(0, 10),
+      );
+      final expiresIn90Days = batch.copyWith(
+        expiryDate: todayDate
+            .add(const Duration(days: 90))
+            .toIso8601String()
+            .substring(0, 10),
+      );
+      final expiresIn91Days = batch.copyWith(
+        expiryDate: todayDate
+            .add(const Duration(days: 91))
+            .toIso8601String()
+            .substring(0, 10),
+      );
+      expect(expiresToday.isExpired, isTrue);
+      expect(expiresToday.isNearExpiry, isFalse);
+      expect(expiresTomorrow.isExpired, isFalse);
+      expect(expiresTomorrow.isNearExpiry, isTrue);
+      expect(expiresIn90Days.isNearExpiry, isTrue);
+      expect(expiresIn91Days.isNearExpiry, isFalse);
     });
 
     test('8. InvoiceModel, InvoiceItemModel, PaymentModel, ServiceModel serialization', () {

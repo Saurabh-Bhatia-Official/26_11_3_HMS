@@ -2,7 +2,6 @@ import 'dart:convert';
 
 /// Typed representation of a hospital branch / entity managed in CareSync.
 class HospitalModel {
-
   const HospitalModel({
     this.id = 0,
     required this.uuid,
@@ -93,4 +92,3 @@ class HospitalModel {
 
   String toJson() => jsonEncode(toMap());
 }
-

@@ -14,7 +14,6 @@ class HospitalApiException implements Exception {
 }
 
 class HospitalApiRecord {
-
   factory HospitalApiRecord.fromJson(Map<String, dynamic> json) {
     return HospitalApiRecord(
       hospitalId: json['hospitalId'].toString(),
@@ -36,10 +35,11 @@ class HospitalApiRecord {
 class HospitalApiClient {
   HospitalApiClient({http.Client? client, Uri? baseUri})
       : _client = client ?? http.Client(),
-        _baseUri = baseUri ?? Uri.parse(const String.fromEnvironment(
-          'CARESYNC_API_BASE_URL',
-          defaultValue: 'http://localhost:8080',
-        ));
+        _baseUri = baseUri ??
+            Uri.parse(const String.fromEnvironment(
+              'CARESYNC_API_BASE_URL',
+              defaultValue: 'http://localhost:8080',
+            ));
 
   final http.Client _client;
   final Uri _baseUri;
@@ -81,7 +81,9 @@ class HospitalApiClient {
         .timeout(const Duration(seconds: 20));
     if (response.statusCode != 200) _throwApiError(response);
     final decoded = jsonDecode(response.body);
-    if (decoded is! List) throw const HospitalApiException('The server returned an invalid response.');
+    if (decoded is! List)
+      throw const HospitalApiException(
+          'The server returned an invalid response.');
     return decoded
         .map((row) => HospitalApiRecord.fromJson(row as Map<String, dynamic>))
         .toList(growable: false);
@@ -94,7 +96,8 @@ class HospitalApiClient {
     final response = await _client
         .get(_uri('/api/v1/hospitals/lookup/$hospitalId'))
         .timeout(const Duration(seconds: 20));
-    return HospitalApiRecord.fromJson(_decodeObject(response, expectedStatus: 200));
+    return HospitalApiRecord.fromJson(
+        _decodeObject(response, expectedStatus: 200));
   }
 
   Future<Map<String, dynamic>> hospitalLogin({
@@ -106,35 +109,45 @@ class HospitalApiClient {
         .post(
           _uri('/api/auth/hospital-login'),
           headers: const {'Content-Type': 'application/json'},
-          body: jsonEncode({'hospitalId': hospitalId, 'username': username, 'password': password}),
+          body: jsonEncode({
+            'hospitalId': hospitalId,
+            'username': username,
+            'password': password
+          }),
         )
         .timeout(const Duration(seconds: 20));
     return _decodeObject(response, expectedStatus: 200);
   }
 
   Future<Map<String, dynamic>> currentUser(String accessToken) async {
-    final response = await _client.get(_uri('/api/auth/me'),
-        headers: {'Authorization': 'Bearer $accessToken'}).timeout(const Duration(seconds: 20));
+    final response = await _client.get(_uri('/api/auth/me'), headers: {
+      'Authorization': 'Bearer $accessToken'
+    }).timeout(const Duration(seconds: 20));
     return _decodeObject(response, expectedStatus: 200);
   }
 
   Future<Map<String, dynamic>> currentHospital(String accessToken) async {
-    final response = await _client.get(_uri('/api/v1/hospitals/me'),
-        headers: {'Authorization': 'Bearer $accessToken'}).timeout(const Duration(seconds: 20));
+    final response = await _client.get(_uri('/api/v1/hospitals/me'), headers: {
+      'Authorization': 'Bearer $accessToken'
+    }).timeout(const Duration(seconds: 20));
     return _decodeObject(response, expectedStatus: 200);
   }
 
   Future<Map<String, dynamic>> refreshSession(String refreshToken) async {
-    final response = await _client.post(_uri('/api/auth/refresh'),
-        headers: const {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken})).timeout(const Duration(seconds: 20));
+    final response = await _client
+        .post(_uri('/api/auth/refresh'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({'refreshToken': refreshToken}))
+        .timeout(const Duration(seconds: 20));
     return _decodeObject(response, expectedStatus: 200);
   }
 
   Future<void> logout(String refreshToken) async {
-    final response = await _client.post(_uri('/api/auth/logout'),
-        headers: const {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken})).timeout(const Duration(seconds: 20));
+    final response = await _client
+        .post(_uri('/api/auth/logout'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({'refreshToken': refreshToken}))
+        .timeout(const Duration(seconds: 20));
     if (response.statusCode != 204) _throwApiError(response);
   }
 
@@ -152,18 +165,22 @@ class HospitalApiClient {
     return _decodeObject(response, expectedStatus: 200);
   }
 
-  Future<List<Map<String, dynamic>>> pendingRegistrations(String accessToken) async {
+  Future<List<Map<String, dynamic>>> pendingRegistrations(
+      String accessToken) async {
     final response = await _client.get(
       _uri('/api/v1/platform/hospital-registrations'),
       headers: {'Authorization': 'Bearer $accessToken'},
     ).timeout(const Duration(seconds: 20));
     if (response.statusCode != 200) _throwApiError(response);
     final decoded = jsonDecode(response.body);
-    if (decoded is! List) throw const HospitalApiException('The server returned an invalid response.');
+    if (decoded is! List)
+      throw const HospitalApiException(
+          'The server returned an invalid response.');
     return decoded.cast<Map<String, dynamic>>();
   }
 
-  Future<Map<String, dynamic>> approveRegistration(String registrationId, String accessToken) async {
+  Future<Map<String, dynamic>> approveRegistration(
+      String registrationId, String accessToken) async {
     final response = await _client.post(
       _uri('/api/v1/platform/hospital-registrations/$registrationId/approve'),
       headers: {'Authorization': 'Bearer $accessToken'},
@@ -171,7 +188,8 @@ class HospitalApiClient {
     return _decodeObject(response, expectedStatus: 200);
   }
 
-  Future<void> rejectRegistration(String registrationId, String accessToken) async {
+  Future<void> rejectRegistration(
+      String registrationId, String accessToken) async {
     final response = await _client.post(
       _uri('/api/v1/platform/hospital-registrations/$registrationId/reject'),
       headers: {'Authorization': 'Bearer $accessToken'},
@@ -179,11 +197,13 @@ class HospitalApiClient {
     if (response.statusCode != 204) _throwApiError(response);
   }
 
-  Map<String, dynamic> _decodeObject(http.Response response, {required int expectedStatus}) {
+  Map<String, dynamic> _decodeObject(http.Response response,
+      {required int expectedStatus}) {
     if (response.statusCode != expectedStatus) _throwApiError(response);
     final decoded = jsonDecode(response.body);
     if (decoded is! Map<String, dynamic>) {
-      throw const HospitalApiException('The server returned an invalid response.');
+      throw const HospitalApiException(
+          'The server returned an invalid response.');
     }
     return decoded;
   }
@@ -192,7 +212,8 @@ class HospitalApiClient {
     var message = 'The request could not be completed.';
     try {
       final decoded = jsonDecode(response.body);
-      if (decoded is Map && decoded['error'] is String) message = decoded['error'] as String;
+      if (decoded is Map && decoded['error'] is String)
+        message = decoded['error'] as String;
     } catch (_) {
       // Keep the UI error generic when a response is not valid JSON.
     }

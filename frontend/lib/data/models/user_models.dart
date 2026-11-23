@@ -2,7 +2,6 @@ import 'dart:convert';
 
 /// System User account model for authentication, roles and authorization.
 class UserModel {
-
   const UserModel({
     required this.id,
     required this.uuid,
@@ -125,7 +124,6 @@ class UserModel {
 
 /// Role-based access control rule definition
 class RolePermissionModel {
-
   const RolePermissionModel({
     required this.role,
     required this.module,
@@ -160,4 +158,3 @@ class RolePermissionModel {
 
   String toJson() => jsonEncode(toMap());
 }
-

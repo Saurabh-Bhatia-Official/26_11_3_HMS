@@ -2,7 +2,6 @@ import 'dart:convert';
 
 /// Appointment record model for outpatient consultations and token queue.
 class AppointmentModel {
-
   const AppointmentModel({
     required this.id,
     required this.tokenNo,
@@ -153,7 +152,6 @@ class AppointmentModel {
 
 /// Available appointment time slot
 class AppointmentSlotModel {
-
   const AppointmentSlotModel({
     required this.slotTime,
     required this.isAvailable,
@@ -189,7 +187,6 @@ class AppointmentSlotModel {
 
 /// Live OPD walk-in token model
 class QueueTokenModel {
-
   const QueueTokenModel({
     required this.tokenNo,
     required this.patientName,
@@ -238,4 +235,3 @@ class QueueTokenModel {
 
   String toJson() => jsonEncode(toMap());
 }
-

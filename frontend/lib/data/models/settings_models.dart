@@ -2,7 +2,6 @@ import 'dart:convert';
 
 /// System Configuration Setting key-value model
 class SettingModel {
-
   const SettingModel({
     required this.id,
     required this.key,
@@ -38,7 +37,6 @@ class SettingModel {
 
 /// Hospital Organization Profile model
 class HospitalProfileModel {
-
   const HospitalProfileModel({
     this.hospitalName = 'CareSync',
     this.tagline = 'Connecting Care. Simplifying Healthcare.',
@@ -54,7 +52,8 @@ class HospitalProfileModel {
   factory HospitalProfileModel.fromMap(Map<String, dynamic> map) {
     return HospitalProfileModel(
       hospitalName: map['hospital_name'] as String? ?? 'CareSync',
-      tagline: map['tagline'] as String? ?? 'Connecting Care. Simplifying Healthcare.',
+      tagline: map['tagline'] as String? ??
+          'Connecting Care. Simplifying Healthcare.',
       address: map['address'] as String? ?? '',
       phone: map['phone'] as String? ?? '',
       email: map['email'] as String? ?? '',
@@ -91,4 +90,3 @@ class HospitalProfileModel {
 
   String toJson() => jsonEncode(toMap());
 }
-

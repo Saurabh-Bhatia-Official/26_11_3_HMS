@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'package:hospital_management/core/auth/session_service.dart';
 import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
+import 'package:uuid/uuid.dart';
 
 /// Database Access Object for Hospital Management System core modules.
 ///
@@ -116,11 +118,46 @@ class HmsDao {
   ON opd_visits(appointment_id)
   WHERE appointment_id IS NOT NULL;
 ''');
+    final opdVisitColumns =
+        await db.customSelect('PRAGMA table_info(opd_visits)').get();
+    if (!opdVisitColumns.any(
+      (column) => column.data['name'] == 'appointment_id',
+    )) {
+      await db.customStatement(
+        'ALTER TABLE opd_visits ADD COLUMN appointment_id INTEGER;',
+      );
+    }
+    if (!opdVisitColumns.any((column) => column.data['name'] == 'uuid')) {
+      await db.customStatement('ALTER TABLE opd_visits ADD COLUMN uuid TEXT;');
+    }
+    final missingOpdVisitUuids = await db
+        .customSelect(
+          "SELECT id FROM opd_visits WHERE uuid IS NULL OR uuid = ''",
+        )
+        .get();
+    for (final row in missingOpdVisitUuids) {
+      await db.customStatement(
+        "UPDATE opd_visits SET uuid = '${const Uuid().v4()}' WHERE id = ${row.data['id']}",
+      );
+    }
+    await db.customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_opd_visits_uuid
+      ON opd_visits(uuid)
+      WHERE uuid IS NOT NULL;
+    ''');
+
+    await db.customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_opd_visits_appointment_id
+      ON opd_visits(appointment_id)
+      WHERE appointment_id IS NOT NULL;
+    ''');
 
     // 5. IPD Admissions Table
     await db.customStatement('''
       CREATE TABLE IF NOT EXISTS ipd_admissions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT,
+        visit_uuid TEXT,
         patient_name TEXT NOT NULL,
         uhid TEXT NOT NULL,
         ward TEXT NOT NULL,
@@ -135,6 +172,32 @@ class HmsDao {
         medications_json TEXT,
         created_at TEXT
       );
+    ''');
+    final admissionColumns =
+        await db.customSelect('PRAGMA table_info(ipd_admissions)').get();
+    if (!admissionColumns.any((column) => column.data['name'] == 'uuid')) {
+      await db
+          .customStatement('ALTER TABLE ipd_admissions ADD COLUMN uuid TEXT;');
+    }
+    if (!admissionColumns
+        .any((column) => column.data['name'] == 'visit_uuid')) {
+      await db.customStatement(
+          'ALTER TABLE ipd_admissions ADD COLUMN visit_uuid TEXT;');
+    }
+    final missingAdmissionUuids = await db
+        .customSelect(
+          "SELECT id FROM ipd_admissions WHERE uuid IS NULL OR uuid = ''",
+        )
+        .get();
+    for (final row in missingAdmissionUuids) {
+      await db.customStatement(
+        "UPDATE ipd_admissions SET uuid = '${const Uuid().v4()}' WHERE id = ${row.data['id']}",
+      );
+    }
+    await db.customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_ipd_admissions_uuid
+      ON ipd_admissions(uuid)
+      WHERE uuid IS NOT NULL;
     ''');
 
     // 6. Lab Orders Table
@@ -325,8 +388,95 @@ class HmsDao {
       );
     ''');
 
+    await db.customStatement('''
+      CREATE TABLE IF NOT EXISTS sync_outbox (
+        operation_id TEXT PRIMARY KEY,
+        resource_type TEXT NOT NULL,
+        method TEXT NOT NULL,
+        path TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        attempts INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT,
+        created_at TEXT NOT NULL,
+        completed_at TEXT
+      );
+    ''');
+
+    // 15. App Users Table (Authentication with per-hospital scoping)
+    await db.customStatement('''
+      CREATE TABLE IF NOT EXISTS app_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT NOT NULL,
+        username TEXT NOT NULL,
+        full_name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        email TEXT,
+        password_hash TEXT NOT NULL,
+        hospital_id INTEGER,
+        hospital_name TEXT,
+        is_deleted INTEGER DEFAULT 0,
+        created_at TEXT,
+        updated_at TEXT
+      );
+    ''');
+    await db.customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_app_users_username_hospital
+      ON app_users(username, hospital_id)
+      WHERE is_deleted = 0;
+    ''');
+
     // Seed data if empty
     await _seedIfEmpty();
+  }
+
+  Future<void> enqueueSyncOperation({
+    required String operationId,
+    required String resourceType,
+    required String method,
+    required String path,
+    required String payloadJson,
+  }) async {
+    await db.customStatement('''
+      INSERT OR IGNORE INTO sync_outbox
+        (operation_id, resource_type, method, path, payload_json, created_at)
+      VALUES (
+        '${_esc(operationId)}',
+        '${_esc(resourceType)}',
+        '${_esc(method)}',
+        '${_esc(path)}',
+        '${_esc(payloadJson)}',
+        '${DateTime.now().toUtc().toIso8601String()}'
+      )
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingSyncOperations() async {
+    final rows = await db.customSelect('''
+      SELECT operation_id, resource_type, method, path, payload_json, attempts
+      FROM sync_outbox
+      WHERE status = 'pending'
+      ORDER BY created_at ASC
+      LIMIT 100
+    ''').get();
+    return rows.map((row) => row.data).toList();
+  }
+
+  Future<void> markSyncOperationComplete(String operationId) async {
+    await db.customStatement('''
+      UPDATE sync_outbox
+      SET status = 'completed', completed_at = '${DateTime.now().toUtc().toIso8601String()}',
+          last_error = NULL
+      WHERE operation_id = '${_esc(operationId)}'
+    ''');
+  }
+
+  Future<void> markSyncOperationFailed(String operationId, String error) async {
+    await db.customStatement('''
+      UPDATE sync_outbox
+      SET status = 'failed', attempts = attempts + 1, last_error = '${_esc(error)}'
+      WHERE operation_id = '${_esc(operationId)}'
+    ''');
   }
 
   Future<void> _seedIfEmpty() async {
@@ -482,6 +632,248 @@ class HmsDao {
     return id;
   }
 
+  /// Creates a hospital and automatically provisions Super Admin, Admin, Doctor, Nurse,
+  /// Staff, Lab Technician, and Pharmacist accounts with separate credentials and staff records.
+  Future<int> createHospitalWithDefaultStaff({
+    required HospitalModel hospital,
+    required String superAdminUsername,
+    required String superAdminFullName,
+    required String superAdminEmail,
+    required String superAdminPassword,
+    required String adminUsername,
+    required String adminPassword,
+    required String doctorUsername,
+    required String doctorPassword,
+    required String nurseUsername,
+    required String nursePassword,
+    required String staffUsername,
+    required String staffPassword,
+    String? labUsername,
+    String? labPassword,
+    String? pharmacyUsername,
+    String? pharmacyPassword,
+  }) async {
+    final hospId = await insertHospital(hospital);
+    final now = DateTime.now().toIso8601String();
+    final code = hospital.code.trim();
+
+    // 1. Super Admin
+    await insertUser(
+      uuid: 'user-${DateTime.now().millisecondsSinceEpoch}-sa',
+      username: superAdminUsername.trim(),
+      fullName: superAdminFullName.trim(),
+      role: 'Super Admin',
+      passwordHash: createPasswordHash(superAdminPassword),
+      email: superAdminEmail.trim(),
+      hospitalId: hospId,
+      hospitalName: hospital.name,
+    );
+
+    // 2. Hospital Admin
+    await insertUser(
+      uuid: 'user-${DateTime.now().millisecondsSinceEpoch}-adm',
+      username: adminUsername.trim(),
+      fullName: '${hospital.name} Administrator',
+      role: 'Admin',
+      passwordHash: createPasswordHash(adminPassword),
+      email: 'admin@${code.toLowerCase()}.local',
+      hospitalId: hospId,
+      hospitalName: hospital.name,
+    );
+
+    // 3. Doctor
+    await insertUser(
+      uuid: 'user-${DateTime.now().millisecondsSinceEpoch}-doc',
+      username: doctorUsername.trim(),
+      fullName: 'Dr. ${hospital.name} Physician',
+      role: 'Doctor',
+      passwordHash: createPasswordHash(doctorPassword),
+      email: 'doctor@${code.toLowerCase()}.local',
+      hospitalId: hospId,
+      hospitalName: hospital.name,
+    );
+
+    // 4. Nurse
+    await insertUser(
+      uuid: 'user-${DateTime.now().millisecondsSinceEpoch}-nur',
+      username: nurseUsername.trim(),
+      fullName: 'Staff Nurse ($code)',
+      role: 'Nurse',
+      passwordHash: createPasswordHash(nursePassword),
+      email: 'nurse@${code.toLowerCase()}.local',
+      hospitalId: hospId,
+      hospitalName: hospital.name,
+    );
+
+    // 5. Staff / Receptionist
+    await insertUser(
+      uuid: 'user-${DateTime.now().millisecondsSinceEpoch}-stf',
+      username: staffUsername.trim(),
+      fullName: 'Front Desk Staff ($code)',
+      role: 'Receptionist',
+      passwordHash: createPasswordHash(staffPassword),
+      email: 'staff@${code.toLowerCase()}.local',
+      hospitalId: hospId,
+      hospitalName: hospital.name,
+    );
+
+    // 6. Lab Technician
+    final effectiveLabUser = labUsername?.trim().isNotEmpty == true
+        ? labUsername!.trim()
+        : '${code.toLowerCase()}_lab';
+    final effectiveLabPass =
+        labPassword?.isNotEmpty == true ? labPassword! : 'Lab@1234';
+    await insertUser(
+      uuid: 'user-${DateTime.now().millisecondsSinceEpoch}-lab',
+      username: effectiveLabUser,
+      fullName: 'Laboratory Technician ($code)',
+      role: 'Lab Technician',
+      passwordHash: createPasswordHash(effectiveLabPass),
+      email: 'lab@${code.toLowerCase()}.local',
+      hospitalId: hospId,
+      hospitalName: hospital.name,
+    );
+
+    // 7. Pharmacist
+    final effectivePharUser = pharmacyUsername?.trim().isNotEmpty == true
+        ? pharmacyUsername!.trim()
+        : '${code.toLowerCase()}_pharmacy';
+    final effectivePharPass = pharmacyPassword?.isNotEmpty == true
+        ? pharmacyPassword!
+        : 'Pharmacy@1234';
+    await insertUser(
+      uuid: 'user-${DateTime.now().millisecondsSinceEpoch}-phr',
+      username: effectivePharUser,
+      fullName: 'Chief Pharmacist ($code)',
+      role: 'Pharmacist',
+      passwordHash: createPasswordHash(effectivePharPass),
+      email: 'pharmacy@${code.toLowerCase()}.local',
+      hospitalId: hospId,
+      hospitalName: hospital.name,
+    );
+
+    // Also populate default staff records in the staff table so they appear in doctor/staff dropdowns
+    await db.customStatement('''
+      INSERT INTO staff (uuid, name, role, reg_no, department, phone, email, consultation_fee, status, qualification, created_at, updated_at)
+      VALUES
+        ('staff-${DateTime.now().millisecondsSinceEpoch}-1', 'Dr. ${hospital.name} Physician', 'Doctor', 'REG-$code-01', 'General Medicine', '${hospital.phone}', 'doctor@${code.toLowerCase()}.local', 50000, 'Active', 'MBBS, MD', '$now', '$now'),
+        ('staff-${DateTime.now().millisecondsSinceEpoch}-2', 'Staff Nurse ($code)', 'Nurse', 'REG-$code-02', 'Nursing', '${hospital.phone}', 'nurse@${code.toLowerCase()}.local', 0, 'Active', 'B.Sc Nursing', '$now', '$now'),
+        ('staff-${DateTime.now().millisecondsSinceEpoch}-3', 'Front Desk Staff ($code)', 'Receptionist', 'REG-$code-03', 'Administration', '${hospital.phone}', 'staff@${code.toLowerCase()}.local', 0, 'Active', 'B.Com', '$now', '$now'),
+        ('staff-${DateTime.now().millisecondsSinceEpoch}-4', 'Laboratory Technician ($code)', 'Lab Technician', 'REG-$code-04', 'Pathology & Lab', '${hospital.phone}', 'lab@${code.toLowerCase()}.local', 0, 'Active', 'DMLT', '$now', '$now'),
+        ('staff-${DateTime.now().millisecondsSinceEpoch}-5', 'Chief Pharmacist ($code)', 'Pharmacist', 'REG-$code-05', 'Pharmacy', '${hospital.phone}', 'pharmacy@${code.toLowerCase()}.local', 0, 'Active', 'B.Pharm', '$now', '$now');
+    ''');
+
+    return hospId;
+  }
+
+  // ── App Users (Authentication with per-hospital scoping) ──────────────────
+
+  Future<List<Map<String, dynamic>>> getAllUsers({int? hospitalId}) async {
+    final filter = hospitalId != null
+        ? ' WHERE (hospital_id = $hospitalId OR hospital_id IS NULL)'
+        : '';
+    final rows = await db
+        .customSelect('SELECT * FROM app_users$filter ORDER BY id ASC')
+        .get();
+    return rows.map((r) {
+      final row = Map<String, dynamic>.from(r.data);
+      row['passwordHash'] = row['password_hash'] ?? row['passwordHash'];
+      row['password_hash'] = row['passwordHash'];
+      row['fullName'] = row['full_name'] ?? row['fullName'];
+      row['full_name'] = row['fullName'];
+      row['hospitalId'] = row['hospital_id'] ?? row['hospitalId'];
+      row['hospital_id'] = row['hospitalId'];
+      row['hospitalName'] = row['hospital_name'] ?? row['hospitalName'];
+      row['hospital_name'] = row['hospitalName'];
+      return row;
+    }).toList();
+  }
+
+  Future<Map<String, dynamic>?> getUserByUsernameAndHospital(String username,
+      {int? hospitalId}) async {
+    final lower = username.trim().toLowerCase();
+    final filter = hospitalId != null
+        ? " WHERE LOWER(TRIM(username)) = LOWER(TRIM('$lower')) AND (hospital_id = $hospitalId OR hospital_id IS NULL OR role = 'Super Admin') AND is_deleted = 0"
+        : " WHERE LOWER(TRIM(username)) = LOWER(TRIM('$lower')) AND is_deleted = 0";
+    final rows =
+        await db.customSelect('SELECT * FROM app_users$filter LIMIT 1').get();
+    if (rows.isEmpty) return null;
+    final row = Map<String, dynamic>.from(rows.first.data);
+    row['passwordHash'] = row['password_hash'] ?? row['passwordHash'];
+    row['password_hash'] = row['passwordHash'];
+    row['fullName'] = row['full_name'] ?? row['fullName'];
+    row['full_name'] = row['fullName'];
+    row['hospitalId'] = row['hospital_id'] ?? row['hospitalId'];
+    row['hospital_id'] = row['hospitalId'];
+    row['hospitalName'] = row['hospital_name'] ?? row['hospitalName'];
+    row['hospital_name'] = row['hospitalName'];
+    return row;
+  }
+
+  Future<bool> isUsernameTaken(String username, {int? hospitalId}) async {
+    final lower = username.trim().toLowerCase();
+    final filter = hospitalId != null
+        ? " WHERE LOWER(TRIM(username)) = LOWER(TRIM('$lower')) AND hospital_id = $hospitalId AND is_deleted = 0"
+        : " WHERE LOWER(TRIM(username)) = LOWER(TRIM('$lower')) AND is_deleted = 0";
+    final rows =
+        await db.customSelect('SELECT id FROM app_users$filter LIMIT 1').get();
+    return rows.isNotEmpty;
+  }
+
+  Future<int> insertUser({
+    required String uuid,
+    required String username,
+    required String fullName,
+    required String role,
+    required String passwordHash,
+    String? email,
+    int? hospitalId,
+    String? hospitalName,
+  }) async {
+    final now = DateTime.now().toIso8601String();
+    final id = await db.customInsert('''
+      INSERT INTO app_users (uuid, username, full_name, role, email, password_hash, hospital_id, hospital_name, is_deleted, created_at, updated_at)
+      VALUES ('${_esc(uuid)}', '${_esc(username)}', '${_esc(fullName)}', '${_esc(role)}', '${_esc(email ?? '')}', '${_esc(passwordHash)}', ${hospitalId ?? 'NULL'}, '${_esc(hospitalName ?? '')}', 0, '$now', '$now')
+    ''');
+    await insertAuditLog('superadmin', 'CREATE', 'User #$username',
+        'Created user account $username (role: $role) for hospital: ${hospitalName ?? 'None'}');
+    return id;
+  }
+
+  Future<int> updateUser({
+    required int id,
+    required String username,
+    required String fullName,
+    required String role,
+    required String passwordHash,
+    String? email,
+    int? hospitalId,
+    String? hospitalName,
+  }) async {
+    final now = DateTime.now().toIso8601String();
+    await db.customStatement('''
+      UPDATE app_users SET
+        username = '${_esc(username)}',
+        full_name = '${_esc(fullName)}',
+        role = '${_esc(role)}',
+        email = '${_esc(email ?? '')}',
+        password_hash = '${_esc(passwordHash)}',
+        hospital_id = ${hospitalId ?? 'NULL'},
+        hospital_name = '${_esc(hospitalName ?? '')}',
+        updated_at = '$now'
+      WHERE id = $id
+    ''');
+    await insertAuditLog('superadmin', 'UPDATE', 'User #$username',
+        'Updated user account $username (role: $role)');
+    return id;
+  }
+
+  Future<void> deleteUser(int id, String username) async {
+    await db.customStatement('DELETE FROM app_users WHERE id = $id');
+    await insertAuditLog('superadmin', 'DELETE', 'User #$username',
+        'Deleted user account $username');
+  }
+
   Future<void> updateHospital(HospitalModel hospital) async {
     await db.customStatement('''
       UPDATE hospitals SET
@@ -594,39 +986,43 @@ class HmsDao {
           'SELECT id FROM opd_visits WHERE appointment_id = ${appointment.id}',
         )
         .get();
-
     if (existing.isNotEmpty) {
+      if (appointment.status.trim().toLowerCase() != 'in consultation') {
+        await updateAppointmentStatus(
+          appointment.id,
+          'In Consultation',
+        );
+      }
       return existing.first.data['id'] as int;
     }
 
     final now = DateTime.now().toIso8601String();
-
-    // Create a new OPD queue entry.
+    final visitUuid = const Uuid().v4();
     final visitId = await db.customInsert('''
-    INSERT INTO opd_visits (
-      appointment_id, token_no, patient_name, uhid,
-      doctor_name, department, age_gender, status,
-      complaint, history, examination, diagnosis, advice,
-      bp_sys, bp_dia, pulse, temp, spo2, weight, height,
-      medications_json, created_at
-    ) VALUES (
-      ${appointment.id},
-      '${_esc(appointment.tokenNo)}',
-      '${_esc(appointment.patientName)}',
-      '${_esc(appointment.uhid)}',
-      '${_esc(appointment.doctorName)}',
-      '${_esc(appointment.department)}',
-      '',
-      'Waiting',
-      '', '', '', '', '',
-      '', '', '', '', '', '', '',
-      '[]',
-      '$now'
-    )
-  ''');
+      INSERT INTO opd_visits (
+        uuid, appointment_id, token_no, patient_name, uhid,
+        doctor_name, department, age_gender, status,
+        complaint, history, examination, diagnosis, advice,
+        bp_sys, bp_dia, pulse, temp, spo2, weight, height,
+        medications_json, created_at
+      ) VALUES (
+        '$visitUuid',
+        ${appointment.id},
+        '${_esc(appointment.tokenNo)}',
+        '${_esc(appointment.patientName)}',
+        '${_esc(appointment.uhid)}',
+        '${_esc(appointment.doctorName)}',
+        '${_esc(appointment.department)}',
+        '',
+        'Waiting',
+        '', '', '', '', '',
+        '', '', '', '', '', '', '',
+        '[]',
+        '$now'
+      )
+    ''');
 
     await updateAppointmentStatus(appointment.id, 'In Consultation');
-
     await insertAuditLog(
       'reception',
       'CREATE',
@@ -712,12 +1108,14 @@ class HmsDao {
   Future<int> insertOpdVisit(OpdVisitModel visit) async {
     final now = DateTime.now().toIso8601String();
     final medsJson = jsonEncode(visit.medications);
+    final visitUuid = visit.uuid.isEmpty ? const Uuid().v4() : visit.uuid;
     await db.customStatement('''
       INSERT INTO opd_visits (
-        token_no, patient_name, uhid, doctor_name, department, age_gender, status,
+        uuid, token_no, patient_name, uhid, doctor_name, department, age_gender, status,
         complaint, history, examination, diagnosis, advice,
         bp_sys, bp_dia, pulse, temp, spo2, weight, height, medications_json, created_at
       ) VALUES (
+        '${_esc(visitUuid)}',
         '${_esc(visit.tokenNo)}', '${_esc(visit.patientName)}', '${_esc(visit.uhid)}', '${_esc(visit.doctorName)}', '${_esc(visit.department)}', '${_esc(visit.ageGender)}', '${_esc(visit.status)}',
         '${_esc(visit.complaint)}', '${_esc(visit.history)}', '${_esc(visit.examination)}', '${_esc(visit.diagnosis)}', '${_esc(visit.advice)}',
         '${_esc(visit.bpSys)}', '${_esc(visit.bpDia)}', '${_esc(visit.pulse)}', '${_esc(visit.temp)}', '${_esc(visit.spo2)}', '${_esc(visit.weight)}', '${_esc(visit.height)}', '${_esc(medsJson)}', '$now'
@@ -804,6 +1202,10 @@ class HmsDao {
 
     // 3. Insert the admission.
     final now = DateTime.now().toIso8601String();
+    final admissionUuid =
+        admission.uuid.isEmpty ? const Uuid().v4() : admission.uuid;
+    final visitUuid =
+        admission.visitUuid.isEmpty ? const Uuid().v4() : admission.visitUuid;
     final notesJson = jsonEncode(admission.notes);
     final medsJson = jsonEncode(admission.medications);
 
@@ -898,11 +1300,16 @@ class HmsDao {
     return LabOrderModel.fromMap(rows.first.data);
   }
 
-  Future<void> updateLabOrderResults(String orderNo,
-      List<Map<String, dynamic>> parameters, String status) async {
+  Future<void> updateLabOrderResults(
+      String orderNo, List<Map<String, dynamic>> parameters, String status,
+      {String? notes, String? resultDate}) async {
     final paramsJson = jsonEncode(parameters);
+    final now = DateTime.now().toIso8601String();
+    final effectiveResultDate = resultDate ?? now;
+    final notesClause =
+        notes != null ? ", technician_notes = '${_esc(notes)}'" : '';
     await db.customStatement('''
-      UPDATE lab_orders SET status = '${_esc(status)}', params_json = '${_esc(paramsJson)}' WHERE order_no = '${_esc(orderNo)}'
+      UPDATE lab_orders SET status = '${_esc(status)}', params_json = '${_esc(paramsJson)}', result_date = '$effectiveResultDate'$notesClause WHERE order_no = '${_esc(orderNo)}'
     ''');
     await insertAuditLog('lab', 'UPDATE', 'Lab Order #$orderNo',
         'Results recorded, status set to $status');
@@ -973,6 +1380,11 @@ class HmsDao {
     int? mrpPaise,
     int? costPaise,
   }) async {
+    _validateMedicineQuantities(
+      medicine.stockQty,
+      medicine.reorderLevel,
+      mrpPaise ?? medicine.mrpPaise,
+    );
     final now = DateTime.now().toIso8601String();
     final uuid = medicine.uuid.isNotEmpty
         ? medicine.uuid
@@ -1027,6 +1439,11 @@ class HmsDao {
   }
 
   Future<void> updateMedicine(MedicineModel medicine) async {
+    _validateMedicineQuantities(
+      medicine.stockQty,
+      medicine.reorderLevel,
+      medicine.mrpPaise,
+    );
     final now = DateTime.now().toIso8601String();
     await db.customStatement('''
       UPDATE medicines SET
@@ -1047,6 +1464,22 @@ class HmsDao {
     ''');
     await insertAuditLog('pharmacy', 'UPDATE', 'Medicine #${medicine.name}',
         'Updated medicine information for ${medicine.name}');
+  }
+
+  void _validateMedicineQuantities(
+      int stockQty, int reorderLevel, int mrpPaise) {
+    if (stockQty < 0) {
+      throw ArgumentError.value(
+          stockQty, 'stockQty', 'Must be zero or greater');
+    }
+    if (reorderLevel < 0) {
+      throw ArgumentError.value(
+          reorderLevel, 'reorderLevel', 'Must be zero or greater');
+    }
+    if (mrpPaise < 0) {
+      throw ArgumentError.value(
+          mrpPaise, 'mrpPaise', 'Must be zero or greater');
+    }
   }
 
   Future<void> deleteMedicine(int id, String name) async {
@@ -1388,21 +1821,42 @@ class HmsDao {
   }
 
   // Reports Aggregates
-  Future<Map<String, dynamic>> getReportsData() async {
-    final revenueRow = await db
-        .customSelect(
-            'SELECT sum(total_paise) as total, sum(due_paise) as due FROM invoices')
-        .getSingle();
+
+  // Reports Aggregates
+  Future<Map<String, dynamic>> getReportsData({
+    String? from,
+    String? to,
+  }) async {
+    // Build an optional invoice date filter.
+    final dateFilter = from != null && to != null
+        ? " WHERE date(date_time) BETWEEN date('${_esc(from)}') AND date('${_esc(to)}')"
+        : from != null
+            ? " WHERE date(date_time) >= date('${_esc(from)}')"
+            : to != null
+                ? " WHERE date(date_time) <= date('${_esc(to)}')"
+                : '';
+
+    final revenueRow = await db.customSelect('''
+      SELECT
+        COALESCE(SUM(total_paise), 0) AS total,
+        COALESCE(SUM(due_paise), 0) AS due
+      FROM invoices$dateFilter
+    ''').getSingle();
+
     final opdVisitsRow = await db
-        .customSelect('SELECT count(*) as count FROM opd_visits')
+        .customSelect('SELECT COUNT(*) AS count FROM opd_visits')
         .getSingle();
+
     final admissionsRow = await db
-        .customSelect('SELECT count(*) as count FROM ipd_admissions')
+        .customSelect('SELECT COUNT(*) AS count FROM ipd_admissions')
         .getSingle();
 
     final deptRows = await db.customSelect('''
-      SELECT bill_type, count(*) as tx_count, sum(total_paise) as dept_total 
-      FROM invoices 
+      SELECT
+        bill_type,
+        COUNT(*) AS tx_count,
+        SUM(paid_paise) AS dept_total
+      FROM invoices$dateFilter
       GROUP BY bill_type
     ''').get();
 

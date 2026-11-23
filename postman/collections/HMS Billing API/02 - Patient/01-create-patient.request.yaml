@@ -1,0 +1,55 @@
+$kind: http-request
+name: 'Create Patient'
+order: 1000
+method: POST
+url: '{{base_url}}/api/patients'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "uuid": "{{$guid}}",
+      "uhid": "PST-{{$timestamp}}-{{$randomInt}}",
+      "name": "{{patient_name}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.collectionVariables.unset("patient_id");
+      pm.collectionVariables.unset("patient_uuid");
+      pm.collectionVariables.unset("patient_uhid");
+      pm.collectionVariables.unset("patient_name");
+
+      pm.test("Status is 201", function () {
+          pm.response.to.have.status(201);
+      });
+
+      pm.test("Response has patient id, uuid, uhid, name", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+          pm.expect(jsonData).to.have.property("uuid");
+          pm.expect(jsonData).to.have.property("uhid");
+          pm.expect(jsonData).to.have.property("name");
+      });
+
+      var jsonData = pm.response.json();
+      if (jsonData.id) {
+          pm.collectionVariables.set("patient_id", String(jsonData.id));
+      }
+      if (jsonData.uuid) {
+          pm.collectionVariables.set("patient_uuid", jsonData.uuid);
+      }
+      if (jsonData.uhid) {
+          pm.collectionVariables.set("patient_uhid", jsonData.uhid);
+      }
+      if (jsonData.name) {
+          pm.collectionVariables.set("patient_name", jsonData.name);
+      }

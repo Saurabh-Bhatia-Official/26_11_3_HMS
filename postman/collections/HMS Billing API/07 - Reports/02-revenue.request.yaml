@@ -1,0 +1,26 @@
+$kind: http-request
+name: Get Revenue by Day
+order: 2000
+method: GET
+url: '{{base_url}}/api/reports/revenue?from={{from_date}}&to={{to_date}}'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Revenue response is a list of dated totals", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.be.an("array");
+          if (jsonData.length > 0) {
+              pm.expect(jsonData[0]).to.have.property("date");
+              pm.expect(jsonData[0]).to.have.property("revenuePaise");
+          }
+      });

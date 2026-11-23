@@ -1108,13 +1108,17 @@ class _DoctorScheduleDialogState extends State<_DoctorScheduleDialog> {
     final form = GlobalKey<FormState>();
     var day = (existing?['dayOfWeek'] as num?)?.toInt() ?? 1;
     var slotMinutes = (existing?['slotMinutes'] as num?)?.toInt() ?? 30;
-    final start = TextEditingController(text: existing?['startTime']?.toString().substring(0, 5) ?? '09:00');
-    final end = TextEditingController(text: existing?['endTime']?.toString().substring(0, 5) ?? '17:00');
+    final start = TextEditingController(
+        text: existing?['startTime']?.toString().substring(0, 5) ?? '09:00');
+    final end = TextEditingController(
+        text: existing?['endTime']?.toString().substring(0, 5) ?? '17:00');
     final save = await showDialog<bool>(
         context: context,
         builder: (context) => StatefulBuilder(
             builder: (context, setDialog) => AlertDialog(
-                  title: Text(existing == null ? 'Add recurring schedule' : 'Edit recurring schedule'),
+                  title: Text(existing == null
+                      ? 'Add recurring schedule'
+                      : 'Edit recurring schedule'),
                   content: Form(
                       key: form,
                       child: Column(mainAxisSize: MainAxisSize.min, children: [

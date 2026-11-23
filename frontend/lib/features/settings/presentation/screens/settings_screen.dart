@@ -15,7 +15,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTickerProviderStateMixin {
+class _SettingsScreenState extends ConsumerState<SettingsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   // 1. Hospital Profile Controllers
@@ -80,7 +81,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
 
   String get _normalizedBedTariffCutoff {
     const allowed = ['12:00 PM (Noon)', 'Midnight 12:00 AM', '24-Hour Rolling'];
-    return allowed.contains(_bedTariffCutoff) ? _bedTariffCutoff : '12:00 PM (Noon)';
+    return allowed.contains(_bedTariffCutoff)
+        ? _bedTariffCutoff
+        : '12:00 PM (Noon)';
   }
 
   String get _normalizedTaxRate {
@@ -94,7 +97,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
   }
 
   String get _normalizedAutoLockTime {
-    const allowed = ['5 minutes', '10 minutes', '15 minutes', '30 minutes', 'Never'];
+    const allowed = [
+      '5 minutes',
+      '10 minutes',
+      '15 minutes',
+      '30 minutes',
+      'Never'
+    ];
     return allowed.contains(_autoLockTime) ? _autoLockTime : '15 minutes';
   }
 
@@ -208,7 +217,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
     if (prefix != null) _invoicePrefixController.text = prefix.value;
 
     final disclaimer = await dao.getSetting('invoice_disclaimer');
-    if (disclaimer != null) _invoiceDisclaimerController.text = disclaimer.value;
+    if (disclaimer != null)
+      _invoiceDisclaimerController.text = disclaimer.value;
 
     final autoLock = await dao.getSetting('auto_lock_time');
     if (autoLock != null) _autoLockTime = autoLock.value;
@@ -227,7 +237,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
     await dao.upsertSetting('tagline', _taglineController.text.trim());
     await dao.upsertSetting('address', _addressController.text.trim());
     await dao.upsertSetting('phone', _phoneController.text.trim());
-    await dao.upsertSetting('emergency_phone', _emergencyController.text.trim());
+    await dao.upsertSetting(
+        'emergency_phone', _emergencyController.text.trim());
     await dao.upsertSetting('email', _emailController.text.trim());
     await dao.upsertSetting('website', _websiteController.text.trim());
     await dao.upsertSetting('reg_no', _regNoController.text.trim());
@@ -236,29 +247,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
     await dao.upsertSetting('uhid_prefix', _uhidPrefix);
 
     await dao.upsertSetting('opd_fee', _opdFeeController.text.trim());
-    await dao.upsertSetting('specialist_fee', _specialistFeeController.text.trim());
-    await dao.upsertSetting('followup_days', _followupDaysController.text.trim());
-    await dao.upsertSetting('emergency_surcharge', _emergencySurchargeController.text.trim());
+    await dao.upsertSetting(
+        'specialist_fee', _specialistFeeController.text.trim());
+    await dao.upsertSetting(
+        'followup_days', _followupDaysController.text.trim());
+    await dao.upsertSetting(
+        'emergency_surcharge', _emergencySurchargeController.text.trim());
     await dao.upsertSetting('slot_duration', _slotDuration);
 
     await dao.upsertSetting('auto_bed_cleaning', _autoBedCleaning.toString());
-    await dao.upsertSetting('inpatient_deposit', _inpatientDepositController.text.trim());
+    await dao.upsertSetting(
+        'inpatient_deposit', _inpatientDepositController.text.trim());
     await dao.upsertSetting('bed_tariff_cutoff', _bedTariffCutoff);
-    await dao.upsertSetting('visiting_hours', _visitingHoursController.text.trim());
+    await dao.upsertSetting(
+        'visiting_hours', _visitingHoursController.text.trim());
 
-    await dao.upsertSetting('low_stock_threshold', _lowStockThresholdController.text.trim());
-    await dao.upsertSetting('near_expiry_days', _nearExpiryDaysController.text.trim());
+    await dao.upsertSetting(
+        'low_stock_threshold', _lowStockThresholdController.text.trim());
+    await dao.upsertSetting(
+        'near_expiry_days', _nearExpiryDaysController.text.trim());
     await dao.upsertSetting('enforce_fefo', _enforceFefo.toString());
 
     await dao.upsertSetting('tax_rate', _taxRate);
-    await dao.upsertSetting('invoice_prefix', _invoicePrefixController.text.trim());
-    await dao.upsertSetting('invoice_disclaimer', _invoiceDisclaimerController.text.trim());
+    await dao.upsertSetting(
+        'invoice_prefix', _invoicePrefixController.text.trim());
+    await dao.upsertSetting(
+        'invoice_disclaimer', _invoiceDisclaimerController.text.trim());
     await dao.upsertSetting('auto_lock_time', _autoLockTime);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Hospital settings and policy for "$hospitalName" saved successfully!'),
+          content: Text(
+              'Hospital settings and policy for "$hospitalName" saved successfully!'),
           backgroundColor: Colors.teal.shade800,
         ),
       );
@@ -268,7 +289,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
   void _backupDatabase() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Offline encrypted database backup (.hmsbackup) successfully generated in Backups folder!'),
+        content: const Text(
+            'Offline encrypted database backup (.hmsbackup) successfully generated in Backups folder!'),
         backgroundColor: Colors.teal.shade800,
       ),
     );
@@ -277,7 +299,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
   void _exportCsv(String type) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Exported $type to Documents/HMS_Exports_${DateTime.now().year}.csv'),
+        content: Text(
+            'Exported $type to Documents/HMS_Exports_${DateTime.now().year}.csv'),
         backgroundColor: Colors.teal.shade800,
       ),
     );
@@ -322,7 +345,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: const Text('All database records have been deleted successfully.'),
+                    content: const Text(
+                        'All database records have been deleted successfully.'),
                     backgroundColor: Colors.red.shade900,
                   ),
                 );
@@ -357,12 +381,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
           isScrollable: true,
           tabs: const [
             Tab(icon: Icon(Icons.local_hospital), text: 'Hospital Identity'),
-            Tab(icon: Icon(Icons.medical_services_outlined), text: 'Clinical & OPD Tariffs'),
+            Tab(
+                icon: Icon(Icons.medical_services_outlined),
+                text: 'Clinical & OPD Tariffs'),
             Tab(icon: Icon(Icons.hotel_outlined), text: 'IPD & Bed Policy'),
-            Tab(icon: Icon(Icons.medication_outlined), text: 'Pharmacy Stock Rules'),
-            Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Billing & Taxation'),
+            Tab(
+                icon: Icon(Icons.medication_outlined),
+                text: 'Pharmacy Stock Rules'),
+            Tab(
+                icon: Icon(Icons.receipt_long_outlined),
+                text: 'Billing & Taxation'),
             Tab(icon: Icon(Icons.shield_outlined), text: 'Backup & Security'),
-            Tab(icon: Icon(Icons.manage_accounts_outlined), text: 'Staff & User Accounts'),
+            Tab(
+                icon: Icon(Icons.manage_accounts_outlined),
+                text: 'Staff & User Accounts'),
           ],
         ),
       ),
@@ -414,15 +446,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                       CircleAvatar(
                         radius: 24,
                         backgroundColor: colorScheme.primaryContainer,
-                        child: Icon(Icons.local_hospital, color: colorScheme.onPrimaryContainer, size: 26),
+                        child: Icon(Icons.local_hospital,
+                            color: colorScheme.onPrimaryContainer, size: 26),
                       ),
                       const Gap(16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Hospital Identity & Letterhead', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                            Text('Appears on all OPD slips, discharge summaries, lab reports, and tax invoices.', style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
+                            const Text('Hospital Identity & Letterhead',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold)),
+                            Text(
+                                'Appears on all OPD slips, discharge summaries, lab reports, and tax invoices.',
+                                style: TextStyle(
+                                    color: colorScheme.onSurfaceVariant,
+                                    fontSize: 12)),
                           ],
                         ),
                       ),
@@ -547,13 +586,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                             border: OutlineInputBorder(),
                           ),
                           items: const [
-                            DropdownMenuItem(value: '₹', child: Text('₹ (INR - Indian Rupee)')),
-                            DropdownMenuItem(value: '\$', child: Text('\$ (USD - US Dollar)')),
-                            DropdownMenuItem(value: '€', child: Text('€ (EUR - Euro)')),
-                            DropdownMenuItem(value: '£', child: Text('£ (GBP - British Pound)')),
+                            DropdownMenuItem(
+                                value: '₹',
+                                child: Text('₹ (INR - Indian Rupee)')),
+                            DropdownMenuItem(
+                                value: '\$',
+                                child: Text('\$ (USD - US Dollar)')),
+                            DropdownMenuItem(
+                                value: '€', child: Text('€ (EUR - Euro)')),
+                            DropdownMenuItem(
+                                value: '£',
+                                child: Text('£ (GBP - British Pound)')),
                           ],
                           onChanged: (val) {
-                            if (val != null) setState(() => _currencySymbol = val);
+                            if (val != null)
+                              setState(() => _currencySymbol = val);
                           },
                         ),
                       ),
@@ -568,9 +615,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                             border: OutlineInputBorder(),
                           ),
                           items: const [
-                            DropdownMenuItem(value: 'UHID', child: Text('UHID (e.g. UHID-000001)')),
-                            DropdownMenuItem(value: 'MRN', child: Text('MRN (Medical Record)')),
-                            DropdownMenuItem(value: 'PAT', child: Text('PAT (Patient ID)')),
+                            DropdownMenuItem(
+                                value: 'UHID',
+                                child: Text('UHID (e.g. UHID-000001)')),
+                            DropdownMenuItem(
+                                value: 'MRN',
+                                child: Text('MRN (Medical Record)')),
+                            DropdownMenuItem(
+                                value: 'PAT', child: Text('PAT (Patient ID)')),
                           ],
                           onChanged: (val) {
                             if (val != null) setState(() => _uhidPrefix = val);
@@ -601,8 +653,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Outpatient (OPD) & Consultation Tariffs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text('Configure standard consultation rates, doctor appointment schedules, and free review policies.', style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
+                  const Text('Outpatient (OPD) & Consultation Tariffs',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                      'Configure standard consultation rates, doctor appointment schedules, and free review policies.',
+                      style: TextStyle(
+                          color: colorScheme.onSurfaceVariant, fontSize: 12)),
                   const Divider(height: 32),
                   Row(
                     children: [
@@ -645,7 +702,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                             suffixText: 'Days',
                             prefixIcon: Icon(Icons.event_repeat),
                             border: OutlineInputBorder(),
-                            helperText: 'Return visits within this window are not charged.',
+                            helperText:
+                                'Return visits within this window are not charged.',
                           ),
                         ),
                       ),
@@ -659,7 +717,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                             suffixText: '%',
                             prefixIcon: Icon(Icons.warning_amber),
                             border: OutlineInputBorder(),
-                            helperText: 'Additional markup for after-hours emergency care.',
+                            helperText:
+                                'Additional markup for after-hours emergency care.',
                           ),
                         ),
                       ),
@@ -675,10 +734,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: '10 minutes', child: Text('10 minutes per patient')),
-                      DropdownMenuItem(value: '15 minutes', child: Text('15 minutes per patient (Standard)')),
-                      DropdownMenuItem(value: '20 minutes', child: Text('20 minutes per patient')),
-                      DropdownMenuItem(value: '30 minutes', child: Text('30 minutes per patient')),
+                      DropdownMenuItem(
+                          value: '10 minutes',
+                          child: Text('10 minutes per patient')),
+                      DropdownMenuItem(
+                          value: '15 minutes',
+                          child: Text('15 minutes per patient (Standard)')),
+                      DropdownMenuItem(
+                          value: '20 minutes',
+                          child: Text('20 minutes per patient')),
+                      DropdownMenuItem(
+                          value: '30 minutes',
+                          child: Text('30 minutes per patient')),
                     ],
                     onChanged: (v) {
                       if (v != null) setState(() => _slotDuration = v);
@@ -706,19 +773,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Inpatient (IPD), Admission & Bed Policy', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text('Set bed occupancy calculation rules, housekeeping triggers, and advance deposits.', style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
+                  const Text('Inpatient (IPD), Admission & Bed Policy',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                      'Set bed occupancy calculation rules, housekeeping triggers, and advance deposits.',
+                      style: TextStyle(
+                          color: colorScheme.onSurfaceVariant, fontSize: 12)),
                   const Divider(height: 32),
                   SwitchListTile(
-                    title: const Text('Auto-Trigger Bed Cleaning On Patient Discharge'),
-                    subtitle: const Text('Immediately flags bed as "Cleaning" so housekeeping is notified before next admission.'),
+                    title: const Text(
+                        'Auto-Trigger Bed Cleaning On Patient Discharge'),
+                    subtitle: const Text(
+                        'Immediately flags bed as "Cleaning" so housekeeping is notified before next admission.'),
                     value: _autoBedCleaning,
                     onChanged: (val) => setState(() => _autoBedCleaning = val),
                   ),
                   const Divider(),
                   SwitchListTile(
                     title: const Text('Mandatory Inpatient Advance Deposit'),
-                    subtitle: const Text('Requires front-desk to collect security deposit prior to bed allocation.'),
+                    subtitle: const Text(
+                        'Requires front-desk to collect security deposit prior to bed allocation.'),
                     value: _mandatoryDeposit,
                     onChanged: (val) => setState(() => _mandatoryDeposit = val),
                   ),
@@ -732,7 +807,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                           decoration: InputDecoration(
                             labelText: 'Standard IPD Advance Deposit',
                             prefixText: '$_currencySymbol ',
-                            prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
+                            prefixIcon: const Icon(
+                                Icons.account_balance_wallet_outlined),
                             border: const OutlineInputBorder(),
                           ),
                         ),
@@ -748,9 +824,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                             border: OutlineInputBorder(),
                           ),
                           items: const [
-                            DropdownMenuItem(value: '12:00 PM (Noon)', child: Text('12:00 PM (Standard Hotel Cutoff)')),
-                            DropdownMenuItem(value: 'Midnight 12:00 AM', child: Text('Midnight 12:00 AM (Calendar Day)')),
-                            DropdownMenuItem(value: '24-Hour Rolling', child: Text('Exact 24 Hours From Check-in')),
+                            DropdownMenuItem(
+                                value: '12:00 PM (Noon)',
+                                child:
+                                    Text('12:00 PM (Standard Hotel Cutoff)')),
+                            DropdownMenuItem(
+                                value: 'Midnight 12:00 AM',
+                                child:
+                                    Text('Midnight 12:00 AM (Calendar Day)')),
+                            DropdownMenuItem(
+                                value: '24-Hour Rolling',
+                                child: Text('Exact 24 Hours From Check-in')),
                           ],
                           onChanged: (v) {
                             if (v != null) setState(() => _bedTariffCutoff = v);
@@ -790,8 +874,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Pharmacy & Medication Inventory Rules', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text('Set stock reorder alerts, expiry prevention windows, and FEFO dispensing priority.', style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
+                  const Text('Pharmacy & Medication Inventory Rules',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                      'Set stock reorder alerts, expiry prevention windows, and FEFO dispensing priority.',
+                      style: TextStyle(
+                          color: colorScheme.onSurfaceVariant, fontSize: 12)),
                   const Divider(height: 32),
                   Row(
                     children: [
@@ -804,7 +893,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                             suffixText: 'Units',
                             prefixIcon: Icon(Icons.inventory_2_outlined),
                             border: OutlineInputBorder(),
-                            helperText: 'Triggers restock alert when medicine falls below this.',
+                            helperText:
+                                'Triggers restock alert when medicine falls below this.',
                           ),
                         ),
                       ),
@@ -818,7 +908,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                             suffixText: 'Days',
                             prefixIcon: Icon(Icons.timer_outlined),
                             border: OutlineInputBorder(),
-                            helperText: 'Alerts pharmacist when a batch will expire within X days.',
+                            helperText:
+                                'Alerts pharmacist when a batch will expire within X days.',
                           ),
                         ),
                       ),
@@ -827,7 +918,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                   const Gap(16),
                   SwitchListTile(
                     title: const Text('Enforce First-Expiry-First-Out (FEFO)'),
-                    subtitle: const Text('Automatically recommends dispensing batches closest to expiration first.'),
+                    subtitle: const Text(
+                        'Automatically recommends dispensing batches closest to expiration first.'),
                     value: _enforceFefo,
                     onChanged: (v) => setState(() => _enforceFefo = v),
                   ),
@@ -853,8 +945,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Billing, Taxation & Invoicing Policy', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text('Set tax rates, receipt formatting, numbering sequences, and terms of service.', style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
+                  const Text('Billing, Taxation & Invoicing Policy',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                      'Set tax rates, receipt formatting, numbering sequences, and terms of service.',
+                      style: TextStyle(
+                          color: colorScheme.onSurfaceVariant, fontSize: 12)),
                   const Divider(height: 32),
                   Row(
                     children: [
@@ -868,10 +965,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                             border: OutlineInputBorder(),
                           ),
                           items: const [
-                            DropdownMenuItem(value: '0% (Exempt)', child: Text('0% (Healthcare Services Exempt)')),
-                            DropdownMenuItem(value: '5% (Standard Consumables)', child: Text('5% (Medicines & Consumables)')),
-                            DropdownMenuItem(value: '12% (Medical Devices)', child: Text('12% (Medical Implants & Devices)')),
-                            DropdownMenuItem(value: '18% (Commercial)', child: Text('18% (Commercial Services)')),
+                            DropdownMenuItem(
+                                value: '0% (Exempt)',
+                                child: Text('0% (Healthcare Services Exempt)')),
+                            DropdownMenuItem(
+                                value: '5% (Standard Consumables)',
+                                child: Text('5% (Medicines & Consumables)')),
+                            DropdownMenuItem(
+                                value: '12% (Medical Devices)',
+                                child:
+                                    Text('12% (Medical Implants & Devices)')),
+                            DropdownMenuItem(
+                                value: '18% (Commercial)',
+                                child: Text('18% (Commercial Services)')),
                           ],
                           onChanged: (v) {
                             if (v != null) setState(() => _taxRate = v);
@@ -900,7 +1006,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                       labelText: 'Printed Bill Terms & Legal Disclaimer',
                       prefixIcon: Icon(Icons.gavel_outlined),
                       border: OutlineInputBorder(),
-                      helperText: 'Printed at the bottom of all patient invoices and receipts.',
+                      helperText:
+                          'Printed at the bottom of all patient invoices and receipts.',
                     ),
                   ),
                 ],
@@ -928,20 +1035,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Theme & Appearance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Text('Theme & Appearance',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
                       const Gap(12),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Application Color Theme'),
-                        subtitle: const Text('Toggle between clean clinical light theme and night-shift dark theme'),
+                        subtitle: const Text(
+                            'Toggle between clean clinical light theme and night-shift dark theme'),
                         trailing: SegmentedButton<ThemeMode>(
                           segments: const [
-                            ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode)),
-                            ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode)),
+                            ButtonSegment(
+                                value: ThemeMode.light,
+                                label: Text('Light'),
+                                icon: Icon(Icons.light_mode)),
+                            ButtonSegment(
+                                value: ThemeMode.dark,
+                                label: Text('Dark'),
+                                icon: Icon(Icons.dark_mode)),
                           ],
-                          selected: {themeMode == ThemeMode.dark ? ThemeMode.dark : ThemeMode.light},
+                          selected: {
+                            themeMode == ThemeMode.dark
+                                ? ThemeMode.dark
+                                : ThemeMode.light
+                          },
                           onSelectionChanged: (set) {
-                            ref.read(themeModeProvider.notifier).setThemeMode(set.first);
+                            ref
+                                .read(themeModeProvider.notifier)
+                                .setThemeMode(set.first);
                           },
                         ),
                       ),
@@ -959,7 +1081,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Security, Roles & Auto-Lock', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Text('Security, Roles & Auto-Lock',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
                       const Gap(16),
                       Row(
                         children: [
@@ -973,14 +1097,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                                 border: OutlineInputBorder(),
                               ),
                               items: const [
-                                DropdownMenuItem(value: '5 minutes', child: Text('5 minutes of inactivity')),
-                                DropdownMenuItem(value: '10 minutes', child: Text('10 minutes of inactivity')),
-                                DropdownMenuItem(value: '15 minutes', child: Text('15 minutes (Recommended)')),
-                                DropdownMenuItem(value: '30 minutes', child: Text('30 minutes')),
-                                DropdownMenuItem(value: 'Never', child: Text('Never (Disabled)')),
+                                DropdownMenuItem(
+                                    value: '5 minutes',
+                                    child: Text('5 minutes of inactivity')),
+                                DropdownMenuItem(
+                                    value: '10 minutes',
+                                    child: Text('10 minutes of inactivity')),
+                                DropdownMenuItem(
+                                    value: '15 minutes',
+                                    child: Text('15 minutes (Recommended)')),
+                                DropdownMenuItem(
+                                    value: '30 minutes',
+                                    child: Text('30 minutes')),
+                                DropdownMenuItem(
+                                    value: 'Never',
+                                    child: Text('Never (Disabled)')),
                               ],
                               onChanged: (v) {
-                                if (v != null) setState(() => _autoLockTime = v);
+                                if (v != null)
+                                  setState(() => _autoLockTime = v);
                               },
                             ),
                           ),
@@ -988,9 +1123,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                           Expanded(
                             child: SwitchListTile(
                               title: const Text('Role-Based Access Control'),
-                              subtitle: const Text('Enforce role permissions strictly'),
+                              subtitle: const Text(
+                                  'Enforce role permissions strictly'),
                               value: _enforceRbac,
-                              onChanged: (v) => setState(() => _enforceRbac = v),
+                              onChanged: (v) =>
+                                  setState(() => _enforceRbac = v),
                             ),
                           ),
                         ],
@@ -1011,17 +1148,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.storage_rounded, color: Colors.teal.shade700),
+                          Icon(Icons.storage_rounded,
+                              color: Colors.teal.shade700),
                           const Gap(8),
                           const Expanded(
-                            child: Text('Offline SQLite Database & Backup Controls', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            child: Text(
+                                'Offline SQLite Database & Backup Controls',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
                       const Gap(8),
                       Text(
                         'All clinical records, prescriptions, and billing transactions are stored locally on this machine (offline-first). No external cloud connection required.',
-                        style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13),
+                        style: TextStyle(
+                            color: colorScheme.onSurfaceVariant, fontSize: 13),
                       ),
                       const Gap(20),
                       Wrap(
@@ -1037,17 +1179,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                             onPressed: () {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Database integrity check passed: PRAGMA integrity_check = OK. All 14 tables verified.'),
+                                  content: Text(
+                                      'Database integrity check passed: PRAGMA integrity_check = OK. All 14 tables verified.'),
                                   backgroundColor: Colors.green,
                                 ),
                               );
                             },
-                            icon: const Icon(Icons.verified_user_outlined, size: 18),
+                            icon: const Icon(Icons.verified_user_outlined,
+                                size: 18),
                             label: const Text('Verify DB Integrity'),
                           ),
                           OutlinedButton.icon(
                             onPressed: () => _exportCsv('Patient Records'),
-                            icon: const Icon(Icons.file_download_outlined, size: 18),
+                            icon: const Icon(Icons.file_download_outlined,
+                                size: 18),
                             label: const Text('Export Patients CSV'),
                           ),
                           OutlinedButton.icon(
@@ -1070,7 +1215,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.delete_forever, color: Colors.red.shade800, size: 32),
+                            Icon(Icons.delete_forever,
+                                color: Colors.red.shade800, size: 32),
                             const Gap(16),
                             Expanded(
                               child: Column(
@@ -1078,11 +1224,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                                 children: [
                                   Text(
                                     'Danger Zone: Clear All Database Records',
-                                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade900),
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red.shade900),
                                   ),
                                   Text(
                                     'Permanently delete all patient records, visits, admissions, invoices, lab orders, and logs from the local database.',
-                                    style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+                                    style: TextStyle(
+                                        color: Colors.red.shade700,
+                                        fontSize: 12),
                                   ),
                                 ],
                               ),
@@ -1131,7 +1281,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                   gradient: LinearGradient(
                     colors: [
                       colorScheme.primaryContainer.withValues(alpha: 0.6),
-                      colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                      colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.4),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(16),
@@ -1145,7 +1296,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                         color: colorScheme.primary,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(Icons.shield_outlined, color: colorScheme.onPrimary, size: 28),
+                      child: Icon(Icons.shield_outlined,
+                          color: colorScheme.onPrimary, size: 28),
                     ),
                     const Gap(16),
                     Expanded(
@@ -1154,20 +1306,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                         children: [
                           Text(
                             'Staff & User Account Provisioning (Super Admin Settings)',
-                            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                            style: textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const Gap(4),
                           Text(
                             'In accordance with clinical data protection, all staff accounts (Doctors, Nurses, Receptionists, Pharmacists, Lab Techs, and Admins) must be provisioned and assigned to hospital branches through Super Admin Settings.',
-                            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                            style: textTheme.bodySmall
+                                ?.copyWith(color: colorScheme.onSurfaceVariant),
                           ),
                         ],
                       ),
                     ),
                     const Gap(16),
                     FilledButton.icon(
-                      onPressed: () => _showProvisionStaffDialog(hospitalsAsync.valueOrNull ?? []),
-                      icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                      onPressed: () => _showProvisionStaffDialog(
+                          hospitalsAsync.valueOrNull ?? []),
+                      icon:
+                          const Icon(Icons.person_add_alt_1_rounded, size: 18),
                       label: const Text('Provision Staff Account'),
                     ),
                   ],
@@ -1178,13 +1334,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
               // ── Accounts List Title ────────────────────────────────────────
               Text(
                 'Active System Accounts & Staff Credentials',
-                style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                style:
+                    textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               const Gap(12),
 
               usersAsync.when(
-                loading: () => const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator())),
-                error: (e, _) => Center(child: Text('Error loading user accounts: $e')),
+                loading: () => const Center(
+                    child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: CircularProgressIndicator())),
+                error: (e, _) =>
+                    Center(child: Text('Error loading user accounts: $e')),
                 data: (users) {
                   return ListView.separated(
                     shrinkWrap: true,
@@ -1192,8 +1353,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                     itemCount: users.length,
                     separatorBuilder: (_, __) => const Gap(10),
                     itemBuilder: (context, idx) {
-                      final u = users[idx];
-                      final isDemo = u.id < 100;
+                      // allUsersProvider returns Map<String, dynamic>, so read
+                      // each user field using its map key rather than a model getter.
+                      final Map<String, dynamic> u =
+                          Map<String, dynamic>.from(users[idx] as Map);
+
+                      final userId = int.tryParse('${u['id'] ?? ''}') ?? 0;
+                      final username = (u['username'] ?? '').toString();
+                      final fullName = (u['fullName'] ?? '').toString();
+                      final role = (u['role'] ?? 'Staff').toString();
+                      final email = (u['email'] ?? '').toString();
+                      final hospitalName = u['hospitalName']?.toString();
+                      final isDemo = userId < 100;
+                      final roleColor = _getRoleColor(role);
+                      final displayName =
+                          fullName.isNotEmpty ? fullName : username;
+                      final avatarText = displayName.isNotEmpty
+                          ? displayName[0].toUpperCase()
+                          : '?';
 
                       return Card(
                         elevation: 0,
@@ -1202,15 +1379,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                           side: BorderSide(color: colorScheme.outlineVariant),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
                           child: Row(
                             children: [
                               CircleAvatar(
-                                backgroundColor: _getRoleColor(u.role).withValues(alpha: 0.15),
-                                foregroundColor: _getRoleColor(u.role),
+                                backgroundColor:
+                                    roleColor.withValues(alpha: 0.15),
+                                foregroundColor: roleColor,
                                 child: Text(
-                                  u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : u.username[0].toUpperCase(),
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  avatarText,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
                                 ),
                               ),
                               const Gap(16),
@@ -1218,65 +1398,108 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
+                                    Wrap(
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      spacing: 8,
+                                      runSpacing: 6,
                                       children: [
                                         Text(
-                                          u.fullName,
-                                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                                          displayName,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 15),
                                         ),
-                                        const Gap(8),
                                         Text(
-                                          '(@${u.username})',
-                                          style: TextStyle(color: colorScheme.outline, fontSize: 13),
+                                          username.isNotEmpty
+                                              ? '(@$username)'
+                                              : '',
+                                          style: TextStyle(
+                                              color: colorScheme.outline,
+                                              fontSize: 13),
                                         ),
-                                        const Gap(8),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: _getRoleColor(u.role).withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: _getRoleColor(u.role).withValues(alpha: 0.4)),
+                                            color: roleColor.withValues(
+                                                alpha: 0.15),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                            border: Border.all(
+                                                color: roleColor.withValues(
+                                                    alpha: 0.4)),
                                           ),
                                           child: Text(
-                                            u.role,
+                                            role,
                                             style: TextStyle(
-                                              color: _getRoleColor(u.role),
+                                              color: roleColor,
                                               fontWeight: FontWeight.bold,
                                               fontSize: 11,
                                             ),
                                           ),
                                         ),
-                                        if (isDemo) ...[
-                                          const Gap(8),
+                                        if (isDemo)
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(
-                                              color: colorScheme.surfaceContainerHighest,
-                                              borderRadius: BorderRadius.circular(4),
+                                              color: colorScheme
+                                                  .surfaceContainerHighest,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                             ),
                                             child: Text(
                                               'BUILT-IN',
-                                              style: TextStyle(color: colorScheme.outline, fontSize: 10, fontWeight: FontWeight.bold),
+                                              style: TextStyle(
+                                                  color: colorScheme.outline,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold),
                                             ),
                                           ),
-                                        ],
                                       ],
                                     ),
                                     const Gap(4),
-                                    Row(
+                                    Wrap(
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      spacing: 16,
+                                      runSpacing: 4,
                                       children: [
-                                        Icon(Icons.domain_rounded, size: 14, color: colorScheme.outline),
-                                        const Gap(4),
-                                        Text(
-                                          u.hospitalName != null ? 'Hospital: ${u.hospitalName}' : 'Default Network Entity',
-                                          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.domain_rounded,
+                                                size: 14,
+                                                color: colorScheme.outline),
+                                            const Gap(4),
+                                            Text(
+                                              hospitalName != null &&
+                                                      hospitalName.isNotEmpty
+                                                  ? 'Hospital: $hospitalName'
+                                                  : 'Default Network Entity',
+                                              style: TextStyle(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                  fontSize: 12),
+                                            ),
+                                          ],
                                         ),
-                                        const Gap(16),
-                                        Icon(Icons.email_outlined, size: 14, color: colorScheme.outline),
-                                        const Gap(4),
-                                        Text(
-                                          u.email,
-                                          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.email_outlined,
+                                                size: 14,
+                                                color: colorScheme.outline),
+                                            const Gap(4),
+                                            Text(
+                                              email,
+                                              style: TextStyle(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                  fontSize: 12),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
@@ -1285,9 +1508,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                               ),
                               if (!isDemo)
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.red),
                                   tooltip: 'Delete User Account',
-                                  onPressed: () => _confirmDeleteUser(u.username, u.fullName),
+                                  onPressed: () =>
+                                      _confirmDeleteUser(username, fullName),
                                 ),
                             ],
                           ),
@@ -1325,7 +1550,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
     final passwordCtrl = TextEditingController();
     final confirmPasswordCtrl = TextEditingController();
     String selectedRole = 'Doctor';
-    HospitalModel? selectedHospital = hospitals.isNotEmpty ? hospitals.first : null;
+    HospitalModel? selectedHospital =
+        hospitals.isNotEmpty ? hospitals.first : null;
 
     showDialog(
       context: context,
@@ -1357,11 +1583,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                         items: hospitals.map((h) {
                           return DropdownMenuItem(
                             value: h,
-                            child: Text('${h.name} (${h.code})', overflow: TextOverflow.ellipsis),
+                            child: Text('${h.name} (${h.code})',
+                                overflow: TextOverflow.ellipsis),
                           );
                         }).toList(),
                         onChanged: (val) {
-                          if (val != null) setDlgState(() => selectedHospital = val);
+                          if (val != null)
+                            setDlgState(() => selectedHospital = val);
                         },
                       ),
                       const Gap(12),
@@ -1373,7 +1601,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                         hintText: 'e.g. Dr. Arthur Miller',
                         prefixIcon: Icon(Icons.badge_outlined),
                       ),
-                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'Required' : null,
                     ),
                     const Gap(12),
                     Row(
@@ -1387,7 +1616,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                               prefixIcon: Icon(Icons.person_outline),
                             ),
                             validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'Required';
+                              if (v == null || v.trim().isEmpty)
+                                return 'Required';
                               if (v.trim().contains(' ')) return 'No spaces';
                               return null;
                             },
@@ -1403,17 +1633,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                               prefixIcon: Icon(Icons.security),
                             ),
                             items: const [
-                              DropdownMenuItem(value: 'Doctor', child: Text('Doctor')),
-                              DropdownMenuItem(value: 'Nurse', child: Text('Nurse')),
-                              DropdownMenuItem(value: 'Receptionist', child: Text('Receptionist')),
-                              DropdownMenuItem(value: 'Pharmacist', child: Text('Pharmacist')),
-                              DropdownMenuItem(value: 'Lab Technician', child: Text('Lab Tech')),
-                              DropdownMenuItem(value: 'Accounts', child: Text('Accounts')),
-                              DropdownMenuItem(value: 'Admin', child: Text('Hospital Admin')),
-                              DropdownMenuItem(value: 'Staff', child: Text('Staff')),
+                              DropdownMenuItem(
+                                  value: 'Doctor', child: Text('Doctor')),
+                              DropdownMenuItem(
+                                  value: 'Nurse', child: Text('Nurse')),
+                              DropdownMenuItem(
+                                  value: 'Receptionist',
+                                  child: Text('Receptionist')),
+                              DropdownMenuItem(
+                                  value: 'Pharmacist',
+                                  child: Text('Pharmacist')),
+                              DropdownMenuItem(
+                                  value: 'Lab Technician',
+                                  child: Text('Lab Tech')),
+                              DropdownMenuItem(
+                                  value: 'Accounts', child: Text('Accounts')),
+                              DropdownMenuItem(
+                                  value: 'Admin',
+                                  child: Text('Hospital Admin')),
+                              DropdownMenuItem(
+                                  value: 'Staff', child: Text('Staff')),
                             ],
                             onChanged: (v) {
-                              if (v != null) setDlgState(() => selectedRole = v);
+                              if (v != null)
+                                setDlgState(() => selectedRole = v);
                             },
                           ),
                         ),
@@ -1427,7 +1670,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                         hintText: 'amiller@hospital.org',
                         prefixIcon: Icon(Icons.email_outlined),
                       ),
-                      validator: (v) => v == null || !v.contains('@') ? 'Valid email required' : null,
+                      validator: (v) => v == null || !v.contains('@')
+                          ? 'Valid email required'
+                          : null,
                     ),
                     const Gap(12),
                     Row(
@@ -1440,7 +1685,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                               labelText: 'Password *',
                               prefixIcon: Icon(Icons.lock_outline),
                             ),
-                            validator: (v) => v == null || v.length < 6 ? 'Min 6 characters' : null,
+                            validator: (v) => v == null || v.length < 6
+                                ? 'Min 6 characters'
+                                : null,
                           ),
                         ),
                         const Gap(12),
@@ -1452,7 +1699,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                               labelText: 'Confirm Password *',
                               prefixIcon: Icon(Icons.lock_reset),
                             ),
-                            validator: (v) => v != passwordCtrl.text ? 'Passwords do not match' : null,
+                            validator: (v) => v != passwordCtrl.text
+                                ? 'Passwords do not match'
+                                : null,
                           ),
                         ),
                       ],
@@ -1463,7 +1712,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
             FilledButton.icon(
               icon: const Icon(Icons.save, size: 16),
               label: const Text('Provision Account'),
@@ -1498,7 +1749,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Provisioned $selectedRole account for "${fullNameCtrl.text.trim()}" successfully!'),
+                      content: Text(
+                          'Provisioned $selectedRole account for "${fullNameCtrl.text.trim()}" successfully!'),
                       backgroundColor: Colors.teal.shade800,
                     ),
                   );
@@ -1522,9 +1774,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
             Text('Remove User Account'),
           ],
         ),
-        content: Text('Are you sure you want to permanently delete user account "$fullName" (@$username)?'),
+        content: Text(
+            'Are you sure you want to permanently delete user account "$fullName" (@$username)?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade800),
             onPressed: () async {

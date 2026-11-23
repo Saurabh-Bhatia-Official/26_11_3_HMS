@@ -1,0 +1,14 @@
+name: New Environment
+values:
+  - key: base_url
+    value: 'http://localhost:12223'
+    enabled: true
+    type: default
+  - key: username
+    value: admin
+    enabled: true
+    type: default
+  - key: password
+    value: ''
+    enabled: true
+    type: default

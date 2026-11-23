@@ -19,7 +19,9 @@ class AuditLogScreen extends ConsumerWidget {
           OutlinedButton.icon(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Audit log exported as CSV for legal compliance.')),
+                const SnackBar(
+                    content: Text(
+                        'Audit log exported as CSV for legal compliance.')),
               );
             },
             icon: const Icon(Icons.file_download_outlined, size: 18),
@@ -55,7 +57,9 @@ class AuditLogScreen extends ConsumerWidget {
                           ),
                           Text(
                             'All authentication, patient access, admissions, and financial events are cryptographically tracked.',
-                            style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: colorScheme.onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -68,7 +72,8 @@ class AuditLogScreen extends ConsumerWidget {
             Expanded(
               child: logsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error loading audit logs: $e')),
+                error: (e, _) =>
+                    Center(child: Text('Error loading audit logs: $e')),
                 data: (logs) {
                   if (logs.isEmpty) {
                     return const Center(child: Text('No audit logs recorded.'));
@@ -82,43 +87,59 @@ class AuditLogScreen extends ConsumerWidget {
                       separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final log = logs[index];
-                        final isCreate = log.action == 'CREATE' || log.action == 'BOOK' || log.action == 'ADMIT';
+                        final isCreate = log.action == 'CREATE' ||
+                            log.action == 'BOOK' ||
+                            log.action == 'ADMIT';
 
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
                           leading: CircleAvatar(
                             radius: 18,
-                            backgroundColor: isCreate ? Colors.green.shade100 : Colors.blue.shade100,
+                            backgroundColor: isCreate
+                                ? Colors.green.shade100
+                                : Colors.blue.shade100,
                             child: Text(
                               log.action.isNotEmpty ? log.action[0] : 'A',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: isCreate ? Colors.green.shade900 : Colors.blue.shade900,
+                                color: isCreate
+                                    ? Colors.green.shade900
+                                    : Colors.blue.shade900,
                               ),
                             ),
                           ),
                           title: Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: Colors.grey.shade200,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   log.action,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11),
                                 ),
                               ),
                               const Gap(8),
-                              Text(log.entity, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text(log.entity,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold)),
                               const Spacer(),
-                              Text(log.timestamp, style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant)),
+                              Text(log.timestamp,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurfaceVariant)),
                             ],
                           ),
                           subtitle: Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Text('${log.details} • user: ${log.userName}'),
+                            child:
+                                Text('${log.details} • user: ${log.userName}'),
                           ),
                         );
                       },

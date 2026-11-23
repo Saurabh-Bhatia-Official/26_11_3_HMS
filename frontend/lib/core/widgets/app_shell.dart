@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/auth/auto_lock_service.dart';
+import 'package:hospital_management/core/auth/hospital_switch_auth.dart';
 import 'package:hospital_management/core/auth/session_service.dart';
 import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/providers/hospital_name_provider.dart';
@@ -13,7 +14,6 @@ import 'package:hospital_management/data/models/hms_models.dart';
 import 'package:hospital_management/features/patients/patients_provider.dart';
 
 class NavDestination {
-
   const NavDestination({
     required this.label,
     required this.icon,
@@ -185,32 +185,45 @@ class _AppShellState extends ConsumerState<AppShell> {
                       child: FutureBuilder(
                         future: repo.search(query, limit: 10),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: CircularProgressIndicator()));
                           }
                           final list = snapshot.data ?? [];
                           if (list.isEmpty) {
                             return Padding(
                               padding: const EdgeInsets.all(16),
-                              child: Text(query.isEmpty ? 'Type to search patient directory' : 'No patients found matching "$query"'),
+                              child: Text(query.isEmpty
+                                  ? 'Type to search patient directory'
+                                  : 'No patients found matching "$query"'),
                             );
                           }
                           return ListView.separated(
                             shrinkWrap: true,
                             itemCount: list.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
                             itemBuilder: (context, idx) {
                               final p = list[idx];
                               return ListTile(
                                 leading: CircleAvatar(
-                                  child: Text(p.name.isNotEmpty ? p.name[0] : 'P'),
+                                  child:
+                                      Text(p.name.isNotEmpty ? p.name[0] : 'P'),
                                 ),
-                                title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                subtitle: Text('${p.uhid} • ${p.gender ?? ""} ${p.age}y • ${p.phone ?? ""}'),
-                                trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                                title: Text(p.name,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold)),
+                                subtitle: Text(
+                                    '${p.uhid} • ${p.gender ?? ""} ${p.age}y • ${p.phone ?? ""}'),
+                                trailing: const Icon(Icons.arrow_forward_ios,
+                                    size: 14),
                                 onTap: () {
                                   Navigator.pop(dialogContext);
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) {
                                     context.go('/patients/${p.id}');
                                   });
                                 },
@@ -272,14 +285,22 @@ class _AppShellState extends ConsumerState<AppShell> {
               children: [
                 TextFormField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Hospital Name *', hintText: 'e.g. CareSync City Hospital'),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Hospital name is required' : null,
+                  decoration: const InputDecoration(
+                      labelText: 'Hospital Name *',
+                      hintText: 'e.g. CareSync City Hospital'),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Hospital name is required'
+                      : null,
                 ),
                 const Gap(10),
                 TextFormField(
                   controller: codeCtrl,
-                  decoration: const InputDecoration(labelText: 'Branch Code *', hintText: 'e.g. CS-CITY, CS-NORTH'),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Branch code is required' : null,
+                  decoration: const InputDecoration(
+                      labelText: 'Branch Code *',
+                      hintText: 'e.g. CS-CITY, CS-NORTH'),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Branch code is required'
+                      : null,
                 ),
                 const Gap(10),
                 DropdownButtonFormField<String>(
@@ -294,11 +315,21 @@ class _AppShellState extends ConsumerState<AppShell> {
                       : 'Multispeciality Hospital',
                   decoration: const InputDecoration(labelText: 'Facility Type'),
                   items: const [
-                    DropdownMenuItem(value: 'Multispeciality Hospital', child: Text('Multispeciality Hospital')),
-                    DropdownMenuItem(value: 'Trauma & Emergency Center', child: Text('Trauma & Emergency Center')),
-                    DropdownMenuItem(value: 'General Hospital', child: Text('General Hospital')),
-                    DropdownMenuItem(value: 'Diagnostic Clinic', child: Text('Diagnostic Clinic')),
-                    DropdownMenuItem(value: 'Day Surgery Center', child: Text('Day Surgery Center')),
+                    DropdownMenuItem(
+                        value: 'Multispeciality Hospital',
+                        child: Text('Multispeciality Hospital')),
+                    DropdownMenuItem(
+                        value: 'Trauma & Emergency Center',
+                        child: Text('Trauma & Emergency Center')),
+                    DropdownMenuItem(
+                        value: 'General Hospital',
+                        child: Text('General Hospital')),
+                    DropdownMenuItem(
+                        value: 'Diagnostic Clinic',
+                        child: Text('Diagnostic Clinic')),
+                    DropdownMenuItem(
+                        value: 'Day Surgery Center',
+                        child: Text('Day Surgery Center')),
                   ],
                   onChanged: (v) {
                     if (v != null) typeCtrl.text = v;
@@ -307,22 +338,27 @@ class _AppShellState extends ConsumerState<AppShell> {
                 const Gap(10),
                 TextFormField(
                   controller: addressCtrl,
-                  decoration: const InputDecoration(labelText: 'Address', hintText: 'Street, City, State'),
+                  decoration: const InputDecoration(
+                      labelText: 'Address', hintText: 'Street, City, State'),
                 ),
                 const Gap(10),
                 TextFormField(
                   controller: phoneCtrl,
-                  decoration: const InputDecoration(labelText: 'Phone', hintText: '+91 98765 43210'),
+                  decoration: const InputDecoration(
+                      labelText: 'Phone', hintText: '+91 98765 43210'),
                 ),
                 const Gap(10),
                 TextFormField(
                   controller: emailCtrl,
-                  decoration: const InputDecoration(labelText: 'Email', hintText: 'branch@caresync.health'),
+                  decoration: const InputDecoration(
+                      labelText: 'Email', hintText: 'branch@caresync.health'),
                 ),
                 const Gap(10),
                 TextFormField(
                   controller: taxCtrl,
-                  decoration: const InputDecoration(labelText: 'GSTIN / Tax ID', hintText: 'e.g. GSTIN27AABCT3518Q1Z5'),
+                  decoration: const InputDecoration(
+                      labelText: 'GSTIN / Tax ID',
+                      hintText: 'e.g. GSTIN27AABCT3518Q1Z5'),
                 ),
               ],
             ),
@@ -338,11 +374,13 @@ class _AppShellState extends ConsumerState<AppShell> {
               if (!formKey.currentState!.validate()) return;
               Navigator.pop(ctx);
 
+              final code = codeCtrl.text.trim().toUpperCase();
+              final name = nameCtrl.text.trim();
               final newHospital = HospitalModel(
                 id: 0,
                 uuid: 'hosp-${DateTime.now().millisecondsSinceEpoch}',
-                name: nameCtrl.text.trim(),
-                code: codeCtrl.text.trim().toUpperCase(),
+                name: name,
+                code: code,
                 type: typeCtrl.text.trim(),
                 address: addressCtrl.text.trim(),
                 phone: phoneCtrl.text.trim(),
@@ -352,25 +390,37 @@ class _AppShellState extends ConsumerState<AppShell> {
               );
 
               final db = ref.read(appDatabaseProvider);
-              await db.hmsDao.insertHospital(newHospital);
+              await db.hmsDao.createHospitalWithDefaultStaff(
+                hospital: newHospital,
+                superAdminUsername: '${code.toLowerCase()}_superadmin',
+                superAdminFullName: '$name Super Administrator',
+                superAdminEmail: emailCtrl.text.trim().isNotEmpty
+                    ? emailCtrl.text.trim()
+                    : 'superadmin@${code.toLowerCase()}.health',
+                superAdminPassword: 'SuperAdmin@1234',
+                adminUsername: '${code.toLowerCase()}_admin',
+                adminPassword: 'Admin@1234',
+                doctorUsername: '${code.toLowerCase()}_doctor',
+                doctorPassword: 'Doctor@1234',
+                nurseUsername: '${code.toLowerCase()}_nurse',
+                nursePassword: 'Nurse@1234',
+                staffUsername: '${code.toLowerCase()}_staff',
+                staffPassword: 'Staff@1234',
+              );
               ref.invalidate(allHospitalsProvider);
-
-              // Automatically switch to the newly created hospital
-              final all = await db.hmsDao.getAllHospitals();
-              final created = all.lastWhere((h) => h.code == newHospital.code, orElse: () => newHospital);
-              await ref.read(activeHospitalProvider.notifier).switchHospital(created);
 
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Hospital "${newHospital.name}" added and activated!'),
+                    content: Text(
+                        'Hospital "$name" registered with Super Admin, Admin, Doctor, Nurse & Staff accounts!'),
                     backgroundColor: Colors.teal.shade800,
                   ),
                 );
               }
             },
             icon: const Icon(Icons.check, size: 16),
-            label: const Text('Create & Activate'),
+            label: const Text('Create Hospital'),
           ),
         ],
       ),
@@ -381,8 +431,11 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     final checker = ref.watch(permissionCheckerProvider);
-    final visibleDestinations = kNavDestinations.where((d) => checker.canAccessModule(d.module)).toList();
-    final effectiveDestinations = visibleDestinations.isEmpty ? kNavDestinations : visibleDestinations;
+    final visibleDestinations = kNavDestinations
+        .where((d) => checker.canAccessModule(d.module))
+        .toList();
+    final effectiveDestinations =
+        visibleDestinations.isEmpty ? kNavDestinations : visibleDestinations;
     final selectedIndex = _getSelectedIndex(location, effectiveDestinations);
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
     final colorScheme = Theme.of(context).colorScheme;
@@ -454,17 +507,24 @@ class _AppShellState extends ConsumerState<AppShell> {
                     tooltip: 'Active Hospital (Super Admin Multi-Hospital)',
                     offset: const Offset(0, 48),
                     child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: colorScheme.secondaryContainer.withValues(alpha: 0.7),
+                        color: colorScheme.secondaryContainer
+                            .withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: colorScheme.secondary.withValues(alpha: 0.3)),
+                        border: Border.all(
+                            color:
+                                colorScheme.secondary.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.domain_rounded, size: 16, color: colorScheme.onSecondaryContainer),
+                          Icon(Icons.domain_rounded,
+                              size: 16,
+                              color: colorScheme.onSecondaryContainer),
                           const Gap(6),
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 160),
@@ -479,7 +539,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                             ),
                           ),
                           const Gap(4),
-                          Icon(Icons.arrow_drop_down, size: 18, color: colorScheme.onSecondaryContainer),
+                          Icon(Icons.arrow_drop_down,
+                              size: 18,
+                              color: colorScheme.onSecondaryContainer),
                         ],
                       ),
                     ),
@@ -488,7 +550,10 @@ class _AppShellState extends ConsumerState<AppShell> {
                         enabled: false,
                         child: Text(
                           'SUPER ADMIN • MULTI-HOSPITAL',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey),
                         ),
                       ),
                       const PopupMenuDivider(),
@@ -498,16 +563,22 @@ class _AppShellState extends ConsumerState<AppShell> {
                           child: Row(
                             children: [
                               Icon(
-                                h.id == activeHosp?.id ? Icons.check_circle : Icons.business_outlined,
+                                h.id == activeHosp?.id
+                                    ? Icons.check_circle
+                                    : Icons.business_outlined,
                                 size: 16,
-                                color: h.id == activeHosp?.id ? Colors.green : Colors.grey,
+                                color: h.id == activeHosp?.id
+                                    ? Colors.green
+                                    : Colors.grey,
                               ),
                               const Gap(8),
                               Expanded(
                                 child: Text(
                                   '${h.name} (${h.code})',
                                   style: TextStyle(
-                                    fontWeight: h.id == activeHosp?.id ? FontWeight.bold : FontWeight.normal,
+                                    fontWeight: h.id == activeHosp?.id
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -520,27 +591,40 @@ class _AppShellState extends ConsumerState<AppShell> {
                         value: 'add_hospital',
                         child: Row(
                           children: [
-                            Icon(Icons.add_business_outlined, size: 16, color: Colors.blue),
+                            Icon(Icons.add_business_outlined,
+                                size: 16, color: Colors.blue),
                             Gap(8),
-                            Text('Add New Hospital / Branch', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                            Text('Add New Hospital / Branch',
+                                style: TextStyle(
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
                     ],
-                    onSelected: (val) {
+                    onSelected: (val) async {
                       if (val == 'add_hospital') {
                         _showAddHospitalDialog(context);
                       } else if (val.startsWith('switch_')) {
-                        final id = int.tryParse(val.replaceFirst('switch_', ''));
+                        final id =
+                            int.tryParse(val.replaceFirst('switch_', ''));
                         if (id != null) {
-                          final target = hospitals.firstWhere((h) => h.id == id);
-                          ref.read(activeHospitalProvider.notifier).switchHospital(target);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Switched to ${target.name} (${target.code})'),
-                              duration: const Duration(seconds: 2),
-                            ),
+                          final target =
+                              hospitals.firstWhere((h) => h.id == id);
+                          final switched = await authenticateAndSwitchHospital(
+                            context: context,
+                            ref: ref,
+                            hospital: target,
                           );
+                          if (switched && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Switched to ${target.name} (${target.code})'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
                         }
                       }
                     },
@@ -567,7 +651,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                 tooltip: 'Quick Actions',
                 offset: const Offset(0, 48),
                 icon: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: colorScheme.primary,
                     borderRadius: BorderRadius.circular(8),
@@ -793,7 +878,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                     children: [
                       const Icon(Icons.badge_outlined, size: 18),
                       const Gap(10),
-                      Text('Signed in as ${user?.username ?? ""} • ${user?.role ?? "Staff"}'),
+                      Text(
+                          'Signed in as ${user?.username ?? ""} • ${user?.role ?? "Staff"}'),
                     ],
                   ),
                 ),
@@ -814,7 +900,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                     children: [
                       Icon(Icons.logout, size: 18, color: colorScheme.error),
                       const Gap(10),
-                      Text('Sign Out', style: TextStyle(color: colorScheme.error)),
+                      Text('Sign Out',
+                          style: TextStyle(color: colorScheme.error)),
                     ],
                   ),
                 ),
@@ -874,7 +961,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                           Text(
                             'CareSync • Connecting Care. Simplifying Healthcare.',
                             style: TextStyle(
-                              color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                              color: colorScheme.onPrimaryContainer
+                                  .withValues(alpha: 0.8),
                               fontSize: 11,
                             ),
                           ),
@@ -887,7 +975,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                           i == selectedIndex
                               ? effectiveDestinations[i].selectedIcon
                               : effectiveDestinations[i].icon,
-                          color: i == selectedIndex ? colorScheme.primary : null,
+                          color:
+                              i == selectedIndex ? colorScheme.primary : null,
                         ),
                         title: Text(
                           effectiveDestinations[i].label,
@@ -895,7 +984,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                             fontWeight: i == selectedIndex
                                 ? FontWeight.bold
                                 : FontWeight.normal,
-                            color: i == selectedIndex ? colorScheme.primary : null,
+                            color:
+                                i == selectedIndex ? colorScheme.primary : null,
                           ),
                         ),
                         selected: i == selectedIndex,
@@ -931,8 +1021,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                   });
                 },
               ),
-            if (isDesktop)
-              const VerticalDivider(thickness: 1, width: 1),
+            if (isDesktop) const VerticalDivider(thickness: 1, width: 1),
             Expanded(child: widget.child),
           ],
         ),

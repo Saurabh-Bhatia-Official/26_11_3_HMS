@@ -20,7 +20,8 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
 
   Future<void> _markAsPaid(InvoiceModel item) async {
     final db = ref.read(appDatabaseProvider);
-    await db.hmsDao.updateInvoiceStatus(item.invoiceNo, 'Paid', item.totalPaise);
+    await db.hmsDao
+        .updateInvoiceStatus(item.invoiceNo, 'Paid', item.totalPaise);
     ref.invalidate(invoicesListProvider);
     ref.invalidate(dashboardStatsProvider);
     if (mounted) {
@@ -42,7 +43,8 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
           'Are you sure you want to void and delete invoice ${item.invoiceNo} for ${item.patientName} (Total: ${item.totalFormatted})?\n\nThis will remove it from accounts ledger.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () async {
@@ -54,7 +56,8 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Invoice ${item.invoiceNo} voided and removed.'),
+                    content:
+                        Text('Invoice ${item.invoiceNo} voided and removed.'),
                     backgroundColor: Colors.red.shade800,
                   ),
                 );
@@ -75,8 +78,11 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
       if (p.uhid.isNotEmpty) uniquePatients[p.uhid] = p;
     }
 
-    String selectedPatientName = uniquePatients.isNotEmpty ? (uniquePatients.values.first.name as String) : 'Walk-in Patient';
-    String selectedUhid = uniquePatients.isNotEmpty ? uniquePatients.keys.first : 'WALK-IN';
+    String selectedPatientName = uniquePatients.isNotEmpty
+        ? (uniquePatients.values.first.name as String)
+        : 'Walk-in Patient';
+    String selectedUhid =
+        uniquePatients.isNotEmpty ? uniquePatients.keys.first : 'WALK-IN';
     String billType = 'OPD Consultation';
     int amountPaise = 0;
     String paymentMode = 'Cash';
@@ -101,21 +107,26 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Select Patient', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Select Patient',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     const Gap(8),
                     if (uniquePatients.isNotEmpty)
                       DropdownButtonFormField<String>(
-                        initialValue: uniquePatients.containsKey(selectedUhid) ? selectedUhid : uniquePatients.keys.first,
+                        initialValue: uniquePatients.containsKey(selectedUhid)
+                            ? selectedUhid
+                            : uniquePatients.keys.first,
                         isExpanded: true,
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.person_outline),
                           border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
                         items: uniquePatients.values.map((p) {
                           return DropdownMenuItem<String>(
                             value: p.uhid as String,
-                            child: Text('${p.name} (${p.uhid}) - ${p.phone ?? ""}'),
+                            child: Text(
+                                '${p.name} (${p.uhid}) - ${p.phone ?? ""}'),
                           );
                         }).toList(),
                         onChanged: (val) {
@@ -139,8 +150,8 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                         onChanged: (v) => selectedPatientName = v,
                       ),
                     const Gap(16),
-
-                    const Text('Bill Type / Category', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Bill Type / Category',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     const Gap(8),
                     Wrap(
                       spacing: 8,
@@ -182,8 +193,8 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                       }).toList(),
                     ),
                     const Gap(16),
-
-                    const Text('Amount (₹)', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Amount (₹)',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     const Gap(8),
                     Wrap(
                       spacing: 8,
@@ -214,8 +225,8 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                       },
                     ),
                     const Gap(16),
-
-                    const Text('Payment Mode', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Payment Mode',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     const Gap(8),
                     Wrap(
                       spacing: 8,
@@ -244,13 +255,16 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel')),
               FilledButton.icon(
                 onPressed: () async {
                   Navigator.pop(ctx);
                   final db = ref.read(appDatabaseProvider);
                   final timeStr = 'Today, ${TimeOfDay.now().format(context)}';
-                  final invNo = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+                  final invNo =
+                      'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
 
                   final invoice = InvoiceModel(
                     id: 0,
@@ -283,7 +297,8 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Receipt $invNo created for $selectedPatientName!'),
+                        content: Text(
+                            'Receipt $invNo created for $selectedPatientName!'),
                         backgroundColor: Colors.teal.shade800,
                         action: SnackBarAction(
                           label: 'View',
@@ -333,12 +348,14 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                 side: BorderSide(color: colorScheme.outlineVariant),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
                     const Icon(Icons.receipt_outlined),
                     const Gap(8),
-                    const Text('Type: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Type: ',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     DropdownButton<String>(
                       value: const [
                         'All Invoices',
@@ -350,10 +367,17 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                           : 'All Invoices',
                       underline: const SizedBox.shrink(),
                       items: const [
-                        DropdownMenuItem(value: 'All Invoices', child: Text('All Invoices')),
-                        DropdownMenuItem(value: 'OPD Consultation', child: Text('OPD Consultations')),
-                        DropdownMenuItem(value: 'Pharmacy Dispensing', child: Text('Pharmacy Dispensing')),
-                        DropdownMenuItem(value: 'IPD Interim Bill', child: Text('IPD Interim Bills')),
+                        DropdownMenuItem(
+                            value: 'All Invoices', child: Text('All Invoices')),
+                        DropdownMenuItem(
+                            value: 'OPD Consultation',
+                            child: Text('OPD Consultations')),
+                        DropdownMenuItem(
+                            value: 'Pharmacy Dispensing',
+                            child: Text('Pharmacy Dispensing')),
+                        DropdownMenuItem(
+                            value: 'IPD Interim Bill',
+                            child: Text('IPD Interim Bills')),
                       ],
                       onChanged: (v) {
                         if (v != null) setState(() => _filterType = v);
@@ -362,10 +386,12 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                     const Spacer(),
                     invoicesAsync.when(
                       data: (list) {
-                        final totalPaise = list.fold<int>(0, (sum, i) => sum + i.paidPaise);
+                        final totalPaise =
+                            list.fold<int>(0, (sum, i) => sum + i.paidPaise);
                         return Text(
                           'Total Collected: ₹${(totalPaise / 100).toStringAsFixed(2)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.green),
                         );
                       },
                       loading: () => const SizedBox.shrink(),
@@ -379,11 +405,14 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
             Expanded(
               child: invoicesAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error loading invoices: $e')),
+                error: (e, _) =>
+                    Center(child: Text('Error loading invoices: $e')),
                 data: (invoices) {
                   final filtered = _filterType == 'All Invoices'
                       ? invoices
-                      : invoices.where((i) => i.billType == _filterType).toList();
+                      : invoices
+                          .where((i) => i.billType == _filterType)
+                          .toList();
 
                   if (filtered.isEmpty) {
                     return const Center(child: Text('No invoices recorded.'));
@@ -398,19 +427,29 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                       itemBuilder: (context, index) {
                         final item = filtered[index];
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
                           leading: CircleAvatar(
                             radius: 22,
                             backgroundColor: colorScheme.primaryContainer,
-                            child: Icon(Icons.receipt, color: colorScheme.onPrimaryContainer),
+                            child: Icon(Icons.receipt,
+                                color: colorScheme.onPrimaryContainer),
                           ),
                           title: Row(
                             children: [
-                              Text(item.invoiceNo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              Text(item.invoiceNo,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16)),
                               const Gap(8),
-                              Text(item.patientName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                              Text(item.patientName,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600)),
                               const Gap(8),
-                              Text(item.uhid, style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant)),
+                              Text(item.uhid,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurfaceVariant)),
                               const Gap(12),
                               StatusChip(label: item.status),
                             ],
@@ -428,11 +467,20 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  Text(item.totalFormatted, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  Text(item.totalFormatted,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16)),
                                   if (item.duePaise > 0)
-                                    Text('Due: ${item.dueFormatted}', style: TextStyle(color: Colors.red.shade700, fontSize: 12))
+                                    Text('Due: ${item.dueFormatted}',
+                                        style: TextStyle(
+                                            color: Colors.red.shade700,
+                                            fontSize: 12))
                                   else
-                                    Text('Settled', style: TextStyle(color: Colors.green.shade700, fontSize: 12)),
+                                    Text('Settled',
+                                        style: TextStyle(
+                                            color: Colors.green.shade700,
+                                            fontSize: 12)),
                                 ],
                               ),
                               const Gap(12),
@@ -445,12 +493,14 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                                 const Gap(8),
                               ],
                               FilledButton.tonal(
-                                onPressed: () => context.go('/billing/${item.id}'),
+                                onPressed: () =>
+                                    context.go('/billing/${item.id}'),
                                 child: const Text('View Bill'),
                               ),
                               const Gap(4),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.red, size: 20),
                                 tooltip: 'Void / Delete Invoice',
                                 onPressed: () => _confirmDeleteInvoice(item),
                               ),

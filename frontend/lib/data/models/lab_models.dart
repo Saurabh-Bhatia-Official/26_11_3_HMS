@@ -2,7 +2,6 @@ import 'dart:convert';
 
 /// Laboratory Order model for investigations, tests and pathology reports.
 class LabOrderModel {
-
   const LabOrderModel({
     required this.id,
     required this.orderNo,
@@ -170,7 +169,6 @@ class LabOrderModel {
 
 /// Master Lab Test catalogue item
 class LabTestModel {
-
   const LabTestModel({
     required this.id,
     required this.uuid,
@@ -235,7 +233,6 @@ class LabTestModel {
 
 /// Parameter within a Lab Test (e.g. Hemoglobin, RBC)
 class LabTestParameterModel {
-
   const LabTestParameterModel({
     required this.id,
     required this.uuid,
@@ -272,8 +269,10 @@ class LabTestParameterModel {
   final String? referenceText;
 
   String get referenceRangeDisplay {
-    if (referenceText != null && referenceText!.isNotEmpty) return referenceText!;
-    if (rangeLow != null && rangeHigh != null) return '$rangeLow - $rangeHigh $unit';
+    if (referenceText != null && referenceText!.isNotEmpty)
+      return referenceText!;
+    if (rangeLow != null && rangeHigh != null)
+      return '$rangeLow - $rangeHigh $unit';
     if (rangeLow != null) return '> $rangeLow $unit';
     if (rangeHigh != null) return '< $rangeHigh $unit';
     return '-';
@@ -295,7 +294,6 @@ class LabTestParameterModel {
 
 /// Package of multiple lab tests (e.g. Executive Health Check)
 class LabPackageModel {
-
   const LabPackageModel({
     required this.id,
     required this.uuid,
@@ -350,7 +348,8 @@ class LabPackageModel {
 }
 
 /// Specific test result value for a single parameter
-class LabParameterResultModel { // Normal, High, Low, Critical
+class LabParameterResultModel {
+  // Normal, High, Low, Critical
 
   const LabParameterResultModel({
     required this.parameterName,
@@ -373,7 +372,8 @@ class LabParameterResultModel { // Normal, High, Low, Critical
   }
 
   factory LabParameterResultModel.fromJson(String source) =>
-      LabParameterResultModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+      LabParameterResultModel.fromMap(
+          jsonDecode(source) as Map<String, dynamic>);
   final String parameterName;
   final String value;
   final String unit;
@@ -392,4 +392,3 @@ class LabParameterResultModel { // Normal, High, Low, Critical
 
   String toJson() => jsonEncode(toMap());
 }
-

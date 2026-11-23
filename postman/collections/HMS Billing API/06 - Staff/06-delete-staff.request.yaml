@@ -1,0 +1,17 @@
+$kind: http-request
+name: Delete Staff
+order: 6000
+method: DELETE
+url: '{{base_url}}/api/staff/{{staff_id}}'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 204", function () {
+          pm.response.to.have.status(204);
+      });

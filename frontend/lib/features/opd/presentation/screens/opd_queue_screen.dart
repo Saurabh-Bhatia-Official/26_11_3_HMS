@@ -54,16 +54,23 @@ class _OpdQueueScreenState extends ConsumerState<OpdQueueScreen> {
                 side: BorderSide(color: colorScheme.outlineVariant),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
                     const Icon(Icons.person_pin_outlined),
                     const Gap(8),
-                    const Text('Consultant: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Consultant: ',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     DropdownButton<String>(
-                      value: doctorOptions.contains(_selectedDoctor) ? _selectedDoctor : doctorOptions.first,
+                      value: doctorOptions.contains(_selectedDoctor)
+                          ? _selectedDoctor
+                          : doctorOptions.first,
                       underline: const SizedBox.shrink(),
-                      items: doctorOptions.map((doc) => DropdownMenuItem(value: doc, child: Text(doc))).toList(),
+                      items: doctorOptions
+                          .map((doc) =>
+                              DropdownMenuItem(value: doc, child: Text(doc)))
+                          .toList(),
                       onChanged: (v) {
                         if (v != null) setState(() => _selectedDoctor = v);
                       },
@@ -73,7 +80,15 @@ class _OpdQueueScreenState extends ConsumerState<OpdQueueScreen> {
                       data: (list) {
                         final count = _selectedDoctor == 'All Consultants'
                             ? list.length
-                            : list.where((item) => item.doctorName.toLowerCase().contains(_selectedDoctor.split('(').first.trim().toLowerCase())).length;
+                            : list
+                                .where((item) => item.doctorName
+                                    .toLowerCase()
+                                    .contains(_selectedDoctor
+                                        .split('(')
+                                        .first
+                                        .trim()
+                                        .toLowerCase()))
+                                .length;
                         return Chip(
                           label: Text('$count Patients in Queue'),
                           backgroundColor: colorScheme.primaryContainer,
@@ -96,10 +111,20 @@ class _OpdQueueScreenState extends ConsumerState<OpdQueueScreen> {
                 data: (queue) {
                   final filtered = _selectedDoctor == 'All Consultants'
                       ? queue
-                      : queue.where((item) => item.doctorName.toLowerCase().contains(_selectedDoctor.split('(').first.trim().toLowerCase())).toList();
+                      : queue
+                          .where((item) => item.doctorName
+                              .toLowerCase()
+                              .contains(_selectedDoctor
+                                  .split('(')
+                                  .first
+                                  .trim()
+                                  .toLowerCase()))
+                          .toList();
 
                   if (filtered.isEmpty) {
-                    return const Center(child: Text('No patients in OPD consultation queue for selected doctor.'));
+                    return const Center(
+                        child: Text(
+                            'No patients in OPD consultation queue for selected doctor.'));
                   }
 
                   return Card(
@@ -111,7 +136,8 @@ class _OpdQueueScreenState extends ConsumerState<OpdQueueScreen> {
                       itemBuilder: (context, index) {
                         final item = filtered[index];
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
                           leading: CircleAvatar(
                             radius: 22,
                             backgroundColor: colorScheme.primaryContainer,
@@ -126,11 +152,19 @@ class _OpdQueueScreenState extends ConsumerState<OpdQueueScreen> {
                           ),
                           title: Row(
                             children: [
-                              Text(item.patientName, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                              Text(item.patientName,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16)),
                               const Gap(8),
-                              Text(item.uhid, style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant)),
+                              Text(item.uhid,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurfaceVariant)),
                               const Gap(8),
-                              Text('(${item.ageGender})', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                              Text('(${item.ageGender})',
+                                  style: const TextStyle(
+                                      fontSize: 13, color: Colors.grey)),
                               const Gap(12),
                               StatusChip(label: item.status),
                             ],
@@ -142,12 +176,16 @@ class _OpdQueueScreenState extends ConsumerState<OpdQueueScreen> {
                               children: [
                                 Text('Complaint: ${item.complaint}'),
                                 const Gap(2),
-                                Text('Vitals: ${item.vitalsSummary}', style: TextStyle(color: Colors.blue.shade800, fontSize: 12)),
+                                Text('Vitals: ${item.vitalsSummary}',
+                                    style: TextStyle(
+                                        color: Colors.blue.shade800,
+                                        fontSize: 12)),
                               ],
                             ),
                           ),
                           trailing: FilledButton.icon(
-                            icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                            icon: const Icon(Icons.arrow_forward_rounded,
+                                size: 16),
                             label: const Text('Open EMR'),
                             onPressed: () => context.go('/opd/${item.id}'),
                           ),

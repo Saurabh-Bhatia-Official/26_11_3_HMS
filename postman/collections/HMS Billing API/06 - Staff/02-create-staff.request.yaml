@@ -1,0 +1,40 @@
+$kind: http-request
+name: Create Staff
+order: 2000
+method: POST
+url: '{{base_url}}/api/staff'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Postman Test Staff",
+      "gender": "Other",
+      "phone": "9876543210",
+      "role": "staff",
+      "consultationFeePaise": 0,
+      "followupFeePaise": 0
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 201", function () {
+          pm.response.to.have.status(201);
+      });
+
+      var jsonData = pm.response.json();
+      pm.test("Response has staff id and valid phone", function () {
+          pm.expect(jsonData.id).to.exist;
+          pm.expect(jsonData.phone).to.eql("9876543210");
+      });
+      if (jsonData.id) {
+          pm.collectionVariables.set("staff_id", String(jsonData.id));
+      }

@@ -37,6 +37,7 @@ class Patient extends Equatable {
 
   /// Unique Hospital ID, e.g. "UHID-000042"
   final String uhid;
+
   /// Server-assigned hospital UHID, separate from this device's local alias.
   final String? serverUhid;
   final String? syncState;

@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/auth/session_service.dart';
 import 'package:hospital_management/core/permissions/permission_service.dart';
+import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/kpi_card.dart';
 import 'package:hospital_management/core/widgets/section_header.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
 import 'package:hospital_management/data/database/app_database.dart';
-import 'package:hospital_management/core/providers/hms_providers.dart';
+import 'package:hospital_management/data/remote/backend_api_client.dart';
+import 'package:hospital_management/data/remote/hms_remote_repository.dart';
 
 class DashboardStats {
-
   const DashboardStats({
     required this.todayOpdVisits,
     required this.todayAppointments,
@@ -38,6 +40,20 @@ class DashboardStats {
 final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
   final db = ref.watch(appDatabaseProvider);
   final data = await db.hmsDao.getDashboardStats();
+  if (ref.watch(backendApiClientProvider).isConfigured &&
+      (ref.watch(sessionProvider).user?.isRemote ?? false)) {
+    try {
+      final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+      final remote =
+          await HmsRemoteRepository(ref.read(backendApiClientProvider))
+              .reportSummary(from: today, to: today);
+      data['todayRevenuePaise'] = remote['revenuePaise'];
+      data['lowStockMedicines'] = remote['lowStockMedicines'];
+      data['pendingLabOrders'] = remote['pendingLabOrders'];
+    } on BackendConnectionException {
+      // Local dashboard totals remain available when the backend is offline.
+    }
+  }
 
   return DashboardStats(
     todayOpdVisits: data['todayOpdVisits'] as int,
@@ -68,7 +84,8 @@ class DashboardScreen extends ConsumerWidget {
       backgroundColor: colorScheme.surfaceContainerLowest,
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error loading dashboard: $err')),
+        error: (err, stack) =>
+            Center(child: Text('Error loading dashboard: $err')),
         data: (stats) {
           final revenueFormatted =
               '₹${(stats.todayRevenuePaise / 100).toStringAsFixed(0)}';
@@ -89,14 +106,18 @@ class DashboardScreen extends ConsumerWidget {
                         children: [
                           Text(
                             'Hospital Operations Overview',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
                           ),
                           const Gap(4),
                           Text(
                             'Real-time status across OPD, IPD, Wards, Laboratory, and Billing',
-                            style: TextStyle(color: colorScheme.onSurfaceVariant),
+                            style:
+                                TextStyle(color: colorScheme.onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -105,14 +126,19 @@ class DashboardScreen extends ConsumerWidget {
                         children: [
                           if (checker.can(Modules.patients, AppActions.create))
                             FilledButton.icon(
-                              onPressed: () => context.go(AppRoutes.patientsNew),
-                              icon: const Icon(Icons.person_add_rounded, size: 18),
+                              onPressed: () =>
+                                  context.go(AppRoutes.patientsNew),
+                              icon: const Icon(Icons.person_add_rounded,
+                                  size: 18),
                               label: const Text('Register Patient'),
                             ),
-                          if (checker.can(Modules.appointments, AppActions.create))
+                          if (checker.can(
+                              Modules.appointments, AppActions.create))
                             OutlinedButton.icon(
-                              onPressed: () => context.go(AppRoutes.appointmentsNew),
-                              icon: const Icon(Icons.add_task_rounded, size: 18),
+                              onPressed: () =>
+                                  context.go(AppRoutes.appointmentsNew),
+                              icon:
+                                  const Icon(Icons.add_task_rounded, size: 18),
                               label: const Text('Book Appointment'),
                             ),
                         ],
@@ -160,7 +186,8 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                           KpiCard(
                             label: 'Bed Occupancy',
-                            value: '${stats.bedOccupancyRate.toStringAsFixed(0)}%',
+                            value:
+                                '${stats.bedOccupancyRate.toStringAsFixed(0)}%',
                             icon: Icons.hotel_rounded,
                             color: Colors.indigo.shade600,
                             subtitle:
@@ -229,36 +256,58 @@ class DashboardScreen extends ConsumerWidget {
                                     const Gap(16),
                                     _buildAlertItem(
                                       icon: Icons.warning_amber_rounded,
-                                      color: (lowStockAsync.value?.isNotEmpty ?? false)
+                                      color: (lowStockAsync.value?.isNotEmpty ??
+                                              false)
                                           ? Colors.red.shade700
                                           : Colors.teal.shade700,
-                                      title: (lowStockAsync.value?.isNotEmpty ?? false)
+                                      title: (lowStockAsync.value?.isNotEmpty ??
+                                              false)
                                           ? '${lowStockAsync.value!.length} Medicines Low in Stock'
                                           : 'Formulary Stock Optimal',
-                                      subtitle: (lowStockAsync.value?.isNotEmpty ?? false)
-                                          ? lowStockAsync.value!.take(3).map((m) => m.name).join(', ')
+                                      subtitle: (lowStockAsync
+                                                  .value?.isNotEmpty ??
+                                              false)
+                                          ? lowStockAsync.value!
+                                              .take(3)
+                                              .map((m) => m.name)
+                                              .join(', ')
                                           : 'All medicines above reorder threshold',
                                       actionLabel: 'Inventory',
-                                      onTap: () => context.go(AppRoutes.pharmacy),
+                                      onTap: () =>
+                                          context.go(AppRoutes.pharmacy),
                                     ),
                                     const Divider(height: 24),
                                     _buildAlertItem(
                                       icon: Icons.access_time_rounded,
-                                      color: (nearExpiryAsync.value?.isNotEmpty ?? false)
-                                          ? Colors.orange.shade700
-                                          : Colors.teal.shade700,
-                                      title: (nearExpiryAsync.value?.isNotEmpty ?? false)
+                                      color:
+                                          (nearExpiryAsync.value?.isNotEmpty ??
+                                                  false)
+                                              ? Colors.orange.shade700
+                                              : Colors.teal.shade700,
+                                      title: (nearExpiryAsync
+                                                  .value?.isNotEmpty ??
+                                              false)
                                           ? '${nearExpiryAsync.value!.length} Batches Near Expiry (< 90 days)'
                                           : 'Zero Expired Batches',
-                                      subtitle: (nearExpiryAsync.value?.isNotEmpty ?? false)
-                                          ? nearExpiryAsync.value!.take(2).map((b) => '${b.medicineName} (${b.batchNo})').join(', ')
+                                      subtitle: (nearExpiryAsync
+                                                  .value?.isNotEmpty ??
+                                              false)
+                                          ? nearExpiryAsync.value!
+                                              .take(2)
+                                              .map((b) =>
+                                                  '${b.medicineName} (${b.batchNo})')
+                                              .join(', ')
                                           : 'All batches within safe expiry threshold',
                                       actionLabel: 'Batches',
-                                      onTap: () => context.go(AppRoutes.pharmacy),
+                                      onTap: () =>
+                                          context.go(AppRoutes.pharmacy),
                                     ),
                                     const Divider(height: 24),
                                     () {
-                                      final cleaningBeds = (bedsAsync.value ?? []).where((b) => b.status == 'Cleaning').toList();
+                                      final cleaningBeds = (bedsAsync.value ??
+                                              [])
+                                          .where((b) => b.status == 'Cleaning')
+                                          .toList();
                                       return _buildAlertItem(
                                         icon: Icons.bed_outlined,
                                         color: cleaningBeds.isNotEmpty
@@ -292,29 +341,41 @@ class DashboardScreen extends ConsumerWidget {
                                       spacing: 8,
                                       runSpacing: 8,
                                       children: [
-                                        if (checker.can(Modules.patients, AppActions.create))
+                                        if (checker.can(Modules.patients,
+                                            AppActions.create))
                                           ActionChip(
-                                            avatar: const Icon(Icons.person_add, size: 16),
+                                            avatar: const Icon(Icons.person_add,
+                                                size: 16),
                                             label: const Text('New Patient'),
-                                            onPressed: () => context.go(AppRoutes.patientsNew),
+                                            onPressed: () => context
+                                                .go(AppRoutes.patientsNew),
                                           ),
-                                        if (checker.can(Modules.ipd, AppActions.create))
+                                        if (checker.can(
+                                            Modules.ipd, AppActions.create))
                                           ActionChip(
-                                            avatar: const Icon(Icons.hotel, size: 16),
+                                            avatar: const Icon(Icons.hotel,
+                                                size: 16),
                                             label: const Text('Admit Patient'),
-                                            onPressed: () => context.go(AppRoutes.ipdAdmit),
+                                            onPressed: () =>
+                                                context.go(AppRoutes.ipdAdmit),
                                           ),
-                                        if (checker.canAccessModule(Modules.pharmacy))
+                                        if (checker
+                                            .canAccessModule(Modules.pharmacy))
                                           ActionChip(
-                                            avatar: const Icon(Icons.medication, size: 16),
+                                            avatar: const Icon(Icons.medication,
+                                                size: 16),
                                             label: const Text('Dispense Rx'),
-                                            onPressed: () => context.go(AppRoutes.pharmacy),
+                                            onPressed: () =>
+                                                context.go(AppRoutes.pharmacy),
                                           ),
-                                        if (checker.can(Modules.billing, AppActions.create))
+                                        if (checker.can(
+                                            Modules.billing, AppActions.create))
                                           ActionChip(
-                                            avatar: const Icon(Icons.receipt, size: 16),
+                                            avatar: const Icon(Icons.receipt,
+                                                size: 16),
                                             label: const Text('New Invoice'),
-                                            onPressed: () => context.go(AppRoutes.billing),
+                                            onPressed: () =>
+                                                context.go(AppRoutes.billing),
                                           ),
                                       ],
                                     ),
@@ -375,7 +436,8 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              title: Text(item.patientName, style: const TextStyle(fontWeight: FontWeight.w600)),
+              title: Text(item.patientName,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
               subtitle: Text('${item.doctorName} • ${item.department}'),
               trailing: StatusChip(label: item.status),
               onTap: () => context.go(AppRoutes.opd),
@@ -403,9 +465,12 @@ class DashboardScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              Text(title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13)),
               const Gap(2),
-              Text(subtitle, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+              Text(subtitle,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
             ],
           ),
         ),
@@ -417,4 +482,3 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 }
-

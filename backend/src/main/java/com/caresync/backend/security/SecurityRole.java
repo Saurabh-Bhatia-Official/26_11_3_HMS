@@ -7,7 +7,6 @@ import java.util.stream.Collectors;
 /** Existing account roles accepted by authentication. Operation permissions must be assigned per endpoint. */
 public enum SecurityRole {
     SUPER_ADMIN,
-    HOSPITAL_SUPER_ADMIN,
     ADMIN,
     DOCTOR,
     NURSE,

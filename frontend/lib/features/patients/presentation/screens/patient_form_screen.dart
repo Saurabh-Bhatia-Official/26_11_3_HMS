@@ -347,12 +347,10 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                                 if (v == null || v.trim().isEmpty) {
                                   return 'Phone number is required';
                                 }
-
                                 if (!RegExp(r'^[6-9]\d{9}$')
                                     .hasMatch(v.trim())) {
                                   return 'Enter a valid 10-digit Indian mobile number';
                                 }
-
                                 return null;
                               },
                             ),
@@ -362,7 +360,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                             child: TextFormField(
                               controller: _cityController,
                               decoration: const InputDecoration(
-                                labelText: 'City / District',
+                                labelText: 'City / District *',
                                 prefixIcon: Icon(Icons.location_city_outlined),
                               ),
                               validator: (v) {
@@ -454,7 +452,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                                     .hasMatch(v.trim())) {
                                   return 'Enter a valid 10-digit Indian mobile number';
                                 }
-
                                 return null;
                               },
                             ),

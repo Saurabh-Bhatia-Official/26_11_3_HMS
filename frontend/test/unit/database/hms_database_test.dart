@@ -16,6 +16,29 @@ void main() {
   });
 
   group('HMS SQLite Database & Persistence Tests', () {
+    test('Sync outbox deduplicates operations and completes them durably',
+        () async {
+      const operationId = 'patient-sync-001';
+      await db.hmsDao.enqueueSyncOperation(
+        operationId: operationId,
+        resourceType: 'patient',
+        method: 'POST',
+        path: '/api/patients',
+        payloadJson: '{"uuid":"patient-sync-001"}',
+      );
+      await db.hmsDao.enqueueSyncOperation(
+        operationId: operationId,
+        resourceType: 'patient',
+        method: 'POST',
+        path: '/api/patients',
+        payloadJson: '{"uuid":"patient-sync-001"}',
+      );
+
+      expect(await db.hmsDao.getPendingSyncOperations(), hasLength(1));
+      await db.hmsDao.markSyncOperationComplete(operationId);
+      expect(await db.hmsDao.getPendingSyncOperations(), isEmpty);
+    });
+
     test('1. Database seeds tables on startup without hardcoded UI fallback',
         () async {
       final staff = await db.hmsDao.getAllStaff();
@@ -138,6 +161,42 @@ void main() {
       await db.hmsDao.insertAppointment(newApt);
       final list = await db.hmsDao.getAllAppointments();
       expect(list.any((a) => a.patientName == 'Jane Smith'), isTrue);
+    });
+
+    test('Appointment duplicates are rejected and OPD starts only once',
+        () async {
+      const appointment = AppointmentModel(
+        id: 0,
+        tokenNo: '11',
+        patientName: 'Alex Morgan',
+        uhid: 'UHID-000011',
+        doctorName: 'Dr. Patel',
+        department: 'Cardiology',
+        date: '16/11/2026',
+        timeSlot: '11:20 AM',
+        status: 'Scheduled',
+        visitType: 'Scheduled',
+        notes: '',
+      );
+
+      await db.hmsDao.insertAppointment(appointment);
+      await expectLater(
+        db.hmsDao.insertAppointment(appointment),
+        throwsA(isA<StateError>()),
+      );
+
+      final saved = (await db.hmsDao.getAllAppointments()).single;
+      final visitId = await db.hmsDao.startOpdForAppointment(saved);
+      final resumedVisitId = await db.hmsDao.startOpdForAppointment(saved);
+
+      expect(resumedVisitId, equals(visitId));
+      final visits = await db.hmsDao.getAllOpdVisits();
+      expect(visits.length, equals(1));
+      expect(visits.single.uuid, isNotEmpty);
+      expect(
+        (await db.hmsDao.getAllAppointments()).single.status,
+        equals('In Consultation'),
+      );
     });
 
     test('5. OPD visit diagnosis & vitals persist to database', () async {
@@ -296,6 +355,83 @@ void main() {
       expect((reports['departments'] as List).isNotEmpty, isTrue);
     });
 
+    test('reports limit monthly revenue to the requested dates', () async {
+      await db.hmsDao.insertInvoice(const InvoiceModel(
+        id: 0,
+        invoiceNo: 'INV-CURRENT',
+        patientName: 'Current Patient',
+        uhid: 'UHID-CURRENT',
+        billType: 'OPD',
+        subtotalPaise: 15000,
+        taxPaise: 0,
+        totalPaise: 15000,
+        paidPaise: 10000,
+        duePaise: 5000,
+        paymentMode: 'Cash',
+        status: 'Partial',
+        dateTime: 'current',
+        items: [],
+      ));
+      await db.hmsDao.insertInvoice(const InvoiceModel(
+        id: 0,
+        invoiceNo: 'INV-OLD',
+        patientName: 'Old Patient',
+        uhid: 'UHID-OLD',
+        billType: 'IPD',
+        subtotalPaise: 20000,
+        taxPaise: 0,
+        totalPaise: 20000,
+        paidPaise: 20000,
+        duePaise: 0,
+        paymentMode: 'Cash',
+        status: 'Paid',
+        dateTime: 'old',
+        items: [],
+      ));
+      await db.customStatement(
+          "UPDATE invoices SET created_at = '2020-01-02T00:00:00' WHERE invoice_no = 'INV-OLD'");
+
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final reports = await db.hmsDao.getReportsData(from: today, to: today);
+
+      expect(reports['totalRevenuePaise'], equals(10000));
+      expect(reports['totalDuePaise'], equals(5000));
+      expect(reports['departments'], hasLength(1));
+    });
+
+    test('medicine insertion rejects negative stock, reorder, and MRP values',
+        () async {
+      MedicineModel medicine({
+        int stockQty = 0,
+        int reorderLevel = 0,
+        int mrpPaise = 0,
+      }) =>
+          MedicineModel(
+            id: 0,
+            name: 'Test Medicine',
+            genericName: 'Test',
+            category: 'Other',
+            stockQty: stockQty,
+            reorderLevel: reorderLevel,
+            unit: 'Piece',
+            supplier: 'Test Supplier',
+            mrpPaise: mrpPaise,
+          );
+
+      await expectLater(
+        db.hmsDao.insertMedicine(medicine(stockQty: -1)),
+        throwsArgumentError,
+      );
+      await expectLater(
+        db.hmsDao.insertMedicine(medicine(reorderLevel: -1)),
+        throwsArgumentError,
+      );
+      await expectLater(
+        db.hmsDao.insertMedicine(medicine(mrpPaise: -1)),
+        throwsArgumentError,
+      );
+    });
+
     test('8. Pharmacy 1-click restock increases stock quantity in SQLite',
         () async {
       final medId = await db.hmsDao.insertMedicine(const MedicineModel(
@@ -353,6 +489,8 @@ void main() {
       final admissions = await db.hmsDao.getAllIpdAdmissions();
       expect(admissions, isNotEmpty);
       final firstAdm = admissions.first;
+      expect(firstAdm.uuid, isNotEmpty);
+      expect(firstAdm.visitUuid, isNotEmpty);
 
       await db.hmsDao.addIpdNursingNote(firstAdm.id, {
         'time': 'Just now',

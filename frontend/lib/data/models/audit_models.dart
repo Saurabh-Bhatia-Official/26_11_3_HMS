@@ -2,7 +2,6 @@ import 'dart:convert';
 
 /// System Audit Log record model for security, HIPAA/compliance tracking.
 class AuditLogModel {
-
   const AuditLogModel({
     required this.id,
     required this.userName,
@@ -100,7 +99,6 @@ class AuditLogModel {
 
 /// In-app system and clinical notification model
 class NotificationModel {
-
   const NotificationModel({
     required this.id,
     required this.title,
@@ -147,4 +145,3 @@ class NotificationModel {
 
   String toJson() => jsonEncode(toMap());
 }
-

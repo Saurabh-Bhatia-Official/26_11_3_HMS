@@ -10,15 +10,13 @@ class PatientAllergies extends Table {
   IntColumn get id => integer().autoIncrement()();
 
   /// FK → patients.id
-  IntColumn get patientId =>
-      integer().references(Patients, #id)();
+  IntColumn get patientId => integer().references(Patients, #id)();
 
   TextColumn get allergen => text().withLength(min: 1, max: 200)();
   TextColumn get reaction => text().nullable()();
 
   /// "mild" | "moderate" | "severe"
-  TextColumn get severity =>
-      text().withDefault(const Constant('mild'))();
+  TextColumn get severity => text().withDefault(const Constant('mild'))();
 
   /// ISO-8601 timestamp
   TextColumn get createdAt => text()();

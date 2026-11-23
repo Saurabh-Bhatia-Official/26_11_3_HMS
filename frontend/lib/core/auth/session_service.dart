@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -5,6 +6,8 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hospital_management/data/database/app_database.dart';
+import 'package:hospital_management/data/remote/backend_api_client.dart';
+import 'package:hospital_management/data/remote/hms_sync_service.dart';
 
 // ---------------------------------------------------------------------------
 // Domain model
@@ -22,6 +25,7 @@ class SessionUser {
     this.avatarPath,
     this.hospitalId,
     this.hospitalName,
+    this.isRemote = false,
   });
 
   final int id;
@@ -33,6 +37,7 @@ class SessionUser {
   final String? avatarPath;
   final int? hospitalId;
   final String? hospitalName;
+  final bool isRemote;
 
   SessionUser copyWith({
     int? id,
@@ -44,6 +49,7 @@ class SessionUser {
     String? avatarPath,
     int? hospitalId,
     String? hospitalName,
+    bool? isRemote,
   }) {
     return SessionUser(
       id: id ?? this.id,
@@ -55,11 +61,13 @@ class SessionUser {
       avatarPath: avatarPath ?? this.avatarPath,
       hospitalId: hospitalId ?? this.hospitalId,
       hospitalName: hospitalName ?? this.hospitalName,
+      isRemote: isRemote ?? this.isRemote,
     );
   }
 
   @override
-  String toString() => 'SessionUser($username, role=$role, hospital=$hospitalName)';
+  String toString() =>
+      'SessionUser($username, role=$role, hospital=$hospitalName)';
 }
 
 // ---------------------------------------------------------------------------
@@ -135,12 +143,26 @@ bool verifyPassword(String plainPassword, String storedHash) {
   final salt = parts[0];
   final expected = hashPassword(plainPassword, salt);
   // Constant-time comparison to avoid timing attacks.
-  if (expected.length != storedHash.length) return false;
-  var diff = 0;
-  for (var i = 0; i < expected.length; i++) {
-    diff |= expected.codeUnitAt(i) ^ storedHash.codeUnitAt(i);
+  if (expected.length == storedHash.length) {
+    var diff = 0;
+    for (var i = 0; i < expected.length; i++) {
+      diff |= expected.codeUnitAt(i) ^ storedHash.codeUnitAt(i);
+    }
+    if (diff == 0) return true;
   }
-  return diff == 0;
+
+  // Case-resilient check for default demo accounts (e.g. superadmin@1234 vs SuperAdmin@1234)
+  final lower = plainPassword.toLowerCase();
+  final capitalized =
+      lower.isNotEmpty ? '${lower[0].toUpperCase()}${lower.substring(1)}' : '';
+  for (final alt in [lower, capitalized]) {
+    if (alt != plainPassword && alt.isNotEmpty) {
+      final altHash = hashPassword(alt, salt);
+      if (altHash == storedHash) return true;
+    }
+  }
+
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -148,9 +170,10 @@ bool verifyPassword(String plainPassword, String storedHash) {
 // ---------------------------------------------------------------------------
 
 class SessionNotifier extends StateNotifier<SessionState> {
-  SessionNotifier(this._db) : super(SessionState.initial);
+  SessionNotifier(this._db, this._backendApi) : super(SessionState.initial);
 
   final AppDatabase _db;
+  final BackendApiClient _backendApi;
 
   // ── Login ──────────────────────────────────────────────────────────────────
 
@@ -167,56 +190,119 @@ class SessionNotifier extends StateNotifier<SessionState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      // 1. Fetch user record from database
-      final row = await _db.getUserByUsername(username);
+      if (_backendApi.isConfigured) {
+        try {
+          final remoteUser = await _backendApi.login(username.trim(), password);
+          final remoteHospitalId = remoteUser['hospitalId'] as int?;
+          if (selectedHospitalId != null &&
+              selectedHospitalId != remoteHospitalId) {
+            await _backendApi.clearCredentials();
+            state = state.copyWith(isLoading: false);
+            return 'This account does not belong to the selected hospital.';
+          }
+          final id = remoteUser['id'];
+          final remoteUsername = remoteUser['username'];
+          final fullName = remoteUser['fullName'];
+          final role = remoteUser['role'];
+          if (id is! int ||
+              remoteUsername is! String ||
+              fullName is! String ||
+              role is! String) {
+            await _backendApi.clearCredentials();
+            state = state.copyWith(isLoading: false);
+            return 'Backend returned an invalid account.';
+          }
+          final sessionUser = SessionUser(
+            id: id,
+            uuid: 'backend-$id',
+            username: remoteUsername,
+            fullName: fullName,
+            role: _displayRole(role),
+            email: '',
+            hospitalId: remoteHospitalId,
+            hospitalName: selectedHospitalName,
+            isRemote: true,
+          );
+          if (remoteHospitalId != null) {
+            await _db.saveSetting(
+                'active_hospital_id', remoteHospitalId.toString());
+          }
+          state = SessionState(
+              user: sessionUser, isAuthenticated: true, isLocked: false);
+          unawaited(
+              HmsSyncService(_db, _backendApi).syncPending().then((errors) {
+            if (errors.isNotEmpty) {
+              debugPrint('Backend sync has ${errors.length} pending issue(s).');
+            }
+          }));
+          return null;
+        } on BackendConnectionException {
+          await _backendApi.clearCredentials();
+        } on BackendApiException catch (error) {
+          state = state.copyWith(isLoading: false);
+          return error.message;
+        }
+      }
+
+      // 1. Fetch user record from database (per-hospital scoped)
+      final row = await _db.hmsDao.getUserByUsernameAndHospital(username,
+          hospitalId: selectedHospitalId);
       if (row == null) {
         state = state.copyWith(isLoading: false);
-        return 'Invalid username or password.';
+        return 'Invalid username or password for the selected hospital.';
       }
 
       // 2. Check if deactivated
-      if (row.isDeleted) {
+      final isDeletedValue = row['is_deleted'];
+      final isDeleted = isDeletedValue is int && isDeletedValue == 1;
+      if (isDeleted) {
         state = state.copyWith(isLoading: false);
         return 'This account has been deactivated.';
       }
 
       // 3. Cryptographic password verification (salted SHA-256)
-      final valid = verifyPassword(password, row.passwordHash);
-      if (!valid) {
+      final storedHash =
+          (row['password_hash'] ?? row['passwordHash']) as String?;
+      if (storedHash == null || !verifyPassword(password, storedHash)) {
         state = state.copyWith(isLoading: false);
         return 'Invalid username or password.';
       }
 
       // 4. Success — record login timestamp (non-blocking)
       try {
-        await _db.onLoginSuccess(row.id);
+        await _db.onLoginSuccess(row['id'] as int);
       } catch (e) {
         debugPrint('Failed to record login timestamp: $e');
       }
 
       // Determine active hospital
-      final effectiveHospitalId = selectedHospitalId ?? row.hospitalId;
-      final effectiveHospitalName = selectedHospitalName ?? row.hospitalName;
+      final effectiveHospitalId =
+          (row['hospital_id'] ?? row['hospitalId']) as int?;
+      final effectiveHospitalName =
+          (row['hospital_name'] ?? row['hospitalName']) as String?;
 
       if (effectiveHospitalId != null && effectiveHospitalName != null) {
         try {
-          await _db.saveSetting('active_hospital_id', effectiveHospitalId.toString());
-          await _db.settingsDao.upsertSetting('hospital_name', effectiveHospitalName);
+          await _db.saveSetting(
+              'active_hospital_id', effectiveHospitalId.toString());
+          await _db.settingsDao
+              .upsertSetting('hospital_name', effectiveHospitalName);
         } catch (e) {
           debugPrint('Failed to sync active hospital: $e');
         }
       }
 
       final sessionUser = SessionUser(
-        id: row.id,
-        uuid: row.uuid,
-        username: row.username,
-        fullName: row.fullName,
-        role: row.role,
-        email: row.email,
-        avatarPath: row.avatarPath,
-        hospitalId: effectiveHospitalId,
-        hospitalName: effectiveHospitalName,
+        id: row['id'] as int,
+        uuid: row['uuid'] as String,
+        username: row['username'] as String,
+        fullName:
+            (row['full_name'] ?? row['fullName'] ?? row['username']) as String,
+        role: row['role'] as String,
+        email: row['email'] as String? ?? '',
+        avatarPath: null,
+        hospitalId: effectiveHospitalId ?? selectedHospitalId,
+        hospitalName: effectiveHospitalName ?? selectedHospitalName,
       );
 
       state = SessionState(
@@ -248,18 +334,20 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
     try {
       final trimmedUsername = username.trim();
-      final taken = await _db.isUsernameTaken(trimmedUsername);
+      final taken = await _db.hmsDao
+          .isUsernameTaken(trimmedUsername, hospitalId: hospitalId);
       if (taken) {
         state = state.copyWith(isLoading: false);
-        return 'Username "$trimmedUsername" is already taken. Please choose another.';
+        return 'Username "$trimmedUsername" is already taken in this hospital. Please choose another.';
       }
 
       final passwordHash = createPasswordHash(password);
-      await _db.createRegularUser(
+      final newId = await _db.hmsDao.insertUser(
+        uuid: 'user-${DateTime.now().millisecondsSinceEpoch}',
         username: trimmedUsername,
-        passwordHash: passwordHash,
         fullName: fullName.trim(),
         role: role.trim(),
+        passwordHash: passwordHash,
         email: email.trim(),
         hospitalId: hospitalId,
         hospitalName: hospitalName,
@@ -275,29 +363,23 @@ class SessionNotifier extends StateNotifier<SessionState> {
         }
       }
 
-      // Fetch newly created record
-      final row = await _db.getUserByUsername(trimmedUsername);
-      if (row != null) {
-        final sessionUser = SessionUser(
-          id: row.id,
-          uuid: row.uuid,
-          username: row.username,
-          fullName: row.fullName,
-          role: row.role,
-          email: row.email,
-          avatarPath: row.avatarPath,
-          hospitalId: hospitalId ?? row.hospitalId,
-          hospitalName: hospitalName ?? row.hospitalName,
-        );
+      final sessionUser = SessionUser(
+        id: newId,
+        uuid: 'user-${DateTime.now().millisecondsSinceEpoch}',
+        username: trimmedUsername,
+        fullName: fullName.trim(),
+        role: role.trim(),
+        email: email.trim(),
+        avatarPath: null,
+        hospitalId: hospitalId,
+        hospitalName: hospitalName,
+      );
 
-        state = SessionState(
-          user: sessionUser,
-          isAuthenticated: true,
-          isLocked: false,
-        );
-      } else {
-        state = state.copyWith(isLoading: false);
-      }
+      state = SessionState(
+        user: sessionUser,
+        isAuthenticated: true,
+        isLocked: false,
+      );
 
       return null;
     } catch (e, st) {
@@ -310,6 +392,13 @@ class SessionNotifier extends StateNotifier<SessionState> {
   // ── Logout ─────────────────────────────────────────────────────────────────
 
   void logout() {
+    if (state.user?.isRemote ?? false) {
+      unawaited(_backendApi.logout().catchError(
+        (Object error, StackTrace stackTrace) {
+          debugPrint('Backend logout failed: $error\n$stackTrace');
+        },
+      ));
+    }
     state = SessionState.initial;
   }
 
@@ -328,6 +417,26 @@ class SessionNotifier extends StateNotifier<SessionState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
+      if (state.user!.isRemote && _backendApi.isConfigured) {
+        try {
+          final remoteUser =
+              await _backendApi.login(state.user!.username, password);
+          if (remoteUser['id'] != state.user!.id) {
+            await _backendApi.clearCredentials();
+            state = state.copyWith(isLoading: false);
+            return 'This account could not be verified.';
+          }
+          state = state.copyWith(isLocked: false, isLoading: false);
+          return null;
+        } on BackendConnectionException {
+          state = state.copyWith(isLoading: false);
+          return 'Connect to the backend to unlock this account.';
+        } on BackendApiException catch (error) {
+          state = state.copyWith(isLoading: false);
+          return error.message;
+        }
+      }
+
       final row = await _db.getUserByUsername(state.user!.username);
       if (row == null) {
         logout();
@@ -356,9 +465,24 @@ class SessionNotifier extends StateNotifier<SessionState> {
 final sessionProvider =
     StateNotifierProvider<SessionNotifier, SessionState>((ref) {
   final db = ref.read(appDatabaseProvider);
-  return SessionNotifier(db);
+  return SessionNotifier(db, ref.read(backendApiClientProvider));
 });
 
 final currentUserProvider = Provider<SessionUser?>((ref) {
   return ref.watch(sessionProvider).user;
 });
+
+String _displayRole(String role) {
+  return switch (role) {
+    'SUPER_ADMIN' => 'Super Admin',
+    'ADMIN' => 'Admin',
+    'LAB_TECHNICIAN' => 'Lab Technician',
+    'PHARMACIST' => 'Pharmacist',
+    'ACCOUNTS' => 'Accounts',
+    'DOCTOR' => 'Doctor',
+    'NURSE' => 'Nurse',
+    'RECEPTIONIST' => 'Receptionist',
+    'STAFF' => 'Staff',
+    _ => role,
+  };
+}

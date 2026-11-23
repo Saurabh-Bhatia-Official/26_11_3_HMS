@@ -2,7 +2,6 @@ import 'dart:convert';
 
 /// Billing Invoice record model for OPD, IPD, Pharmacy and Lab billing.
 class InvoiceModel {
-
   const InvoiceModel({
     required this.id,
     required this.invoiceNo,
@@ -91,12 +90,14 @@ class InvoiceModel {
   final String createdAt;
   final String updatedAt;
 
-  String get subtotalFormatted => '₹${(subtotalPaise / 100).toStringAsFixed(2)}';
+  String get subtotalFormatted =>
+      '₹${(subtotalPaise / 100).toStringAsFixed(2)}';
   String get taxFormatted => '₹${(taxPaise / 100).toStringAsFixed(2)}';
   String get totalFormatted => '₹${(totalPaise / 100).toStringAsFixed(2)}';
   String get paidFormatted => '₹${(paidPaise / 100).toStringAsFixed(2)}';
   String get dueFormatted => '₹${(duePaise / 100).toStringAsFixed(2)}';
-  String get discountFormatted => '₹${(discountPaise / 100).toStringAsFixed(2)}';
+  String get discountFormatted =>
+      '₹${(discountPaise / 100).toStringAsFixed(2)}';
 
   bool get isPaid => status.toLowerCase() == 'paid';
   bool get isPartial => status.toLowerCase() == 'partial';
@@ -198,7 +199,6 @@ class InvoiceModel {
 
 /// Line item within an invoice
 class InvoiceItemModel {
-
   const InvoiceItemModel({
     required this.id,
     required this.uuid,
@@ -222,7 +222,8 @@ class InvoiceItemModel {
       itemId: map['item_id'] as int?,
       description: (map['description'] ?? map['name']) as String? ?? '',
       qty: (map['qty'] ?? map['quantity']) as int? ?? 1,
-      unitPricePaise: (map['unit_price_paise'] ?? map['rate_paise']) as int? ?? 0,
+      unitPricePaise:
+          (map['unit_price_paise'] ?? map['rate_paise']) as int? ?? 0,
       discountPaise: map['discount_paise'] as int? ?? 0,
       taxRatePct: (map['tax_rate_pct'] as num?)?.toDouble() ?? 0.0,
       totalPaise: (map['total_paise'] ?? map['amount_paise']) as int? ?? 0,
@@ -244,7 +245,8 @@ class InvoiceItemModel {
   final int totalPaise;
 
   String get totalFormatted => '₹${(totalPaise / 100).toStringAsFixed(2)}';
-  String get unitPriceFormatted => '₹${(unitPricePaise / 100).toStringAsFixed(2)}';
+  String get unitPriceFormatted =>
+      '₹${(unitPricePaise / 100).toStringAsFixed(2)}';
 
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
@@ -265,7 +267,6 @@ class InvoiceItemModel {
 
 /// Payment receipt record model
 class PaymentModel {
-
   const PaymentModel({
     required this.id,
     required this.uuid,
@@ -319,7 +320,6 @@ class PaymentModel {
 
 /// Billable Hospital Service catalogue item
 class ServiceModel {
-
   const ServiceModel({
     required this.id,
     required this.uuid,
@@ -377,4 +377,3 @@ class ServiceModel {
 
   String toJson() => jsonEncode(toMap());
 }
-

@@ -1,12 +1,5 @@
 package com.caresync.backend.security;
 
-import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.MigrationState;
-import org.junit.jupiter.api.Test;
-import org.h2.jdbcx.JdbcDataSource;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.jdbc.datasource.init.ScriptUtils;
-
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -15,9 +8,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationState;
+import org.h2.jdbcx.JdbcDataSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 
 class AuthMigrationTests {
     @Test

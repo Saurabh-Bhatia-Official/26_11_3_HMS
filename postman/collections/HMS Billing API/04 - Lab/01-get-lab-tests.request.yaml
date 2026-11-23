@@ -1,0 +1,29 @@
+$kind: http-request
+name: 'Get Lab Tests'
+order: 1000
+method: GET
+url: '{{base_url}}/api/lab/tests'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.collectionVariables.unset("lab_test_id");
+
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response is a JSON array", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.be.an("array");
+      });
+
+      var jsonData = pm.response.json();
+      if (jsonData.length > 0 && jsonData[0].id) {
+          pm.collectionVariables.set("lab_test_id", String(jsonData[0].id));
+      }

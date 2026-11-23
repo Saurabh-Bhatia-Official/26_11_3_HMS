@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/data/database/app_database.dart';
-import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
-import 'package:hospital_management/features/patients/patients_provider.dart';
 
 class AppointmentFormScreen extends ConsumerStatefulWidget {
   final AppointmentModel? appointment;
@@ -51,6 +50,36 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     '02:20 PM',
     '02:40 PM',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    final appointment = widget.appointment;
+    if (appointment == null) return;
+
+    _patientSearchController.text =
+        appointment.uhid.trim().toUpperCase() == 'WALK-IN'
+            ? appointment.patientName
+            : '${appointment.patientName} (${appointment.uhid})';
+    _notesController.text = appointment.notes;
+    _selectedDate = _parseAppointmentDate(appointment.date) ?? DateTime.now();
+    _selectedSlot = appointment.timeSlot;
+    _visitType = appointment.visitType;
+  }
+
+  DateTime? _parseAppointmentDate(String value) {
+    final parsed = DateTime.tryParse(value);
+    if (parsed != null) return parsed;
+
+    final parts = value.split('/');
+    if (parts.length != 3) return null;
+    final day = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) return null;
+
+    return DateTime(year, month, day);
+  }
 
   @override
   void dispose() {
@@ -145,6 +174,12 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
 
     final db = ref.read(appDatabaseProvider);
     final existing = widget.appointment;
+    final appointment = widget.appointment;
+    final countRes = await db
+        .customSelect('SELECT count(*) as count FROM appointments')
+        .getSingle();
+    final token = appointment?.tokenNo ??
+        ((countRes.data['count'] as int) + 1).toString().padLeft(2, '0');
 
     final nameText = _patientSearchController.text.trim();
     String patientName = nameText;
@@ -155,21 +190,9 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
       uhid = nameText.split('(').last.replaceAll(')', '').trim();
     }
 
-    String token;
-
-    if (existing != null) {
-      token = existing.tokenNo;
-    } else {
-      final countRes = await db
-          .customSelect('SELECT count(*) as count FROM appointments')
-          .getSingle();
-      debugPrint('Checking appointment count in database...');
-      debugPrint('Appointment count retrieved: ${countRes.data}');
-      token = ((countRes.data['count'] as int) + 1).toString().padLeft(2, '0');
-    }
-
     final apt = AppointmentModel(
       id: existing?.id ?? 0,
+      // id: appointment?.id ?? 0,
       tokenNo: token,
       patientName: patientName,
       uhid: uhid,
@@ -212,7 +235,6 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
         backgroundColor: Colors.green.shade700,
       ),
     );
-
     context.go(AppRoutes.appointments);
   }
 
@@ -243,7 +265,11 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
-        title: const Text('Book Appointment / Token'),
+        title: Text(
+          widget.appointment == null
+              ? 'Book Appointment / Token'
+              : 'Edit Appointment #${widget.appointment!.tokenNo}',
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(AppRoutes.appointments),
@@ -465,12 +491,17 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                         width: double.infinity,
                         height: 48,
                         child: FilledButton.icon(
-                          onPressed: doctors.isNotEmpty && !staffAsync.isLoading
+                          onPressed: doctors.isNotEmpty &&
+                                  !staffAsync.isLoading &&
+                                  !staffAsync.hasError
                               ? _book
                               : null,
                           icon: const Icon(Icons.check_circle_outline),
-                          label:
-                              const Text('Confirm Booking & Issue Token Slip'),
+                          label: Text(
+                            widget.appointment == null
+                                ? 'Confirm Booking & Issue Token Slip'
+                                : 'Save Appointment Changes',
+                          ),
                         ),
                       ),
                     ],

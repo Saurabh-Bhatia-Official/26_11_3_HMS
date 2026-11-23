@@ -1,18 +1,23 @@
 package com.caresync.backend.security;
 
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -20,6 +25,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.stereotype.Service;
@@ -32,11 +38,28 @@ public class AccessTokenService {
     public static final String AUDIENCE = "caresync-api";
     public static final long LIFETIME_SECONDS = 900;
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(AccessTokenService.class);
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private final JwtEncoder encoder;
     private final JwtDecoder decoder;
 
-    public AccessTokenService(@Value("${caresync.security.jwt-secret:}") String configuredSecret) {
-        byte[] secret = configuredSecret.getBytes(StandardCharsets.UTF_8);
+    public AccessTokenService(@Value("${caresync.security.jwt-secret:}") String configuredSecret,
+            Environment environment) {
+        String secretValue = configuredSecret;
+        if (secretValue.isBlank()) {
+            if (!environment.acceptsProfiles(Profiles.of("local"))) {
+                throw new IllegalStateException(
+                        "CARESYNC_JWT_SECRET must contain at least 32 UTF-8 bytes outside the local profile");
+            }
+            byte[] generatedSecret = new byte[32];
+            SECURE_RANDOM.nextBytes(generatedSecret);
+            secretValue = Base64.getEncoder().encodeToString(generatedSecret);
+            LOGGER.warn("CARESYNC_JWT_SECRET is unset in the local profile; using an ephemeral key. "
+                    + "Access tokens will be invalidated when the application restarts.");
+        }
+
+        byte[] secret = secretValue.getBytes(StandardCharsets.UTF_8);
         if (secret.length < 32) {
             throw new IllegalStateException("CARESYNC_JWT_SECRET must contain at least 32 UTF-8 bytes");
         }

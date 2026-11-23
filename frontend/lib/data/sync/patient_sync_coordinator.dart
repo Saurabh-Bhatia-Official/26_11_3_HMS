@@ -7,7 +7,8 @@ import 'package:hospital_management/data/remote/hospital_api_client.dart';
 import 'package:hospital_management/data/remote/patient_api_client.dart';
 
 class PatientSyncResult {
-  const PatientSyncResult({this.acknowledged = 0, this.blocked = false, this.error});
+  const PatientSyncResult(
+      {this.acknowledged = 0, this.blocked = false, this.error});
   final int acknowledged;
   final bool blocked;
   final String? error;
@@ -33,7 +34,8 @@ class PatientSyncCoordinator {
   PatientSyncDao get _sync => _db.patientSyncDao;
 
   Future<PatientSyncResult> synchronize() async {
-    if (_running || !_session.state.isAuthenticated) return const PatientSyncResult();
+    if (_running || !_session.state.isAuthenticated)
+      return const PatientSyncResult();
     _running = true;
     var acknowledged = 0;
     try {
@@ -55,17 +57,20 @@ class PatientSyncCoordinator {
           final conflict = error.statusCode == 409;
           await _sync.markFailure(
             entry: entry,
-            state: blocked ? 'BLOCKED_AUTH' : (conflict ? 'CONFLICT' : 'PENDING'),
+            state:
+                blocked ? 'BLOCKED_AUTH' : (conflict ? 'CONFLICT' : 'PENDING'),
             errorCode: blocked
                 ? 'MEMBERSHIP_OR_SESSION_REQUIRED'
                 : (conflict ? 'SERVER_VERSION_CONFLICT' : 'SERVER_UNAVAILABLE'),
             updatedAt: DateTime.now().toIso8601String(),
           );
-          if (blocked) return PatientSyncResult(
-            acknowledged: acknowledged,
-            blocked: true,
-            error: 'Saved on this device. Sync requires an active Hospital membership.',
-          );
+          if (blocked)
+            return PatientSyncResult(
+              acknowledged: acknowledged,
+              blocked: true,
+              error:
+                  'Saved on this device. Sync requires an active Hospital membership.',
+            );
         } catch (_) {
           await _sync.markFailure(
             entry: entry,
@@ -75,7 +80,8 @@ class PatientSyncCoordinator {
           );
           return PatientSyncResult(
             acknowledged: acknowledged,
-            error: 'Patient data remains saved on this device and will retry when online.',
+            error:
+                'Patient data remains saved on this device and will retry when online.',
           );
         }
       }
@@ -94,7 +100,8 @@ class PatientSyncCoordinator {
         await _ack(entry, result);
         return true;
       case 'UPDATE':
-        final version = await _sync.serverVersion(entry.patientUuid) ?? entry.baseVersion;
+        final version =
+            await _sync.serverVersion(entry.patientUuid) ?? entry.baseVersion;
         if (version == null) {
           await _sync.markFailure(
             entry: entry,
@@ -104,12 +111,13 @@ class PatientSyncCoordinator {
           );
           return false;
         }
-        final result = await _withToken((token) =>
-            _api.update(token, entry.patientUuid, {...body, 'version': version}));
+        final result = await _withToken((token) => _api
+            .update(token, entry.patientUuid, {...body, 'version': version}));
         await _ack(entry, result);
         return true;
       case 'STATUS':
-        final version = await _sync.serverVersion(entry.patientUuid) ?? entry.baseVersion;
+        final version =
+            await _sync.serverVersion(entry.patientUuid) ?? entry.baseVersion;
         if (version == null) {
           await _sync.markFailure(
             entry: entry,
@@ -144,7 +152,9 @@ class PatientSyncCoordinator {
 
   Future<T> _withToken<T>(Future<T> Function(String token) request) async {
     var token = await _session.accessTokenForApi();
-    if (token == null) throw const HospitalApiException('Active Hospital session required.', statusCode: 401);
+    if (token == null)
+      throw const HospitalApiException('Active Hospital session required.',
+          statusCode: 401);
     try {
       return await request(token);
     } on HospitalApiException catch (error) {
@@ -155,7 +165,8 @@ class PatientSyncCoordinator {
     }
   }
 
-  Future<void> _ack(PatientSyncOutboxEntry entry, PatientServerRecord response) =>
+  Future<void> _ack(
+          PatientSyncOutboxEntry entry, PatientServerRecord response) =>
       _sync.acknowledge(
         operationId: entry.operationId,
         patientUuid: entry.patientUuid,

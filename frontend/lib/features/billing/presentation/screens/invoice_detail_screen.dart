@@ -43,7 +43,9 @@ class InvoiceDetailScreen extends ConsumerWidget {
     final invoiceAsync = ref.watch(invoiceDetailProvider(invoiceId));
     final allInvoices = ref.watch(invoicesListProvider).value ?? [];
     final hospitalInfo = ref.watch(hospitalInfoProvider).value ?? {};
-    final hospitalName = hospitalInfo['name']?.isNotEmpty == true ? hospitalInfo['name']! : 'Hospital';
+    final hospitalName = hospitalInfo['name']?.isNotEmpty == true
+        ? hospitalInfo['name']!
+        : 'Hospital';
     final hospitalAddress = hospitalInfo['address'] ?? '';
     final hospitalPhone = hospitalInfo['phone'] ?? '';
     final hospitalRegNo = hospitalInfo['regNo'] ?? '';
@@ -51,12 +53,15 @@ class InvoiceDetailScreen extends ConsumerWidget {
 
     InvoiceModel? invoice = invoiceAsync.value;
     if (invoice == null && allInvoices.isNotEmpty) {
-      invoice = allInvoices.where((i) =>
-        i.id.toString() == invoiceId ||
-        i.invoiceNo == invoiceId ||
-        i.invoiceNo.endsWith(invoiceId) ||
-        i.invoiceNo.contains(invoiceId),
-      ).firstOrNull;
+      invoice = allInvoices
+          .where(
+            (i) =>
+                i.id.toString() == invoiceId ||
+                i.invoiceNo == invoiceId ||
+                i.invoiceNo.endsWith(invoiceId) ||
+                i.invoiceNo.contains(invoiceId),
+          )
+          .firstOrNull;
     }
 
     if (invoiceAsync.isLoading && invoice == null) {
@@ -79,9 +84,11 @@ class InvoiceDetailScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey),
+              const Icon(Icons.receipt_long_outlined,
+                  size: 64, color: Colors.grey),
               const Gap(16),
-              Text('Invoice "$invoiceId" not found.', style: Theme.of(context).textTheme.titleMedium),
+              Text('Invoice "$invoiceId" not found.',
+                  style: Theme.of(context).textTheme.titleMedium),
               const Gap(12),
               FilledButton(
                 onPressed: () => context.go(AppRoutes.billing),
@@ -113,7 +120,9 @@ class InvoiceDetailScreen extends ConsumerWidget {
           OutlinedButton.icon(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Printing 80mm thermal receipt for ${invoice!.invoiceNo}…')),
+                SnackBar(
+                    content: Text(
+                        'Printing 80mm thermal receipt for ${invoice!.invoiceNo}…')),
               );
             },
             icon: const Icon(Icons.receipt, size: 16),
@@ -123,7 +132,9 @@ class InvoiceDetailScreen extends ConsumerWidget {
           FilledButton.icon(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Printing full A4 itemized invoice for ${invoice!.invoiceNo}…')),
+                SnackBar(
+                    content: Text(
+                        'Printing full A4 itemized invoice for ${invoice!.invoiceNo}…')),
               );
             },
             icon: const Icon(Icons.print_outlined, size: 16),
@@ -154,17 +165,25 @@ class InvoiceDetailScreen extends ConsumerWidget {
                           children: [
                             Text(
                               hospitalName,
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
-                            if (hospitalAddress.isNotEmpty || hospitalRegNo.isNotEmpty)
+                            if (hospitalAddress.isNotEmpty ||
+                                hospitalRegNo.isNotEmpty)
                               Text([
                                 if (hospitalAddress.isNotEmpty) hospitalAddress,
-                                if (hospitalRegNo.isNotEmpty) 'Reg. No: $hospitalRegNo',
+                                if (hospitalRegNo.isNotEmpty)
+                                  'Reg. No: $hospitalRegNo',
                               ].join(' • ')),
-                            if (hospitalPhone.isNotEmpty || hospitalGstNo.isNotEmpty)
+                            if (hospitalPhone.isNotEmpty ||
+                                hospitalGstNo.isNotEmpty)
                               Text([
-                                if (hospitalPhone.isNotEmpty) 'Phone: $hospitalPhone',
-                                if (hospitalGstNo.isNotEmpty) 'GSTIN: $hospitalGstNo',
+                                if (hospitalPhone.isNotEmpty)
+                                  'Phone: $hospitalPhone',
+                                if (hospitalGstNo.isNotEmpty)
+                                  'GSTIN: $hospitalGstNo',
                               ].join(' • ')),
                           ],
                         ),
@@ -173,15 +192,24 @@ class InvoiceDetailScreen extends ConsumerWidget {
                           children: [
                             Text(
                               'TAX INVOICE',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colorScheme.primary),
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.primary),
                             ),
-                            Text('Invoice #: ${invoice.invoiceNo}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            Text('Date: ${invoice.dateTime}', style: const TextStyle(color: Colors.grey)),
+                            Text('Invoice #: ${invoice.invoiceNo}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                            Text('Date: ${invoice.dateTime}',
+                                style: const TextStyle(color: Colors.grey)),
                             Container(
                               margin: const EdgeInsets.only(top: 4),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: invoice.status == 'Paid' ? Colors.green.shade100 : Colors.amber.shade100,
+                                color: invoice.status == 'Paid'
+                                    ? Colors.green.shade100
+                                    : Colors.amber.shade100,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -189,7 +217,9 @@ class InvoiceDetailScreen extends ConsumerWidget {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 11,
-                                  color: invoice.status == 'Paid' ? Colors.green.shade800 : Colors.amber.shade900,
+                                  color: invoice.status == 'Paid'
+                                      ? Colors.green.shade800
+                                      : Colors.amber.shade900,
                                 ),
                               ),
                             ),
@@ -208,19 +238,33 @@ class InvoiceDetailScreen extends ConsumerWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Billed To Patient:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const Text('Billed To Patient:',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey)),
                             const Gap(4),
-                            Text(invoice.patientName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            Text('UHID: ${invoice.uhid} • Category: ${invoice.billType}'),
+                            Text(invoice.patientName,
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
+                            Text(
+                                'UHID: ${invoice.uhid} • Category: ${invoice.billType}'),
                           ],
                         ),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            const Text('Payment Summary:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const Text('Payment Summary:',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey)),
                             const Gap(4),
                             Text('Status: ${invoice.status.toUpperCase()}',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: invoice.status == 'Paid' ? Colors.green : Colors.orange.shade800)),
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: invoice.status == 'Paid'
+                                        ? Colors.green
+                                        : Colors.orange.shade800)),
                             Text('Mode: ${invoice.paymentMode}'),
                           ],
                         ),
@@ -236,24 +280,51 @@ class InvoiceDetailScreen extends ConsumerWidget {
                         2: FlexColumnWidth(2),
                         3: FlexColumnWidth(2),
                       },
-                      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
                       children: [
                         const TableRow(
                           decoration: BoxDecoration(color: Color(0x10000000)),
                           children: [
-                            Padding(padding: EdgeInsets.all(12), child: Text('Service / Item Description', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(12), child: Text('Qty', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(12), child: Text('Unit Rate', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(12), child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Text('Service / Item Description',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Text('Qty',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Text('Unit Rate',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Text('Amount',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
                           ],
                         ),
                         if (items.isEmpty)
                           TableRow(
                             children: [
-                              Padding(padding: const EdgeInsets.all(12), child: Text(invoice.billType)),
-                              const Padding(padding: EdgeInsets.all(12), child: Text('1')),
-                              Padding(padding: const EdgeInsets.all(12), child: Text('₹${grandTotal.toStringAsFixed(2)}')),
-                              Padding(padding: const EdgeInsets.all(12), child: Text('₹${grandTotal.toStringAsFixed(2)}')),
+                              Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Text(invoice.billType)),
+                              const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Text('1')),
+                              Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Text(
+                                      '₹${grandTotal.toStringAsFixed(2)}')),
+                              Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Text(
+                                      '₹${grandTotal.toStringAsFixed(2)}')),
                             ],
                           )
                         else
@@ -263,13 +334,18 @@ class InvoiceDetailScreen extends ConsumerWidget {
                                 Padding(
                                   padding: const EdgeInsets.all(12),
                                   child: Text(
-                                    (item['desc'] ?? item['item_name'] ?? item['name'] ?? 'Medical Service').toString(),
+                                    (item['desc'] ??
+                                            item['item_name'] ??
+                                            item['name'] ??
+                                            'Medical Service')
+                                        .toString(),
                                   ),
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.all(12),
                                   child: Text(
-                                    (item['qty'] ?? item['quantity'] ?? 1).toString(),
+                                    (item['qty'] ?? item['quantity'] ?? 1)
+                                        .toString(),
                                   ),
                                 ),
                                 Padding(
@@ -277,8 +353,15 @@ class InvoiceDetailScreen extends ConsumerWidget {
                                   child: Text(
                                     _formatItemAmount(
                                       item,
-                                      amountKeys: const ['rate', 'unit_price', 'total'],
-                                      paiseKeys: const ['ratePaise', 'unit_price_paise'],
+                                      amountKeys: const [
+                                        'rate',
+                                        'unit_price',
+                                        'total'
+                                      ],
+                                      paiseKeys: const [
+                                        'ratePaise',
+                                        'unit_price_paise'
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -288,7 +371,12 @@ class InvoiceDetailScreen extends ConsumerWidget {
                                     _formatItemAmount(
                                       item,
                                       amountKeys: const ['total', 'line_total'],
-                                      paiseKeys: const ['amountPaise', 'totalPaise', 'amount_paise', 'total_paise'],
+                                      paiseKeys: const [
+                                        'amountPaise',
+                                        'totalPaise',
+                                        'amount_paise',
+                                        'total_paise'
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -308,15 +396,25 @@ class InvoiceDetailScreen extends ConsumerWidget {
                         width: 280,
                         child: Column(
                           children: [
-                            _summaryRow('Subtotal', '₹${subtotal.toStringAsFixed(2)}'),
+                            _summaryRow(
+                                'Subtotal', '₹${subtotal.toStringAsFixed(2)}'),
                             if (discount > 0)
-                              _summaryRow('Hospital Discount', '- ₹${discount.toStringAsFixed(2)}'),
+                              _summaryRow('Hospital Discount',
+                                  '- ₹${discount.toStringAsFixed(2)}'),
                             if (tax > 0)
-                              _summaryRow('GST / Taxes', '₹${tax.toStringAsFixed(2)}'),
+                              _summaryRow(
+                                  'GST / Taxes', '₹${tax.toStringAsFixed(2)}'),
                             const Divider(),
-                            _summaryRow('Grand Total', '₹${grandTotal.toStringAsFixed(2)}', isBold: true),
-                            _summaryRow('Amount Paid', '₹${paid.toStringAsFixed(2)}', isBold: true, color: Colors.green.shade800),
-                            _summaryRow('Balance Due', '₹${due.toStringAsFixed(2)}', isBold: true, color: due > 0 ? Colors.red.shade800 : null),
+                            _summaryRow('Grand Total',
+                                '₹${grandTotal.toStringAsFixed(2)}',
+                                isBold: true),
+                            _summaryRow(
+                                'Amount Paid', '₹${paid.toStringAsFixed(2)}',
+                                isBold: true, color: Colors.green.shade800),
+                            _summaryRow(
+                                'Balance Due', '₹${due.toStringAsFixed(2)}',
+                                isBold: true,
+                                color: due > 0 ? Colors.red.shade800 : null),
                           ],
                         ),
                       ),
@@ -331,14 +429,21 @@ class InvoiceDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _summaryRow(String label, String value, {bool isBold = false, Color? color}) {
+  Widget _summaryRow(String label, String value,
+      {bool isBold = false, Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal, color: color)),
-          Text(value, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal, color: color)),
+          Text(label,
+              style: TextStyle(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                  color: color)),
+          Text(value,
+              style: TextStyle(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                  color: color)),
         ],
       ),
     );

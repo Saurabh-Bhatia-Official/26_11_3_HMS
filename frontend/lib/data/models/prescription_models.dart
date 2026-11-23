@@ -2,7 +2,6 @@ import 'dart:convert';
 
 /// Single medicine item within a prescription.
 class PrescriptionItemModel {
-
   const PrescriptionItemModel({
     required this.id,
     required this.uuid,
@@ -42,8 +41,8 @@ class PrescriptionItemModel {
   final String medicineName;
   final String dose;
   final String frequency; // e.g. "1-0-1", "TDS", "SOS"
-  final String duration;  // e.g. "5 days"
-  final String route;     // e.g. "Oral", "IV", "Topical"
+  final String duration; // e.g. "5 days"
+  final String route; // e.g. "Oral", "IV", "Topical"
   final String instructions; // e.g. "After meals"
   final int qtyPrescribed;
 
@@ -69,7 +68,6 @@ class PrescriptionItemModel {
 
 /// Clinical Prescription document model
 class PrescriptionModel {
-
   const PrescriptionModel({
     required this.id,
     required this.uuid,
@@ -88,11 +86,16 @@ class PrescriptionModel {
     List<PrescriptionItemModel> parsedItems = [];
     final raw = map['items'];
     if (raw is List) {
-      parsedItems = raw.map((e) => PrescriptionItemModel.fromMap(e as Map<String, dynamic>)).toList();
+      parsedItems = raw
+          .map((e) => PrescriptionItemModel.fromMap(e as Map<String, dynamic>))
+          .toList();
     } else if (map['items_json'] is String) {
       try {
         final list = jsonDecode(map['items_json'] as String) as List<dynamic>;
-        parsedItems = list.map((e) => PrescriptionItemModel.fromMap(e as Map<String, dynamic>)).toList();
+        parsedItems = list
+            .map(
+                (e) => PrescriptionItemModel.fromMap(e as Map<String, dynamic>))
+            .toList();
       } catch (_) {}
     }
 
@@ -147,7 +150,6 @@ class PrescriptionModel {
 
 /// Doctor quick prescription template model (e.g. "Fever & Cold standard Rx")
 class PrescriptionTemplateModel {
-
   const PrescriptionTemplateModel({
     required this.id,
     required this.uuid,
@@ -174,7 +176,8 @@ class PrescriptionTemplateModel {
   }
 
   factory PrescriptionTemplateModel.fromJson(String source) =>
-      PrescriptionTemplateModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+      PrescriptionTemplateModel.fromMap(
+          jsonDecode(source) as Map<String, dynamic>);
   final int id;
   final String uuid;
   final int doctorId;
@@ -191,4 +194,3 @@ class PrescriptionTemplateModel {
 
   String toJson() => jsonEncode(toMap());
 }
-

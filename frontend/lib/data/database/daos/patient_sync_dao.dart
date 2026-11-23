@@ -21,11 +21,11 @@ class PatientSyncDao extends DatabaseAccessor<AppDatabase> {
     required String createdAt,
   }) async {
     await customStatement(
-        'INSERT INTO patient_sync_outbox '
-        '(operation_id, patient_uuid, operation, payload, base_version, created_at, attempt_count, state) '
-        'VALUES (?, ?, ?, ?, ?, ?, 0, \'PENDING\')',
-        [operationId, patientUuid, operation, payload, baseVersion, createdAt],
-      );
+      'INSERT INTO patient_sync_outbox '
+      '(operation_id, patient_uuid, operation, payload, base_version, created_at, attempt_count, state) '
+      'VALUES (?, ?, ?, ?, ?, ?, 0, \'PENDING\')',
+      [operationId, patientUuid, operation, payload, baseVersion, createdAt],
+    );
     await customStatement(
       'INSERT INTO patient_sync_states (patient_uuid, sync_state, updated_at) VALUES (?, \'PENDING\', ?) '
       'ON CONFLICT(patient_uuid) DO UPDATE SET sync_state = \'PENDING\', last_error_code = NULL, updated_at = excluded.updated_at',
@@ -37,13 +37,15 @@ class PatientSyncDao extends DatabaseAccessor<AppDatabase> {
     final rows = await customSelect(
       "SELECT * FROM patient_sync_outbox WHERE state = 'PENDING' ORDER BY created_at, operation_id",
     ).get();
-    return rows.map((row) => PatientSyncOutboxEntry(
-          operationId: row.read<String>('operation_id'),
-          patientUuid: row.read<String>('patient_uuid'),
-          operation: row.read<String>('operation'),
-          payload: row.read<String>('payload'),
-          baseVersion: row.read<int?>('base_version'),
-        )).toList();
+    return rows
+        .map((row) => PatientSyncOutboxEntry(
+              operationId: row.read<String>('operation_id'),
+              patientUuid: row.read<String>('patient_uuid'),
+              operation: row.read<String>('operation'),
+              payload: row.read<String>('payload'),
+              baseVersion: row.read<int?>('base_version'),
+            ))
+        .toList();
   }
 
   Future<void> requeueAuthorizationBlocked() => customStatement(
@@ -98,7 +100,14 @@ class PatientSyncDao extends DatabaseAccessor<AppDatabase> {
         'server_version = excluded.server_version, '
         'server_status = excluded.server_status, sync_state = \'SYNCED\', '
         'last_error_code = NULL, updated_at = excluded.updated_at',
-        [patientUuid, serverPatientId, canonicalUhid, serverVersion, serverStatus, updatedAt],
+        [
+          patientUuid,
+          serverPatientId,
+          canonicalUhid,
+          serverVersion,
+          serverStatus,
+          updatedAt
+        ],
       );
     });
   }
@@ -131,9 +140,12 @@ class PatientSyncDao extends DatabaseAccessor<AppDatabase> {
     return row.read<int>('row_count');
   }
 
-  Future<void> acknowledgeArchive(String operationId, String patientUuid) async {
+  Future<void> acknowledgeArchive(
+      String operationId, String patientUuid) async {
     await transaction(() async {
-      await customStatement('DELETE FROM patient_sync_outbox WHERE operation_id = ?', [operationId]);
+      await customStatement(
+          'DELETE FROM patient_sync_outbox WHERE operation_id = ?',
+          [operationId]);
       await customStatement(
         "UPDATE patient_sync_states SET sync_state = 'SYNCED', last_error_code = NULL, updated_at = ? WHERE patient_uuid = ?",
         [DateTime.now().toIso8601String(), patientUuid],
@@ -170,20 +182,50 @@ class PatientSyncDao extends DatabaseAccessor<AppDatabase> {
           '(uuid, uhid, name, gender, dob, age_years, phone, alt_phone, email, address, city, state, pincode, '
           'blood_group, emergency_contact_name, emergency_contact_phone, is_vip, created_at, updated_at, is_deleted) '
           'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 0)',
-          [uuid, localAlias, patient['name'], patient['gender'], patient['dateOfBirth'], patient['ageYears'],
-            patient['phone'], patient['alternatePhone'], patient['email'], patient['address'], patient['city'],
-            patient['state'], patient['pincode'], patient['bloodGroup'], patient['emergencyContactName'],
-            patient['emergencyContactPhone'], createdAt, updatedAt],
+          [
+            uuid,
+            localAlias,
+            patient['name'],
+            patient['gender'],
+            patient['dateOfBirth'],
+            patient['ageYears'],
+            patient['phone'],
+            patient['alternatePhone'],
+            patient['email'],
+            patient['address'],
+            patient['city'],
+            patient['state'],
+            patient['pincode'],
+            patient['bloodGroup'],
+            patient['emergencyContactName'],
+            patient['emergencyContactPhone'],
+            createdAt,
+            updatedAt
+          ],
         );
       } else {
         await customStatement(
           'UPDATE patients SET name = ?, gender = ?, dob = ?, age_years = ?, phone = ?, alt_phone = ?, email = ?, '
           'address = ?, city = ?, state = ?, pincode = ?, blood_group = ?, emergency_contact_name = ?, '
           'emergency_contact_phone = ?, updated_at = ? WHERE id = ?',
-          [patient['name'], patient['gender'], patient['dateOfBirth'], patient['ageYears'], patient['phone'],
-            patient['alternatePhone'], patient['email'], patient['address'], patient['city'], patient['state'],
-            patient['pincode'], patient['bloodGroup'], patient['emergencyContactName'],
-            patient['emergencyContactPhone'], updatedAt, existingRows.single.read<int>('id')],
+          [
+            patient['name'],
+            patient['gender'],
+            patient['dateOfBirth'],
+            patient['ageYears'],
+            patient['phone'],
+            patient['alternatePhone'],
+            patient['email'],
+            patient['address'],
+            patient['city'],
+            patient['state'],
+            patient['pincode'],
+            patient['bloodGroup'],
+            patient['emergencyContactName'],
+            patient['emergencyContactPhone'],
+            updatedAt,
+            existingRows.single.read<int>('id')
+          ],
         );
       }
       await customStatement(
@@ -193,20 +235,35 @@ class PatientSyncDao extends DatabaseAccessor<AppDatabase> {
         'server_patient_id = excluded.server_patient_id, canonical_uhid = excluded.canonical_uhid, '
         'server_version = excluded.server_version, server_status = excluded.server_status, '
         "sync_state = 'SYNCED', last_error_code = NULL, updated_at = excluded.updated_at",
-        [uuid, id, canonicalUhid, (patient['version'] as num).toInt(), patient['status'] ?? 'ACTIVE', now],
+        [
+          uuid,
+          id,
+          canonicalUhid,
+          (patient['version'] as num).toInt(),
+          patient['status'] ?? 'ACTIVE',
+          now
+        ],
       );
     });
   }
 
-  Future<void> _upsertState(
-      String uuid, String state, String error, Map<String, dynamic> patient) =>
+  Future<void> _upsertState(String uuid, String state, String error,
+          Map<String, dynamic> patient) =>
       customStatement(
         'INSERT INTO patient_sync_states '
         '(patient_uuid, server_patient_id, canonical_uhid, server_version, server_status, sync_state, last_error_code, updated_at) '
         'VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(patient_uuid) DO UPDATE SET '
         'sync_state = excluded.sync_state, last_error_code = excluded.last_error_code, updated_at = excluded.updated_at',
-        [uuid, patient['id'], patient['uhid'], patient['version'], patient['status'], state, error,
-          DateTime.now().toIso8601String()],
+        [
+          uuid,
+          patient['id'],
+          patient['uhid'],
+          patient['version'],
+          patient['status'],
+          state,
+          error,
+          DateTime.now().toIso8601String()
+        ],
       );
 }
 

@@ -83,8 +83,8 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                 side: BorderSide(color: colorScheme.outlineVariant),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 32, vertical: 36),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 36),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -162,4 +162,3 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     );
   }
 }
-

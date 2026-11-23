@@ -1,8 +1,19 @@
 package com.caresync.backend.patient.service;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.caresync.backend.common.dto.PaginationRequest;
 import com.caresync.backend.common.dto.PaginationResponse;
-import com.caresync.backend.membership.entity.MembershipRole;
 import com.caresync.backend.patient.dto.PatientCreateRequest;
 import com.caresync.backend.patient.dto.PatientResponse;
 import com.caresync.backend.patient.dto.PatientStatusRequest;
@@ -15,17 +26,6 @@ import com.caresync.backend.security.SecurityAuditEvent;
 import com.caresync.backend.security.SecurityAuditEventRepository;
 import com.caresync.backend.tenant.TenantContext;
 import com.caresync.backend.tenant.TenantContextHolder;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
 
 @Service
 public class PatientService {

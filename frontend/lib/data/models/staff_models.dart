@@ -2,7 +2,6 @@ import 'dart:convert';
 
 /// Staff & Doctor record model representing hospital employees.
 class StaffModel {
-
   const StaffModel({
     required this.id,
     required this.uuid,
@@ -154,12 +153,12 @@ class StaffModel {
       department.hashCode;
 
   @override
-  String toString() => 'StaffModel(id: $id, name: $name, role: $role, dept: $department)';
+  String toString() =>
+      'StaffModel(id: $id, name: $name, role: $role, dept: $department)';
 }
 
 /// Clinical Department model
 class DepartmentModel {
-
   const DepartmentModel({
     required this.id,
     required this.uuid,
@@ -243,7 +242,6 @@ class DepartmentModel {
 
 /// Doctor profile model with consultation fee and slot configuration
 class DoctorModel {
-
   const DoctorModel({
     required this.id,
     required this.uuid,
@@ -356,12 +354,12 @@ class DoctorModel {
   int get hashCode => id.hashCode ^ staffId.hashCode ^ doctorName.hashCode;
 
   @override
-  String toString() => 'DoctorModel(id: $id, name: $doctorName, spec: $specialisation)';
+  String toString() =>
+      'DoctorModel(id: $id, name: $doctorName, spec: $specialisation)';
 }
 
 /// Doctor schedule representation per weekday
 class DoctorScheduleModel {
-
   const DoctorScheduleModel({
     required this.id,
     required this.uuid,
@@ -473,6 +471,6 @@ class DoctorScheduleModel {
   int get hashCode => id.hashCode ^ doctorId.hashCode ^ weekday.hashCode;
 
   @override
-  String toString() => 'DoctorScheduleModel($weekdayName: $startTime - $endTime)';
+  String toString() =>
+      'DoctorScheduleModel($weekdayName: $startTime - $endTime)';
 }
-

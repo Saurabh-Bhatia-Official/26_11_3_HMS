@@ -18,22 +18,19 @@ class PatientsDao extends DatabaseAccessor<AppDatabase>
   Future<bool> updatePatient(PatientsCompanion companion) =>
       update(patients).replace(companion);
 
-  Future<void> softDeletePatient(int id) => (update(patients)
-        ..where((t) => t.id.equals(id)))
-      .write(PatientsCompanion(
+  Future<void> softDeletePatient(int id) =>
+      (update(patients)..where((t) => t.id.equals(id))).write(PatientsCompanion(
         isDeleted: const Value(true),
         updatedAt: Value(DateTime.now().toIso8601String()),
       ));
 
-  Future<PatientRow?> findPatientById(int id) =>
-      (select(patients)
-            ..where((t) => t.id.equals(id) & t.isDeleted.equals(false)))
-          .getSingleOrNull();
+  Future<PatientRow?> findPatientById(int id) => (select(patients)
+        ..where((t) => t.id.equals(id) & t.isDeleted.equals(false)))
+      .getSingleOrNull();
 
-  Future<PatientRow?> findPatientByUhid(String uhid) =>
-      (select(patients)
-            ..where((t) => t.uhid.equals(uhid) & t.isDeleted.equals(false)))
-          .getSingleOrNull();
+  Future<PatientRow?> findPatientByUhid(String uhid) => (select(patients)
+        ..where((t) => t.uhid.equals(uhid) & t.isDeleted.equals(false)))
+      .getSingleOrNull();
 
   Future<List<PatientRow>> searchPatients(
     String query, {
@@ -45,9 +42,7 @@ class PatientsDao extends DatabaseAccessor<AppDatabase>
           ..where(
             (t) =>
                 t.isDeleted.equals(false) &
-                (t.name.like(q) |
-                    t.uhid.like(q) |
-                    t.phone.like(q)),
+                (t.name.like(q) | t.uhid.like(q) | t.phone.like(q)),
           )
           ..orderBy([(t) => OrderingTerm.asc(t.name)])
           ..limit(limit, offset: offset))
@@ -64,10 +59,9 @@ class PatientsDao extends DatabaseAccessor<AppDatabase>
             ..limit(limit, offset: offset))
           .get();
 
-  Future<PatientRow?> findPatientByPhone(String phone) =>
-      (select(patients)
-            ..where((t) => t.phone.equals(phone) & t.isDeleted.equals(false)))
-          .getSingleOrNull();
+  Future<PatientRow?> findPatientByPhone(String phone) => (select(patients)
+        ..where((t) => t.phone.equals(phone) & t.isDeleted.equals(false)))
+      .getSingleOrNull();
 
   // ── Allergies ─────────────────────────────────────────────────────────────
 

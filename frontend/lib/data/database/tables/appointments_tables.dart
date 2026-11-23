@@ -17,13 +17,14 @@ class Appointments extends Table {
   IntColumn get patientId => integer().references(Patients, #id)();
   IntColumn get doctorId => integer().references(Doctors, #id)();
   IntColumn get departmentId => integer().references(Departments, #id)();
+
   /// YYYY-MM-DD
   TextColumn get scheduledDate => text()();
+
   /// HH:mm
   TextColumn get scheduledTime => text()();
   IntColumn get tokenNo => integer().nullable()();
-  TextColumn get status =>
-      text().withDefault(const Constant('scheduled'))();
+  TextColumn get status => text().withDefault(const Constant('scheduled'))();
   TextColumn get visitType =>
       text().withDefault(const Constant('appointment'))();
   TextColumn get notes => text().nullable()();
@@ -31,6 +32,5 @@ class Appointments extends Table {
   TextColumn get updatedAt => text()();
   IntColumn get createdBy => integer().nullable()();
   IntColumn get updatedBy => integer().nullable()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }

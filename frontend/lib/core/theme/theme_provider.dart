@@ -38,4 +38,3 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     await db.saveSetting('theme_mode', key);
   }
 }
-

@@ -9,6 +9,7 @@ import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
 import 'package:hospital_management/data/remote/hospital_api_client.dart';
+import 'package:hospital_management/core/providers/hms_providers.dart';
 
 enum AuthTab { signIn, createHospital, centralReview }
 
@@ -59,6 +60,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _adminObscurePassword = true;
   bool _adminObscureConfirm = true;
 
+  // ── Hospital Staff & Role Credentials ──────────────────────────────────────
+  final _adminRoleUsernameController = TextEditingController();
+  final _adminRolePasswordController =
+      TextEditingController(text: 'Admin@1234');
+  final _doctorUsernameController = TextEditingController();
+  final _doctorPasswordController = TextEditingController(text: 'Doctor@1234');
+  final _nurseUsernameController = TextEditingController();
+  final _nursePasswordController = TextEditingController(text: 'Nurse@1234');
+  final _staffUsernameController = TextEditingController();
+  final _staffPasswordController = TextEditingController(text: 'Staff@1234');
+  bool _customStaffExpanded = false;
+
   bool _isSubmitting = false;
   final _centralUsernameController = TextEditingController();
   final _centralPasswordController = TextEditingController();
@@ -70,10 +83,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _currentTab = widget.initialTab;
+    _hospCodeController.addListener(_onHospCodeChanged);
+  }
+
+  void _onHospCodeChanged() {
+    final code = _hospCodeController.text.trim().toLowerCase();
+    if (code.isNotEmpty) {
+      if (_adminRoleUsernameController.text.isEmpty ||
+          _adminRoleUsernameController.text.endsWith('_admin')) {
+        _adminRoleUsernameController.text = '${code}_admin';
+      }
+      if (_doctorUsernameController.text.isEmpty ||
+          _doctorUsernameController.text.endsWith('_doctor')) {
+        _doctorUsernameController.text = '${code}_doctor';
+      }
+      if (_nurseUsernameController.text.isEmpty ||
+          _nurseUsernameController.text.endsWith('_nurse')) {
+        _nurseUsernameController.text = '${code}_nurse';
+      }
+      if (_staffUsernameController.text.isEmpty ||
+          _staffUsernameController.text.endsWith('_staff')) {
+        _staffUsernameController.text = '${code}_staff';
+      }
+    }
   }
 
   @override
   void dispose() {
+    _hospCodeController.removeListener(_onHospCodeChanged);
     _usernameController.dispose();
     _passwordController.dispose();
     _passwordFocusNode.dispose();
@@ -90,6 +127,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _hospitalIdController.dispose();
     _centralUsernameController.dispose();
     _centralPasswordController.dispose();
+
+    _adminRoleUsernameController.dispose();
+    _adminRolePasswordController.dispose();
+    _doctorUsernameController.dispose();
+    _doctorPasswordController.dispose();
+    _nurseUsernameController.dispose();
+    _nursePasswordController.dispose();
+    _staffUsernameController.dispose();
+    _staffPasswordController.dispose();
     super.dispose();
   }
 
@@ -103,35 +149,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
-    final username = _usernameController.text.trim();
-    final password = _passwordController.text;
-
     setState(() => _isSubmitting = true);
 
-    final error = await ref.read(sessionProvider.notifier).login(
-          username,
-          password,
-          selectedHospitalId: _selectedHospital?.id,
-          selectedHospitalName: _selectedHospital?.name,
+    try {
+      final selectedHospital =
+          _selectedHospital ?? ref.read(activeHospitalProvider);
+
+      final error = await ref.read(sessionProvider.notifier).login(
+            _usernameController.text.trim(),
+            _passwordController.text,
+            selectedHospitalId: selectedHospital?.id,
+            selectedHospitalName: selectedHospital?.name,
+          );
+
+      if (!mounted) return;
+
+      if (error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
+        return;
+      }
 
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
+      if (selectedHospital != null) {
+        ref
+            .read(activeHospitalProvider.notifier)
+            .switchHospital(selectedHospital);
+      }
 
-    if (error != null) {
+      context.go(AppRoutes.dashboard);
+    } catch (error) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error),
+          content: Text('Login failed: $error'),
           backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
         ),
       );
-    } else {
-      if (_selectedHospital != null) {
-        ref.read(activeHospitalProvider.notifier).switchHospital(_selectedHospital!);
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
       }
-      if (mounted) context.go(AppRoutes.dashboard);
     }
   }
 
@@ -141,7 +204,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _onlineHospitalError = null;
     });
     try {
-      final hospitals = await ref.read(hospitalApiClientProvider).listHospitals();
+      final hospitals =
+          await ref.read(hospitalApiClientProvider).listHospitals();
       if (!mounted) return;
       setState(() {
         _onlineHospitals = hospitals;
@@ -166,7 +230,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _lookupOnlineHospital() async {
     final id = _hospitalIdController.text.trim();
     if (!RegExp(r'^\d{12}$').hasMatch(id)) {
-      setState(() => _onlineHospitalError = 'Enter a valid 12-digit Hospital ID.');
+      setState(
+          () => _onlineHospitalError = 'Enter a valid 12-digit Hospital ID.');
       return;
     }
     setState(() {
@@ -175,7 +240,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _selectedOnlineHospital = null;
     });
     try {
-      final hospital = await ref.read(hospitalApiClientProvider).lookupHospital(id);
+      final hospital =
+          await ref.read(hospitalApiClientProvider).lookupHospital(id);
       if (!mounted) return;
       setState(() {
         _selectedOnlineHospital = hospital;
@@ -198,7 +264,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submitOnlineSignIn() async {
     if (_selectedOnlineHospital == null) {
-      setState(() => _onlineHospitalError = 'Select or find an approved hospital first.');
+      setState(() =>
+          _onlineHospitalError = 'Select or find an approved hospital first.');
       return;
     }
     setState(() {
@@ -206,11 +273,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _onlineLoginMessage = null;
     });
     try {
-      final error = await ref.read(onlineHospitalSessionProvider.notifier).login(
-            hospitalId: _selectedOnlineHospital!.hospitalId,
-            username: _usernameController.text.trim(),
-            password: _passwordController.text,
-          );
+      final error =
+          await ref.read(onlineHospitalSessionProvider.notifier).login(
+                hospitalId: _selectedOnlineHospital!.hospitalId,
+                username: _usernameController.text.trim(),
+                password: _passwordController.text,
+              );
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;
@@ -233,8 +301,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _loginCentralAdministrator() async {
-    if (_centralUsernameController.text.trim().isEmpty || _centralPasswordController.text.isEmpty) {
-      setState(() => _reviewMessage = 'Enter the Central Super Admin username and password.');
+    if (_centralUsernameController.text.trim().isEmpty ||
+        _centralPasswordController.text.isEmpty) {
+      setState(() => _reviewMessage =
+          'Enter the Central Super Admin username and password.');
       return;
     }
     setState(() {
@@ -249,9 +319,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final token = login['accessToken'] as String;
       final user = login['user'] as Map<String, dynamic>;
       if (user['role'] != 'SUPER_ADMIN' || user['hospitalId'] != null) {
-        throw const HospitalApiException('This account is not a Central Super Admin.');
+        throw const HospitalApiException(
+            'This account is not a Central Super Admin.');
       }
-      final pending = await ref.read(hospitalApiClientProvider).pendingRegistrations(token);
+      final pending =
+          await ref.read(hospitalApiClientProvider).pendingRegistrations(token);
       if (!mounted) return;
       setState(() {
         _centralAccessToken = token;
@@ -268,34 +340,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
       setState(() {
         _reviewingRegistrations = false;
-        _reviewMessage = 'Cannot connect or the server returned an invalid response.';
+        _reviewMessage =
+            'Cannot connect or the server returned an invalid response.';
       });
     }
   }
 
-  Future<void> _reviewRegistration(String registrationId, {required bool approve}) async {
+  Future<void> _reviewRegistration(String registrationId,
+      {required bool approve}) async {
     final token = _centralAccessToken;
     if (token == null) return;
     try {
       if (approve) {
-        final result = await ref.read(hospitalApiClientProvider).approveRegistration(registrationId, token);
+        final result = await ref
+            .read(hospitalApiClientProvider)
+            .approveRegistration(registrationId, token);
         if (!mounted) return;
         setState(() {
-          _pendingOnlineRegistrations.removeWhere((row) => row['registrationId'] == registrationId);
-          _reviewMessage = 'Approved ${result['name']}. Hospital ID: ${result['hospitalId']}';
+          _pendingOnlineRegistrations
+              .removeWhere((row) => row['registrationId'] == registrationId);
+          _reviewMessage =
+              'Approved ${result['name']}. Hospital ID: ${result['hospitalId']}';
         });
       } else {
-        await ref.read(hospitalApiClientProvider).rejectRegistration(registrationId, token);
+        await ref
+            .read(hospitalApiClientProvider)
+            .rejectRegistration(registrationId, token);
         if (!mounted) return;
         setState(() {
-          _pendingOnlineRegistrations.removeWhere((row) => row['registrationId'] == registrationId);
+          _pendingOnlineRegistrations
+              .removeWhere((row) => row['registrationId'] == registrationId);
           _reviewMessage = 'Registration rejected.';
         });
       }
     } on HospitalApiException catch (error) {
       if (mounted) setState(() => _reviewMessage = error.message);
     } catch (_) {
-      if (mounted) setState(() => _reviewMessage = 'Cannot complete the review request.');
+      if (mounted)
+        setState(() => _reviewMessage = 'Cannot complete the review request.');
     }
   }
 
@@ -317,15 +399,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final result = await ref.read(hospitalApiClientProvider).registerHospital(
-        name: hospName,
-        code: hospCode,
-        type: _hospType,
-        address: hospAddress,
-        email: adminEmail,
-        adminUsername: adminUsername,
-        adminPassword: adminPassword,
-        adminFullName: adminFullName,
-      );
+            name: hospName,
+            code: hospCode,
+            type: _hospType,
+            address: hospAddress,
+            email: adminEmail,
+            adminUsername: adminUsername,
+            adminPassword: adminPassword,
+            adminFullName: adminFullName,
+          );
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       await showDialog<void>(
@@ -359,13 +441,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _submitOfflineLocalHospitalSetup() async {
-    if (_isSubmitting || !(_createFormKey.currentState?.validate() ?? false)) return;
+    if (_isSubmitting || !(_createFormKey.currentState?.validate() ?? false))
+      return;
     setState(() => _isSubmitting = true);
     try {
       final db = ref.read(appDatabaseProvider);
       final username = _adminUsernameController.text.trim();
       if (await db.isUsernameTaken(username)) {
-        throw const HospitalApiException('That local username is already in use.');
+        throw const HospitalApiException(
+            'That local username is already in use.');
       }
       final hospital = HospitalModel(
         uuid: 'hosp-${DateTime.now().millisecondsSinceEpoch}',
@@ -390,16 +474,55 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ref.invalidate(allHospitalsProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Saved on this device only; this is not an online hospital registration.'),
+          content: Text(
+              'Saved on this device only; this is not an online hospital registration.'),
         ));
         setState(() => _isSubmitting = false);
       }
     } catch (error) {
       if (mounted) {
         setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
+  } //
+
+  static Widget _buildCredentialRow(
+      String role, String username, String password) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 4,
+            child: Text(role,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+          Expanded(
+            flex: 4,
+            child: Text(username,
+                style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+          ),
+          Expanded(
+            flex: 4,
+            child: Text(
+              password,
+              style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _prefill(String username, String password) {
+    setState(() {
+      _usernameController.text = username;
+      _passwordController.text = password;
+    });
   }
 
   @override
@@ -430,7 +553,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 side: BorderSide(color: colorScheme.outlineVariant),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -488,17 +612,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ButtonSegment(
                           value: AuthTab.signIn,
                           icon: Icon(Icons.login_rounded, size: 18),
-                          label: Text('Sign In', style: TextStyle(fontWeight: FontWeight.w600)),
+                          label: Text('Sign In',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
                         ),
                         ButtonSegment(
                           value: AuthTab.createHospital,
                           icon: Icon(Icons.domain_add_rounded, size: 18),
-                          label: Text('Create Hospital', style: TextStyle(fontWeight: FontWeight.w600)),
+                          label: Text('Create Hospital',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
                         ),
                         ButtonSegment(
                           value: AuthTab.centralReview,
                           icon: Icon(Icons.fact_check_outlined, size: 18),
-                          label: Text('Review', style: TextStyle(fontWeight: FontWeight.w600)),
+                          label: Text('Review',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
                         ),
                       ],
                       selected: {_currentTab},
@@ -510,7 +637,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                     // ── Tab View Content ─────────────────────────────────────
                     if (_currentTab == AuthTab.signIn)
-                      _buildSignInForm(context, colorScheme, textTheme, hospitals)
+                      _buildSignInForm(
+                          context, colorScheme, textTheme, hospitals)
                     else if (_currentTab == AuthTab.createHospital)
                       _buildCreateHospitalForm(context, colorScheme, textTheme)
                     else
@@ -526,6 +654,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   // ── Sign In View ────────────────────────────────────────────────────────────
+
   Widget _buildSignInForm(
     BuildContext context,
     ColorScheme colorScheme,
@@ -533,26 +662,62 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     List<HospitalModel> hospitals,
   ) {
     final onlineSession = ref.watch(onlineHospitalSessionProvider);
+
     return Form(
       key: _signInFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // ── Online / Offline Login Switch ─────────────────────────────
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Online Hospital Login'),
+            subtitle: Text(
+              _onlineSignIn
+                  ? 'Sign in using the CareSync server'
+                  : 'Sign in using this device',
+            ),
+            value: _onlineSignIn,
+            onChanged: _isSubmitting
+                ? null
+                : (enabled) {
+                    setState(() {
+                      _onlineSignIn = enabled;
+                      _onlineHospitalError = null;
+                      _onlineLoginMessage = null;
+                      _selectedOnlineHospital = null;
+                    });
+
+                    if (enabled) {
+                      _loadOnlineHospitals();
+                    }
+                  },
+          ),
+          const Gap(12),
+
+          // ── Online Session Error ──────────────────────────────────────
           if (_onlineSignIn && onlineSession.error != null) ...[
             const Gap(8),
-            Text(onlineSession.error!, style: TextStyle(color: colorScheme.error)),
+            Text(
+              onlineSession.error!,
+              style: TextStyle(color: colorScheme.error),
+            ),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: onlineSession.isLoading
                     ? null
-                    : () => ref.read(onlineHospitalSessionProvider.notifier).restore(),
+                    : () => ref
+                        .read(onlineHospitalSessionProvider.notifier)
+                        .restore(),
                 child: const Text('Retry session restore'),
               ),
             ),
           ],
+
           const Gap(14),
-          // ── Hospital Selector ──────────────────────────────────────────────
+
+          // ── Hospital Selector ─────────────────────────────────────────
           if (_onlineSignIn) ...[
             Align(
               alignment: Alignment.centerRight,
@@ -562,65 +727,117 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   _selectedOnlineHospital = null;
                   _onlineHospitalError = null;
                 }),
-                icon: Icon(_enterHospitalId ? Icons.list_alt : Icons.pin_outlined, size: 16),
-                label: Text(_enterHospitalId ? 'Choose from hospital list' : 'I have a Hospital ID'),
+                icon: Icon(
+                  _enterHospitalId ? Icons.list_alt : Icons.pin_outlined,
+                  size: 16,
+                ),
+                label: Text(
+                  _enterHospitalId
+                      ? 'Choose from hospital list'
+                      : 'I have a Hospital ID',
+                ),
               ),
             ),
             if (_enterHospitalId)
-              Row(children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _hospitalIdController,
-                    keyboardType: TextInputType.number,
-                    maxLength: 12,
-                    decoration: const InputDecoration(labelText: '12-digit Hospital ID'),
-                    validator: (value) => RegExp(r'^\d{12}$').hasMatch(value?.trim() ?? '')
-                        ? null
-                        : 'Enter a valid 12-digit Hospital ID',
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _hospitalIdController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 12,
+                      decoration: const InputDecoration(
+                        labelText: '12-digit Hospital ID',
+                      ),
+                      validator: (value) =>
+                          RegExp(r'^\d{12}$').hasMatch(value?.trim() ?? '')
+                              ? null
+                              : 'Enter a valid 12-digit Hospital ID',
+                    ),
                   ),
-                ),
-                IconButton(
-                  tooltip: 'Find hospital',
-                  onPressed: _loadingOnlineHospitals ? null : _lookupOnlineHospital,
-                  icon: const Icon(Icons.search),
-                ),
-              ])
+                  IconButton(
+                    tooltip: 'Find hospital',
+                    onPressed:
+                        _loadingOnlineHospitals ? null : _lookupOnlineHospital,
+                    icon: const Icon(Icons.search),
+                  ),
+                ],
+              )
             else if (_loadingOnlineHospitals)
-              const Center(child: CircularProgressIndicator())
+              const Center(
+                child: CircularProgressIndicator(),
+              )
             else if (_onlineHospitals.isNotEmpty)
               DropdownButtonFormField<HospitalApiRecord>(
-                initialValue: _onlineHospitals.any((hospital) => hospital.hospitalId == _selectedOnlineHospital?.hospitalId)
-                    ? _onlineHospitals.firstWhere((hospital) => hospital.hospitalId == _selectedOnlineHospital?.hospitalId)
+                initialValue: _onlineHospitals.any(
+                  (hospital) =>
+                      hospital.hospitalId ==
+                      _selectedOnlineHospital?.hospitalId,
+                )
+                    ? _onlineHospitals.firstWhere(
+                        (hospital) =>
+                            hospital.hospitalId ==
+                            _selectedOnlineHospital?.hospitalId,
+                      )
                     : null,
-                decoration: const InputDecoration(labelText: 'Hospital', prefixIcon: Icon(Icons.local_hospital_outlined)),
-                items: _onlineHospitals.map((hospital) => DropdownMenuItem(
-                  value: hospital,
-                  child: Text('${hospital.name} · ${hospital.hospitalId}', overflow: TextOverflow.ellipsis),
-                )).toList(),
-                onChanged: (hospital) => setState(() => _selectedOnlineHospital = hospital),
-                validator: (hospital) => hospital == null ? 'Choose an approved hospital' : null,
+                decoration: const InputDecoration(
+                  labelText: 'Hospital',
+                  prefixIcon: Icon(
+                    Icons.local_hospital_outlined,
+                  ),
+                ),
+                items: _onlineHospitals.map((hospital) {
+                  return DropdownMenuItem(
+                    value: hospital,
+                    child: Text(
+                      '${hospital.name} · ${hospital.hospitalId}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: (hospital) {
+                  setState(() {
+                    _selectedOnlineHospital = hospital;
+                  });
+                },
+                validator: (hospital) =>
+                    hospital == null ? 'Choose an approved hospital' : null,
               )
             else
-              Text(_onlineHospitalError ?? 'No approved Hospitals are available.',
-                  style: TextStyle(color: colorScheme.error)),
+              Text(
+                _onlineHospitalError ?? 'No approved Hospitals are available.',
+                style: TextStyle(color: colorScheme.error),
+              ),
             if (_selectedOnlineHospital != null && _enterHospitalId)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text('Hospital: ${_selectedOnlineHospital!.name} (${_selectedOnlineHospital!.hospitalId})'),
+                child: Text(
+                  'Hospital: ${_selectedOnlineHospital!.name} '
+                  '(${_selectedOnlineHospital!.hospitalId})',
+                ),
               ),
             if (_onlineHospitalError != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(_onlineHospitalError!, style: TextStyle(color: colorScheme.error)),
+                child: Text(
+                  _onlineHospitalError!,
+                  style: TextStyle(color: colorScheme.error),
+                ),
               ),
           ] else if (hospitals.isNotEmpty) ...[
             DropdownButtonFormField<HospitalModel>(
-              initialValue: hospitals.any((h) => h.id == _selectedHospital?.id)
-                  ? hospitals.firstWhere((h) => h.id == _selectedHospital?.id)
+              initialValue: hospitals.any(
+                (h) => h.id == _selectedHospital?.id,
+              )
+                  ? hospitals.firstWhere(
+                      (h) => h.id == _selectedHospital?.id,
+                    )
                   : hospitals.first,
               decoration: const InputDecoration(
                 labelText: 'Select Hospital / Branch',
-                prefixIcon: Icon(Icons.local_hospital_outlined),
+                prefixIcon: Icon(
+                  Icons.local_hospital_outlined,
+                ),
                 helperText: 'Branch to access for this work session',
               ),
               items: hospitals.map((h) {
@@ -629,24 +846,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: Text(
                     h.name,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 );
               }).toList(),
               onChanged: (val) {
-                if (val != null) setState(() => _selectedHospital = val);
+                if (val != null) {
+                  setState(() => _selectedHospital = val);
+                }
               },
             ),
             const Gap(16),
           ],
 
-          // ── Username Field ─────────────────────────────────────────────────
+          // ── Username Field ────────────────────────────────────────────
           TextFormField(
             controller: _usernameController,
             decoration: const InputDecoration(
               labelText: 'Username',
               hintText: 'e.g. admin or staff ID',
-              prefixIcon: Icon(Icons.person_outline_rounded),
+              prefixIcon: Icon(
+                Icons.person_outline_rounded,
+              ),
             ),
             textInputAction: TextInputAction.next,
             autocorrect: false,
@@ -660,18 +883,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const Gap(16),
 
-          // ── Password Field ─────────────────────────────────────────────────
+          // ── Password Field ────────────────────────────────────────────
           TextFormField(
             controller: _passwordController,
             focusNode: _passwordFocusNode,
             decoration: InputDecoration(
               labelText: 'Password',
-              prefixIcon: const Icon(Icons.lock_outline_rounded),
+              prefixIcon: const Icon(
+                Icons.lock_outline_rounded,
+              ),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
                 ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
                 tooltip: _obscurePassword ? 'Show password' : 'Hide password',
               ),
             ),
@@ -687,44 +918,75 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const Gap(22),
 
-          // ── Submit Button ──────────────────────────────────────────────────
+          // ── Online Login Message ──────────────────────────────────────
           if (_onlineLoginMessage != null) ...[
-            Text(_onlineLoginMessage!, style: TextStyle(color: colorScheme.primary)),
+            Text(
+              _onlineLoginMessage!,
+              style: TextStyle(color: colorScheme.primary),
+            ),
             const Gap(12),
           ],
+
+          // ── Submit Button ─────────────────────────────────────────────
           FilledButton.icon(
             onPressed: _isSubmitting ? null : _submitSignIn,
             icon: _isSubmitting
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Icon(Icons.login_rounded),
             label: Text(
               _isSubmitting ? 'Signing in…' : 'Sign In',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
           const Gap(16),
 
-          // ── Switch to Create Hospital Link ─────────────────────────────────
+          // ── Register Hospital Link ────────────────────────────────────
           Center(
             child: TextButton.icon(
-              onPressed: () => setState(() => _currentTab = AuthTab.createHospital),
-              icon: const Icon(Icons.domain_add_rounded, size: 16),
+              onPressed: () {
+                setState(() {
+                  _currentTab = AuthTab.createHospital;
+                });
+              },
+              icon: const Icon(
+                Icons.domain_add_rounded,
+                size: 16,
+              ),
               label: const Text('Register Hospital online'),
             ),
           ),
+
+          // ── Central Super Admin Link ──────────────────────────────────
           Center(
             child: TextButton.icon(
-              onPressed: () => setState(() => _currentTab = AuthTab.centralReview),
-              icon: const Icon(Icons.fact_check_outlined, size: 16),
-              label: const Text('Central Super Admin: review registrations'),
+              onPressed: () {
+                setState(() {
+                  _currentTab = AuthTab.centralReview;
+                });
+              },
+              icon: const Icon(
+                Icons.fact_check_outlined,
+                size: 16,
+              ),
+              label: const Text(
+                'Central Super Admin: review registrations',
+              ),
             ),
           ),
         ],
@@ -749,17 +1011,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             decoration: BoxDecoration(
               color: colorScheme.primaryContainer.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
+              border:
+                  Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.shield_outlined, size: 20, color: colorScheme.primary),
+                Icon(Icons.shield_outlined,
+                    size: 20, color: colorScheme.primary),
                 const Gap(8),
                 Expanded(
                   child: Text(
                     'Creating a hospital registers the master Super Admin account. Other staff (Doctors, Nurses, Receptionists, Pharmacists) are provisioned securely through Super Admin Settings.',
-                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onPrimaryContainer),
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: colorScheme.onPrimaryContainer),
                   ),
                 ),
               ],
@@ -774,7 +1039,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const Gap(6),
               Text(
                 'Hospital Information',
-                style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
+                style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold, color: colorScheme.primary),
               ),
             ],
           ),
@@ -791,52 +1057,92 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             textCapitalization: TextCapitalization.words,
             textInputAction: TextInputAction.next,
             validator: (value) {
-              if (value == null || value.trim().isEmpty) return 'Hospital name is required';
+              if (value == null || value.trim().isEmpty)
+                return 'Hospital name is required';
               return null;
             },
           ),
           const Gap(12),
 
-          // ── Hospital Code & Facility Type ──────────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _hospCodeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Branch Code *',
-                    hintText: 'e.g. SJH-CENTRAL',
-                    prefixIcon: Icon(Icons.tag),
-                  ),
-                  textCapitalization: TextCapitalization.characters,
-                  textInputAction: TextInputAction.next,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Code required';
-                    return null;
-                  },
+          // ── Hospital Code & Facility Type ─────────────────────
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 520;
+
+              final branchCodeField = TextFormField(
+                controller: _hospCodeController,
+                decoration: const InputDecoration(
+                  labelText: 'Branch Code *',
+                  hintText: 'e.g. SJH-CENTRAL',
+                  prefixIcon: Icon(Icons.tag),
                 ),
-              ),
-              const Gap(12),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _hospType,
-                  decoration: const InputDecoration(
-                    labelText: 'Type',
-                    prefixIcon: Icon(Icons.category_outlined),
+                textCapitalization: TextCapitalization.characters,
+                textInputAction: TextInputAction.next,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Code required';
+                  }
+                  return null;
+                },
+              );
+
+              final facilityTypeField = DropdownButtonFormField<String>(
+                initialValue: _hospType,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Type',
+                  prefixIcon: Icon(Icons.category_outlined),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Multispeciality Hospital',
+                    child: Text('Multispeciality',
+                        overflow: TextOverflow.ellipsis),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'Multispeciality Hospital', child: Text('Multispeciality')),
-                    DropdownMenuItem(value: 'General Hospital', child: Text('General Hospital')),
-                    DropdownMenuItem(value: 'Clinic / Outpatient', child: Text('Clinic')),
-                    DropdownMenuItem(value: 'Trauma & Emergency Center', child: Text('Trauma Center')),
-                    DropdownMenuItem(value: 'Diagnostic Clinic', child: Text('Diagnostic Clinic')),
+                  DropdownMenuItem(
+                    value: 'General Hospital',
+                    child: Text('General Hospital',
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Clinic / Outpatient',
+                    child: Text('Clinic'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Trauma & Emergency Center',
+                    child: Text('Trauma Center'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Diagnostic Clinic',
+                    child: Text('Diagnostic Clinic',
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _hospType = val);
+                  }
+                },
+              );
+
+              if (isWide) {
+                return Row(
+                  children: [
+                    Expanded(child: branchCodeField),
+                    const Gap(12),
+                    Expanded(child: facilityTypeField),
                   ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => _hospType = val);
-                  },
-                ),
-              ),
-            ],
+                );
+              }
+
+              return Column(
+                children: [
+                  branchCodeField,
+                  const Gap(12),
+                  facilityTypeField,
+                ],
+              );
+            },
           ),
           const Gap(12),
 
@@ -855,11 +1161,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           // ── Super Admin Section Header ─────────────────────────────────────
           Row(
             children: [
-              Icon(Icons.admin_panel_settings_outlined, size: 18, color: colorScheme.primary),
+              Icon(Icons.admin_panel_settings_outlined,
+                  size: 18, color: colorScheme.primary),
               const Gap(6),
               Text(
                 'Super Admin Account Credentials',
-                style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
+                style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold, color: colorScheme.primary),
               ),
             ],
           ),
@@ -876,7 +1184,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             textCapitalization: TextCapitalization.words,
             textInputAction: TextInputAction.next,
             validator: (value) {
-              if (value == null || value.trim().isEmpty) return 'Full name is required';
+              if (value == null || value.trim().isEmpty)
+                return 'Full name is required';
               return null;
             },
           ),
@@ -896,7 +1205,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   textInputAction: TextInputAction.next,
                   autocorrect: false,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Username required';
+                    if (value == null || value.trim().isEmpty)
+                      return 'Username required';
                     if (value.trim().contains(' ')) return 'No spaces allowed';
                     if (value.trim().length < 3) return 'Min 3 chars';
                     return null;
@@ -915,8 +1225,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Email required';
-                    if (!value.contains('@') || !value.contains('.')) return 'Invalid email';
+                    if (value == null || value.trim().isEmpty)
+                      return 'Email required';
+                    if (!value.contains('@') || !value.contains('.'))
+                      return 'Invalid email';
                     return null;
                   },
                 ),
@@ -933,9 +1245,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               hintText: 'Min 6 characters',
               prefixIcon: const Icon(Icons.lock_outline_rounded),
               suffixIcon: IconButton(
-                icon: Icon(_adminObscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                onPressed: () => setState(() => _adminObscurePassword = !_adminObscurePassword),
-                tooltip: _adminObscurePassword ? 'Show password' : 'Hide password',
+                icon: Icon(_adminObscurePassword
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined),
+                onPressed: () => setState(
+                    () => _adminObscurePassword = !_adminObscurePassword),
+                tooltip:
+                    _adminObscurePassword ? 'Show password' : 'Hide password',
               ),
             ),
             obscureText: _adminObscurePassword,
@@ -955,39 +1271,182 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               labelText: 'Confirm Password *',
               prefixIcon: const Icon(Icons.lock_reset_rounded),
               suffixIcon: IconButton(
-                icon: Icon(_adminObscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                onPressed: () => setState(() => _adminObscureConfirm = !_adminObscureConfirm),
-                tooltip: _adminObscureConfirm ? 'Show password' : 'Hide password',
+                icon: Icon(_adminObscureConfirm
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined),
+                onPressed: () => setState(
+                    () => _adminObscureConfirm = !_adminObscureConfirm),
+                tooltip:
+                    _adminObscureConfirm ? 'Show password' : 'Hide password',
               ),
             ),
             obscureText: _adminObscureConfirm,
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => _submitCreateHospitalAndSuperAdmin(),
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Please confirm password';
-              if (value != _adminPasswordController.text) return 'Passwords do not match';
+              if (value == null || value.isEmpty)
+                return 'Please confirm password';
+              if (value != _adminPasswordController.text)
+                return 'Passwords do not match';
               return null;
             },
+          ),
+          const Gap(20),
+
+          // ── Branch Staff & Role Accounts Header ────────────────────────────
+          Row(
+            children: [
+              Icon(Icons.badge_outlined, size: 18, color: colorScheme.primary),
+              const Gap(6),
+              Text(
+                'Branch Staff & Role Accounts',
+                style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold, color: colorScheme.primary),
+              ),
+            ],
+          ),
+          const Divider(height: 16),
+          Text(
+            'Separate role accounts (Admin, Doctor, Nurse, Staff) are provisioned for this hospital with individual passwords:',
+            style: textTheme.bodySmall
+                ?.copyWith(color: colorScheme.onSurfaceVariant),
+          ),
+          const Gap(12),
+
+          // Admin Credentials
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _adminRoleUsernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Admin Username',
+                    prefixIcon: Icon(Icons.manage_accounts_outlined),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const Gap(12),
+              Expanded(
+                child: TextFormField(
+                  controller: _adminRolePasswordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Admin Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Gap(12),
+
+          // Doctor Credentials
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _doctorUsernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Doctor Username',
+                    prefixIcon: Icon(Icons.medical_services_outlined),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const Gap(12),
+              Expanded(
+                child: TextFormField(
+                  controller: _doctorPasswordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Doctor Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Gap(12),
+
+          // Nurse Credentials
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _nurseUsernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nurse Username',
+                    prefixIcon: Icon(Icons.local_hospital_outlined),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const Gap(12),
+              Expanded(
+                child: TextFormField(
+                  controller: _nursePasswordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nurse Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Gap(12),
+
+          // Staff / Reception Credentials
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _staffUsernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Staff / Receptionist Username',
+                    prefixIcon: Icon(Icons.person_outline),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const Gap(12),
+              Expanded(
+                child: TextFormField(
+                  controller: _staffPasswordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Staff Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
           ),
           const Gap(22),
 
           // ── Submit Button ──────────────────────────────────────────────────
           FilledButton.icon(
-            onPressed: _isSubmitting ? null : _submitCreateHospitalAndSuperAdmin,
+            onPressed:
+                _isSubmitting ? null : _submitCreateHospitalAndSuperAdmin,
             icon: _isSubmitting
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
                   )
                 : const Icon(Icons.domain_add_rounded),
             label: Text(
-              _isSubmitting ? 'Registering Hospital & Admin…' : 'Register Hospital & Super Admin',
+              _isSubmitting
+                  ? 'Registering Hospital & Admin…'
+                  : 'Register Hospital & Super Admin',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
           ),
           const Gap(16),
@@ -1011,7 +1470,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildCentralReviewForm(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildCentralReviewForm(
+      BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1019,7 +1479,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         const Gap(12),
         TextFormField(
           controller: _centralUsernameController,
-          decoration: const InputDecoration(labelText: 'Central Super Admin username'),
+          decoration:
+              const InputDecoration(labelText: 'Central Super Admin username'),
           enabled: _centralAccessToken == null,
         ),
         const Gap(10),
@@ -1032,8 +1493,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         const Gap(12),
         if (_centralAccessToken == null)
           FilledButton(
-            onPressed: _reviewingRegistrations ? null : _loginCentralAdministrator,
-            child: Text(_reviewingRegistrations ? 'Connecting…' : 'Load pending registrations'),
+            onPressed:
+                _reviewingRegistrations ? null : _loginCentralAdministrator,
+            child: Text(_reviewingRegistrations
+                ? 'Connecting…'
+                : 'Load pending registrations'),
           )
         else
           OutlinedButton(
@@ -1058,19 +1522,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(registration['name'] as String? ?? 'Hospital', style: textTheme.titleSmall),
+                  Text(registration['name'] as String? ?? 'Hospital',
+                      style: textTheme.titleSmall),
                   Text('${registration['type']} · ${registration['code']}'),
-                  Text('First admin: ${registration['firstAdminFullName']} (${registration['firstAdminUsername']})'),
+                  Text(
+                      'First admin: ${registration['firstAdminFullName']} (${registration['firstAdminUsername']})'),
                   if ((registration['address'] as String?)?.isNotEmpty == true)
                     Text(registration['address'] as String),
                   const Gap(8),
                   Wrap(spacing: 8, children: [
                     FilledButton.tonal(
-                      onPressed: () => _reviewRegistration(registration['registrationId'] as String, approve: true),
+                      onPressed: () => _reviewRegistration(
+                          registration['registrationId'] as String,
+                          approve: true),
                       child: const Text('Approve'),
                     ),
                     OutlinedButton(
-                      onPressed: () => _reviewRegistration(registration['registrationId'] as String, approve: false),
+                      onPressed: () => _reviewRegistration(
+                          registration['registrationId'] as String,
+                          approve: false),
                       child: const Text('Reject'),
                     ),
                   ]),

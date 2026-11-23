@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hospital_management/core/auth/session_service.dart';
 import 'package:hospital_management/data/database/app_database.dart';
+import 'package:hospital_management/data/remote/backend_api_client.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -11,7 +12,7 @@ void main() {
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    sessionNotifier = SessionNotifier(db);
+    sessionNotifier = SessionNotifier(db, BackendApiClient(baseUrl: ''));
   });
 
   tearDown(() async {
@@ -48,19 +49,24 @@ void main() {
       expect(sessionNotifier.state.user?.role, equals('Receptionist'));
     });
 
-    test('5. Invalid password returns clear error without locking account', () async {
+    test('5. Invalid password returns clear error without locking account',
+        () async {
       final error = await sessionNotifier.login('admin', 'WrongPassword!');
       expect(error, equals('Invalid username or password.'));
       expect(sessionNotifier.state.isAuthenticated, isFalse);
     });
 
-    test('6. Non-existent username returns clear error without locking account', () async {
-      final error = await sessionNotifier.login('unknown_user', 'SomePassword123');
+    test('6. Non-existent username returns clear error without locking account',
+        () async {
+      final error =
+          await sessionNotifier.login('unknown_user', 'SomePassword123');
       expect(error, equals('Invalid username or password.'));
       expect(sessionNotifier.state.isAuthenticated, isFalse);
     });
 
-    test('7. Multiple consecutive failed attempts DO NOT lock account (account locking disabled)', () async {
+    test(
+        '7. Multiple consecutive failed attempts DO NOT lock account (account locking disabled)',
+        () async {
       // Attempt 10 failed logins in a row
       for (int i = 0; i < 10; i++) {
         final error = await sessionNotifier.login('admin', 'BadPassword_$i');
@@ -75,7 +81,9 @@ void main() {
       expect(sessionNotifier.state.user?.username, equals('admin'));
     });
 
-    test('8. Regular user accounts can be registered and authenticate successfully', () async {
+    test(
+        '8. Regular user accounts can be registered and authenticate successfully',
+        () async {
       const username = 'testdoctor';
       const plainPassword = 'CustomSecurePassword!2026';
       const salt = 'salt_${username}_reg';
@@ -101,7 +109,9 @@ void main() {
       expect(sessionNotifier.state.user?.fullName, equals('Dr. Test User'));
     });
 
-    test('9. Repeated consecutive logins do not throw UNIQUE constraint or unexpected error', () async {
+    test(
+        '9. Repeated consecutive logins do not throw UNIQUE constraint or unexpected error',
+        () async {
       for (int i = 0; i < 5; i++) {
         final error = await sessionNotifier.login('admin', 'Admin@1234');
         expect(error, isNull, reason: 'Failed on iteration $i');
@@ -111,7 +121,8 @@ void main() {
       }
     });
 
-    test('10. All demo accounts authenticate cleanly without unexpected error', () async {
+    test('10. All demo accounts authenticate cleanly without unexpected error',
+        () async {
       final demoCredentials = {
         'admin': 'Admin@1234',
         'doctor': 'Doctor@1234',
@@ -125,13 +136,16 @@ void main() {
 
       for (final entry in demoCredentials.entries) {
         final error = await sessionNotifier.login(entry.key, entry.value);
-        expect(error, isNull, reason: 'Login failed for demo user ${entry.key}');
+        expect(error, isNull,
+            reason: 'Login failed for demo user ${entry.key}');
         expect(sessionNotifier.state.isAuthenticated, isTrue);
         sessionNotifier.logout();
       }
     });
 
-    test('11. registerUser creates new account with hospital selection and logs in automatically', () async {
+    test(
+        '11. registerUser creates new account with hospital selection and logs in automatically',
+        () async {
       final regError = await sessionNotifier.registerUser(
         fullName: 'Dr. Sarah Jenkins',
         username: 'sjenkins',
@@ -148,7 +162,8 @@ void main() {
       expect(sessionNotifier.state.user?.fullName, equals('Dr. Sarah Jenkins'));
       expect(sessionNotifier.state.user?.role, equals('Doctor'));
       expect(sessionNotifier.state.user?.hospitalId, equals(1));
-      expect(sessionNotifier.state.user?.hospitalName, equals('CareSync Central Hospital'));
+      expect(sessionNotifier.state.user?.hospitalName,
+          equals('CareSync Central Hospital'));
     });
 
     test('12. registerUser rejects already taken usernames', () async {
@@ -163,7 +178,8 @@ void main() {
       expect(regError, contains('already taken'));
     });
 
-    test('13. login allows selecting hospital entity and updates active session', () async {
+    test('13. login rejects selecting a hospital outside the account scope',
+        () async {
       final error = await sessionNotifier.login(
         'doctor',
         'Doctor@1234',
@@ -171,11 +187,33 @@ void main() {
         selectedHospitalName: 'CareSync North Clinic',
       );
 
+      expect(error,
+          equals('This account does not belong to the selected hospital.'));
+      expect(sessionNotifier.state.isAuthenticated, isFalse);
+    });
+
+    test('accounts can authenticate into their assigned hospital', () async {
+      await db.createRegularUser(
+        username: 'northdoctor',
+        passwordHash: createPasswordHash('NorthDoctor@1234'),
+        fullName: 'North Doctor',
+        role: 'Doctor',
+        email: 'northdoctor@hospital.local',
+        hospitalId: 2,
+        hospitalName: 'CareSync North Clinic',
+      );
+
+      final error = await sessionNotifier.login(
+        'northdoctor',
+        'NorthDoctor@1234',
+        selectedHospitalId: 2,
+        selectedHospitalName: 'CareSync North Clinic',
+      );
+
       expect(error, isNull);
-      expect(sessionNotifier.state.isAuthenticated, isTrue);
       expect(sessionNotifier.state.user?.hospitalId, equals(2));
-      expect(sessionNotifier.state.user?.hospitalName, equals('CareSync North Clinic'));
+      expect(sessionNotifier.state.user?.hospitalName,
+          equals('CareSync North Clinic'));
     });
   });
 }
-

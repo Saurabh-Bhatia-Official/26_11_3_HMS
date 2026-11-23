@@ -58,9 +58,11 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
     }
   }
 
-  Future<void> _markMedicationGiven(int admissionId, int index, String medName) async {
+  Future<void> _markMedicationGiven(
+      int admissionId, int index, String medName) async {
     final db = ref.read(appDatabaseProvider);
-    await db.hmsDao.updateIpdMedicationStatus(admissionId, index, 'Given', 'Duty Nurse');
+    await db.hmsDao
+        .updateIpdMedicationStatus(admissionId, index, 'Given', 'Duty Nurse');
     ref.invalidate(ipdAdmissionDetailProvider(_parsedAdmissionId));
     ref.invalidate(ipdAdmissionsListProvider);
     if (mounted) {
@@ -79,12 +81,14 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
           'This will mark ${admission.patientName} as Discharged, free up Bed ${admission.bedNo} for sanitization, and redirect to Billing for final settlement.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             onPressed: () async {
               Navigator.pop(ctx);
               final db = ref.read(appDatabaseProvider);
-              await db.hmsDao.quickDischargePatient(admission.id, admission.bedNo);
+              await db.hmsDao
+                  .quickDischargePatient(admission.id, admission.bedNo);
               ref.invalidate(ipdAdmissionDetailProvider(_parsedAdmissionId));
               ref.invalidate(ipdAdmissionsListProvider);
               ref.invalidate(bedsListProvider);
@@ -93,7 +97,8 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('${admission.patientName} discharged. Bed ${admission.bedNo} sent for cleaning.'),
+                    content: Text(
+                        '${admission.patientName} discharged. Bed ${admission.bedNo} sent for cleaning.'),
                   ),
                 );
                 context.go(AppRoutes.billing);
@@ -109,7 +114,8 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final admissionAsync = ref.watch(ipdAdmissionDetailProvider(_parsedAdmissionId));
+    final admissionAsync =
+        ref.watch(ipdAdmissionDetailProvider(_parsedAdmissionId));
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
@@ -123,7 +129,9 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
           OutlinedButton.icon(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Discharge summary generated & sent to printer.')),
+                const SnackBar(
+                    content:
+                        Text('Discharge summary generated & sent to printer.')),
               );
             },
             icon: const Icon(Icons.print_outlined, size: 18),
@@ -132,10 +140,12 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
           const Gap(12),
           admissionAsync.maybeWhen(
             data: (adm) {
-              if (adm == null || adm.status == 'Discharged') return const SizedBox.shrink();
+              if (adm == null || adm.status == 'Discharged')
+                return const SizedBox.shrink();
               return FilledButton.icon(
                 onPressed: () => _discharge(adm),
-                style: FilledButton.styleFrom(backgroundColor: Colors.teal.shade700),
+                style: FilledButton.styleFrom(
+                    backgroundColor: Colors.teal.shade700),
                 icon: const Icon(Icons.exit_to_app_rounded, size: 18),
                 label: const Text('Discharge Patient'),
               );
@@ -147,7 +157,8 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
       ),
       body: admissionAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error loading inpatient record: $e')),
+        error: (e, _) =>
+            Center(child: Text('Error loading inpatient record: $e')),
         data: (admission) {
           if (admission == null) {
             return const Center(child: Text('Inpatient record not found.'));
@@ -163,7 +174,8 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
                 // Inpatient Header Card
                 Card(
                   elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Row(
@@ -171,7 +183,8 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
                         CircleAvatar(
                           radius: 28,
                           backgroundColor: colorScheme.primaryContainer,
-                          child: Icon(Icons.hotel, size: 28, color: colorScheme.onPrimaryContainer),
+                          child: Icon(Icons.hotel,
+                              size: 28, color: colorScheme.onPrimaryContainer),
                         ),
                         const Gap(16),
                         Expanded(
@@ -185,14 +198,20 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
                                 children: [
                                   Text(
                                     admission.patientName,
-                                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                   Chip(
-                                    label: Text(admission.uhid, style: const TextStyle(fontSize: 11)),
+                                    label: Text(admission.uhid,
+                                        style: const TextStyle(fontSize: 11)),
                                     visualDensity: VisualDensity.compact,
-                                    backgroundColor: colorScheme.secondaryContainer,
+                                    backgroundColor:
+                                        colorScheme.secondaryContainer,
                                   ),
-                                  StatusChip(label: '${admission.ward} • Bed ${admission.bedNo}'),
+                                  StatusChip(
+                                      label:
+                                          '${admission.ward} • Bed ${admission.bedNo}'),
                                   if (admission.status == 'Discharged')
                                     const StatusChip(label: 'Discharged'),
                                 ],
@@ -200,7 +219,9 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
                               const Gap(6),
                               Text(
                                 'Admitted: ${admission.admitDate} (${admission.days} days) • Doctor: ${admission.doctorName} • Diagnosis: ${admission.diagnosis} • Advance Deposit: ₹${(admission.depositPaise / 100).toStringAsFixed(0)}',
-                                style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13),
+                                style: TextStyle(
+                                    color: colorScheme.onSurfaceVariant,
+                                    fontSize: 13),
                               ),
                             ],
                           ),
@@ -221,8 +242,12 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
                         unselectedLabelColor: colorScheme.onSurfaceVariant,
                         indicatorColor: colorScheme.primary,
                         tabs: const [
-                          Tab(icon: Icon(Icons.medication), text: 'Medication Administration Record (MAR)'),
-                          Tab(icon: Icon(Icons.note_alt), text: 'Nursing & Doctor Round Notes'),
+                          Tab(
+                              icon: Icon(Icons.medication),
+                              text: 'Medication Administration Record (MAR)'),
+                          Tab(
+                              icon: Icon(Icons.note_alt),
+                              text: 'Nursing & Doctor Round Notes'),
                         ],
                       ),
                       const Gap(16),
@@ -233,23 +258,30 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
                             // ─── MAR Tab ───
                             Card(
                               elevation: 0.5,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
                               child: medications.isEmpty
-                                  ? const Center(child: Text('No medications scheduled for this patient.'))
+                                  ? const Center(
+                                      child: Text(
+                                          'No medications scheduled for this patient.'))
                                   : ListView.separated(
                                       padding: const EdgeInsets.all(16),
                                       itemCount: medications.length,
-                                      separatorBuilder: (_, __) => const Divider(height: 1),
+                                      separatorBuilder: (_, __) =>
+                                          const Divider(height: 1),
                                       itemBuilder: (context, index) {
                                         final item = medications[index];
-                                        final isGiven = item['status'] == 'Given';
+                                        final isGiven =
+                                            item['status'] == 'Given';
                                         return ListTile(
                                           leading: CircleAvatar(
                                             backgroundColor: isGiven
                                                 ? Colors.green.shade100
                                                 : Colors.orange.shade100,
                                             child: Icon(
-                                              isGiven ? Icons.check : Icons.access_time,
+                                              isGiven
+                                                  ? Icons.check
+                                                  : Icons.access_time,
                                               color: isGiven
                                                   ? Colors.green.shade900
                                                   : Colors.orange.shade900,
@@ -257,21 +289,27 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
                                           ),
                                           title: Text(
                                             item['medicine'] ?? 'Medicine',
-                                            style: const TextStyle(fontWeight: FontWeight.bold),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold),
                                           ),
                                           subtitle: Text(
                                             '${item["frequency"] ?? ""} • Scheduled: ${item["scheduled"] ?? "Pending"} • Given By: ${item["givenBy"] ?? "-"}',
                                           ),
                                           trailing: isGiven
-                                              ? const StatusChip(label: 'Administered')
+                                              ? const StatusChip(
+                                                  label: 'Administered')
                                               : FilledButton.tonalIcon(
-                                                  onPressed: () => _markMedicationGiven(
+                                                  onPressed: () =>
+                                                      _markMedicationGiven(
                                                     admission.id,
                                                     index,
-                                                    item['medicine'] ?? 'Medicine',
+                                                    item['medicine'] ??
+                                                        'Medicine',
                                                   ),
-                                                  icon: const Icon(Icons.check, size: 16),
-                                                  label: const Text('Mark Given'),
+                                                  icon: const Icon(Icons.check,
+                                                      size: 16),
+                                                  label:
+                                                      const Text('Mark Given'),
                                                 ),
                                         );
                                       },
@@ -281,7 +319,8 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
                             // ─── Nursing Notes Tab ───
                             Card(
                               elevation: 0.5,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
                               child: Padding(
                                 padding: const EdgeInsets.all(20),
                                 child: Column(
@@ -293,24 +332,36 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
                                       runSpacing: 6,
                                       children: [
                                         ActionChip(
-                                          avatar: const Icon(Icons.flash_on, size: 14),
-                                          label: const Text('Vitals stable, afebrile'),
-                                          onPressed: () => _insertQuickNote('Vitals stable, afebrile, pulse normal'),
+                                          avatar: const Icon(Icons.flash_on,
+                                              size: 14),
+                                          label: const Text(
+                                              'Vitals stable, afebrile'),
+                                          onPressed: () => _insertQuickNote(
+                                              'Vitals stable, afebrile, pulse normal'),
                                         ),
                                         ActionChip(
-                                          avatar: const Icon(Icons.flash_on, size: 14),
-                                          label: const Text('Wound clean & dressing dry'),
-                                          onPressed: () => _insertQuickNote('Post-op surgical site clean and dressing dry, no soakage'),
+                                          avatar: const Icon(Icons.flash_on,
+                                              size: 14),
+                                          label: const Text(
+                                              'Wound clean & dressing dry'),
+                                          onPressed: () => _insertQuickNote(
+                                              'Post-op surgical site clean and dressing dry, no soakage'),
                                         ),
                                         ActionChip(
-                                          avatar: const Icon(Icons.flash_on, size: 14),
-                                          label: const Text('Tolerating soft diet'),
-                                          onPressed: () => _insertQuickNote('Patient tolerating oral fluids and soft diet comfortably'),
+                                          avatar: const Icon(Icons.flash_on,
+                                              size: 14),
+                                          label: const Text(
+                                              'Tolerating soft diet'),
+                                          onPressed: () => _insertQuickNote(
+                                              'Patient tolerating oral fluids and soft diet comfortably'),
                                         ),
                                         ActionChip(
-                                          avatar: const Icon(Icons.flash_on, size: 14),
-                                          label: const Text('Doctor rounds completed'),
-                                          onPressed: () => _insertQuickNote('Attending consultant rounds completed. Advised continuation of current plan'),
+                                          avatar: const Icon(Icons.flash_on,
+                                              size: 14),
+                                          label: const Text(
+                                              'Doctor rounds completed'),
+                                          onPressed: () => _insertQuickNote(
+                                              'Attending consultant rounds completed. Advised continuation of current plan'),
                                         ),
                                       ],
                                     ),
@@ -323,22 +374,30 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
                                           child: TextField(
                                             controller: _newNoteController,
                                             decoration: const InputDecoration(
-                                              hintText: 'Add clinical observation / nursing note…',
+                                              hintText:
+                                                  'Add clinical observation / nursing note…',
                                               prefixIcon: Icon(Icons.edit_note),
                                             ),
-                                            onSubmitted: (_) => _addNote(admission.id),
+                                            onSubmitted: (_) =>
+                                                _addNote(admission.id),
                                           ),
                                         ),
                                         const Gap(12),
                                         FilledButton.icon(
-                                          onPressed: _isSaving ? null : () => _addNote(admission.id),
+                                          onPressed: _isSaving
+                                              ? null
+                                              : () => _addNote(admission.id),
                                           icon: _isSaving
                                               ? const SizedBox(
                                                   width: 14,
                                                   height: 14,
-                                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: Colors.white),
                                                 )
-                                              : const Icon(Icons.send, size: 16),
+                                              : const Icon(Icons.send,
+                                                  size: 16),
                                           label: const Text('Post Note'),
                                         ),
                                       ],
@@ -348,32 +407,45 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
                                     // List of Notes
                                     Expanded(
                                       child: nursingNotes.isEmpty
-                                          ? const Center(child: Text('No nursing notes recorded yet.'))
+                                          ? const Center(
+                                              child: Text(
+                                                  'No nursing notes recorded yet.'))
                                           : ListView.separated(
                                               itemCount: nursingNotes.length,
-                                              separatorBuilder: (_, __) => const Divider(height: 1),
+                                              separatorBuilder: (_, __) =>
+                                                  const Divider(height: 1),
                                               itemBuilder: (context, idx) {
                                                 final note = nursingNotes[idx];
                                                 return ListTile(
-                                                  contentPadding: EdgeInsets.zero,
+                                                  contentPadding:
+                                                      EdgeInsets.zero,
                                                   title: Row(
                                                     children: [
                                                       Text(
-                                                        note['author'] ?? 'Staff',
-                                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                                        note['author'] ??
+                                                            'Staff',
+                                                        style: const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold),
                                                       ),
                                                       const Gap(12),
                                                       Text(
                                                         note['time'] ?? '',
-                                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                                        style: const TextStyle(
+                                                            fontSize: 12,
+                                                            color: Colors.grey),
                                                       ),
                                                     ],
                                                   ),
                                                   subtitle: Padding(
-                                                    padding: const EdgeInsets.only(top: 4),
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                            top: 4),
                                                     child: Text(
                                                       note['note'] ?? '',
-                                                      style: const TextStyle(fontSize: 13),
+                                                      style: const TextStyle(
+                                                          fontSize: 13),
                                                     ),
                                                   ),
                                                 );

@@ -3,7 +3,6 @@ import 'package:hospital_management/domain/entities/patient.dart';
 
 /// Data-layer Patient model mirroring SQLite patients table.
 class PatientModel {
-
   const PatientModel({
     required this.id,
     required this.uuid,
@@ -197,7 +196,6 @@ class PatientModel {
 
 /// Attached medical documents / scan files for patient records (PAT-09)
 class PatientDocumentModel {
-
   const PatientDocumentModel({
     required this.id,
     required this.uuid,
@@ -233,7 +231,8 @@ class PatientDocumentModel {
   final int patientId;
   final String uhid;
   final String title;
-  final String docType; // lab_report, imaging, referral, id_proof, prescription, other
+  final String
+      docType; // lab_report, imaging, referral, id_proof, prescription, other
   final String fileUri;
   final int fileSizeBytes;
   final String mimeType;
@@ -257,7 +256,6 @@ class PatientDocumentModel {
 
 /// Patient comprehensive timeline history event (PAT-05)
 class PatientTimelineEventModel {
-
   const PatientTimelineEventModel({
     required this.eventType,
     required this.title,
@@ -281,8 +279,10 @@ class PatientTimelineEventModel {
   }
 
   factory PatientTimelineEventModel.fromJson(String source) =>
-      PatientTimelineEventModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
-  final String eventType; // opd_visit | ipd_admission | lab_test | invoice | prescription
+      PatientTimelineEventModel.fromMap(
+          jsonDecode(source) as Map<String, dynamic>);
+  final String
+      eventType; // opd_visit | ipd_admission | lab_test | invoice | prescription
   final String title;
   final String date;
   final String summary;
@@ -302,4 +302,3 @@ class PatientTimelineEventModel {
 
   String toJson() => jsonEncode(toMap());
 }
-

@@ -1,16 +1,20 @@
 package com.caresync.backend.appointment.repository;
 
-import com.caresync.backend.appointment.entity.Appointment;
-import com.caresync.backend.appointment.entity.AppointmentStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
 import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import com.caresync.backend.appointment.entity.Appointment;
+import com.caresync.backend.appointment.entity.AppointmentStatus;
+
+import jakarta.persistence.LockModeType;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
     Optional<Appointment> findByIdAndHospital_Id(UUID id, UUID hospitalId);
@@ -26,6 +30,19 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
             @Param("doctorId") UUID doctorId, @Param("start") OffsetDateTime start,
             @Param("end") OffsetDateTime end, @Param("cancelled") AppointmentStatus cancelled,
             @Param("excludedId") UUID excludedId);
+
+
+            @Lock(LockModeType.PESSIMISTIC_WRITE)
+@Query("""
+        select a from Appointment a
+        where a.id = :appointmentId
+          and a.hospital.id = :hospitalId
+        """)
+Optional<Appointment> findByIdAndHospital_IdForUpdate(
+        @Param("appointmentId") UUID appointmentId,
+        @Param("hospitalId") UUID hospitalId);
+
+        
 
     @Query("""
             select a from Appointment a

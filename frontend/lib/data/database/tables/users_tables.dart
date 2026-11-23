@@ -11,8 +11,7 @@ class Roles extends Table {
   TextColumn get uuid => text().unique()();
   TextColumn get name => text().unique()();
   TextColumn get description => text().withDefault(const Constant(''))();
-  BoolColumn get isSystem =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isSystem => boolean().withDefault(const Constant(false))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
 }
@@ -23,8 +22,10 @@ class Roles extends Table {
 class Permissions extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get uuid => text().unique()();
+
   /// e.g. patients, billing, pharmacy …
   TextColumn get module => text()();
+
   /// view | create | edit | delete | print | export
   TextColumn get action => text()();
 
@@ -41,8 +42,7 @@ class RolePermissions extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get roleId => integer().references(Roles, #id)();
   IntColumn get permissionId => integer().references(Permissions, #id)();
-  BoolColumn get isAllowed =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get isAllowed => boolean().withDefault(const Constant(true))();
 
   @override
   List<Set<Column>> get uniqueKeys => [
@@ -63,16 +63,14 @@ class Users extends Table {
   TextColumn get username => text().unique()();
   TextColumn get passwordHash => text()();
   IntColumn get roleId => integer().references(Roles, #id)();
+
   /// FK → staff.id (nullable; plain int to avoid circular import)
   IntColumn get staffId => integer().nullable()();
-  BoolColumn get isActive =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   TextColumn get lastLogin => text().nullable()();
-  IntColumn get failedAttempts =>
-      integer().withDefault(const Constant(0))();
+  IntColumn get failedAttempts => integer().withDefault(const Constant(0))();
   TextColumn get lockedUntil => text().nullable()();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }

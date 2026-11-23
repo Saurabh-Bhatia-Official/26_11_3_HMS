@@ -1,12 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/auth/session_service.dart';
+import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/data/database/app_database.dart';
-import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
-import 'package:hospital_management/features/patients/patients_provider.dart';
+import 'package:hospital_management/data/remote/hms_sync_service.dart';
+import 'package:uuid/uuid.dart';
 
 class AdmitPatientScreen extends ConsumerStatefulWidget {
   const AdmitPatientScreen({super.key});
@@ -37,15 +41,29 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
       patientName = nameText.split('(').first.trim();
       uhid = nameText.split('(').last.replaceAll(')', '').trim();
     }
+    final remoteSession = ref.read(sessionProvider).user?.isRemote ?? false;
+    final localPatient = await db.patientsDao.findPatientByUhid(uhid);
+    if (remoteSession && localPatient == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Select a synced patient before admission.')),
+      );
+      return;
+    }
 
     final depositAmount = double.parse(_depositController.text.trim());
 
     final deposit = (depositAmount * 100).round();
     final now = DateTime.now();
     final dateStr = '${now.day}/${now.month}/${now.year}';
+    final visitUuid = const Uuid().v4();
+    final admissionUuid = const Uuid().v4();
 
     final admission = IpdAdmissionModel(
       id: 0,
+      uuid: admissionUuid,
+      visitUuid: visitUuid,
       patientName: patientName,
       uhid: uhid,
       ward: _ward,
@@ -60,36 +78,40 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
       medications: [],
     );
 
-    try {
-      await db.hmsDao.insertIpdAdmission(admission);
-    } on StateError catch (e) {
-      if (!mounted) return;
-
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Admission Blocked'),
-          content: Text(e.message.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
+    await db.hmsDao.insertIpdAdmission(admission);
+    String? syncError;
+    if (remoteSession && localPatient != null) {
+      final serverDate =
+          DateTime.now().toUtc().toIso8601String().substring(0, 10);
+      await db.hmsDao.enqueueSyncOperation(
+        operationId: visitUuid,
+        resourceType: 'visit',
+        method: 'POST',
+        path: '/api/visits',
+        payloadJson: jsonEncode({
+          'uuid': visitUuid,
+          'patientUuid': localPatient.uuid,
+          'visitType': 'ipd',
+          'visitDate': serverDate,
+          'status': 'open',
+        }),
       );
-
-      return;
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Unable to admit patient: $e'),
-          backgroundColor: Colors.red,
-        ),
+      await db.hmsDao.enqueueSyncOperation(
+        operationId: admissionUuid,
+        resourceType: 'admission',
+        method: 'POST',
+        path: '/api/admissions',
+        payloadJson: jsonEncode({
+          'uuid': admissionUuid,
+          'patientUuid': localPatient.uuid,
+          'visitUuid': visitUuid,
+          'admitDate': serverDate,
+          'reason': _reasonController.text.trim(),
+          'status': 'admitted',
+        }),
       );
-      return;
+      final errors = await ref.read(hmsSyncServiceProvider).syncPending();
+      if (errors.isNotEmpty) syncError = errors.first;
     }
     ref.invalidate(ipdAdmissionsListProvider);
     ref.invalidate(bedsListProvider);
@@ -98,8 +120,12 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$patientName admitted to $_ward Bed $_bed.'),
-          backgroundColor: Colors.green.shade700,
+          content: Text(syncError == null
+              ? '$patientName admitted to $_ward Bed $_bed.'
+              : 'Admission saved locally; backend sync failed: $syncError'),
+          backgroundColor: syncError == null
+              ? Colors.green.shade700
+              : Colors.orange.shade800,
         ),
       );
       context.go(AppRoutes.ipd);

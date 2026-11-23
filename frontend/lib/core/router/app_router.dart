@@ -198,9 +198,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'new',
                 name: 'appointment-new',
-                builder: (context, state) => AppointmentFormScreen(
-                  appointment: state.extra as AppointmentModel?,
-                ),
+                builder: (context, state) {
+                  final appointment = state.extra;
+                  return AppointmentFormScreen(
+                    appointment:
+                        appointment is AppointmentModel ? appointment : null,
+                  );
+                },
               ),
             ],
           ),

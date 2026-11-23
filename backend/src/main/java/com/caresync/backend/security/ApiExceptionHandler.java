@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -24,6 +25,13 @@ public class ApiExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<AuthDtos.ErrorResponse> validation(
             MethodArgumentNotValidException exception) {
+        return ResponseEntity.badRequest()
+                .body(new AuthDtos.ErrorResponse("Invalid request"));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<AuthDtos.ErrorResponse> validation(
+            ConstraintViolationException exception) {
         return ResponseEntity.badRequest()
                 .body(new AuthDtos.ErrorResponse("Invalid request"));
     }
@@ -72,8 +80,7 @@ public ResponseEntity<AuthDtos.ErrorResponse> roomAlreadyExists(
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
-    public ResponseEntity<AuthDtos.ErrorResponse> unsupportedMediaType(
-            HttpMediaTypeNotSupportedException exception) {
+    public ResponseEntity<AuthDtos.ErrorResponse> unsupportedMediaType(HttpMediaTypeNotSupportedException exception) {
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
                 .body(new AuthDtos.ErrorResponse("Unsupported media type"));
     }
