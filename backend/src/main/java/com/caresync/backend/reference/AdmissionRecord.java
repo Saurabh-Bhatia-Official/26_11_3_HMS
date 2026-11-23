@@ -48,4 +48,6 @@ public class AdmissionRecord extends HospitalScopedEntity {
     public LocalDate getAdmitDate() { return admitDate; }
     public String getReason() { return reason; }
     public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public void discharge() { this.status = "discharged"; }
 }

@@ -24,16 +24,21 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             Long hospitalId, Instant start, Instant end);
 
     @Query("select coalesce(sum(i.paidPaise), 0) from Invoice i where i.hospitalId = :hospitalId " +
-            "and i.deleted = false and i.createdAt >= :start and i.createdAt < :end")
+            "and i.deleted = false and lower(i.status) <> 'cancelled' and i.createdAt >= :start and i.createdAt < :end")
     Long sumPaymentsByDate(@Param("hospitalId") long hospitalId, @Param("start") Instant start,
                            @Param("end") Instant end);
 
     @Query("select coalesce(sum(i.duePaise), 0) from Invoice i where i.hospitalId = :hospitalId " +
-            "and i.deleted = false and i.status <> 'cancelled'")
+            "and i.deleted = false and lower(i.status) <> 'cancelled'")
     Long sumCurrentOutstanding(@Param("hospitalId") long hospitalId);
 
     @Query("select p from Payment p where p.invoice.hospitalId = :hospitalId and p.invoice.deleted = false " +
-            "and p.paidAt >= :start and p.paidAt < :end order by p.paidAt asc")
+            "and lower(p.invoice.status) <> 'cancelled' and p.paidAt >= :start and p.paidAt < :end order by p.paidAt asc")
     List<Payment> paymentsBetween(@Param("hospitalId") long hospitalId, @Param("start") Instant start,
                                   @Param("end") Instant end);
+
+    @Query("select coalesce(sum(p.amountPaise), 0) from Payment p where p.invoice.hospitalId = :hospitalId " +
+            "and p.invoice.deleted = false and lower(p.invoice.status) <> 'cancelled' and p.paidAt >= :start and p.paidAt < :end")
+    Long sumCompletedPaymentsBetween(@Param("hospitalId") long hospitalId, @Param("start") Instant start,
+                                     @Param("end") Instant end);
 }

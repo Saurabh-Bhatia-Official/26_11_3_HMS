@@ -43,4 +43,33 @@ public final class ReferenceDtos {
                                     Instant createdAt, Instant updatedAt) {}
     public record PrescriptionResponse(long id, String uuid, long patientId, long visitId, String visitUuid,
                                        Long doctorId, String status, Instant createdAt, Instant updatedAt) {}
+
+    public record BedRequest(
+            String uuid,
+            @NotBlank String bedNumber,
+            String ward,
+            String bedType,
+            @Min(0) Long tariffPaise,
+            String status) {}
+
+    public record BedAllocationRequest(
+            Long patientId,
+            String patientName,
+            String uhid,
+            Long admissionId) {}
+
+    public record BedResponse(
+            long id,
+            String uuid,
+            String bedNumber,
+            String ward,
+            String bedType,
+            long tariffPaise,
+            String status,
+            Long patientId,
+            String patientName,
+            String uhid,
+            Long admissionId,
+            Instant createdAt,
+            Instant updatedAt) {}
 }

@@ -6,6 +6,20 @@ import com.caresync.backend.security.RefreshTokenRepository;
 import com.caresync.backend.security.SecurityAuditEventRepository;
 import com.caresync.backend.patient.entity.PatientRecord;
 import com.caresync.backend.patient.repository.PatientRepository;
+import com.caresync.backend.reference.AdmissionRepository;
+import com.caresync.backend.reference.BedRecord;
+import com.caresync.backend.reference.BedRepository;
+import com.caresync.backend.reference.PrescriptionRepository;
+import com.caresync.backend.reference.VisitRecord;
+import com.caresync.backend.reference.VisitRepository;
+import com.caresync.backend.lab.entity.LabOrder;
+import com.caresync.backend.lab.entity.LabTest;
+import com.caresync.backend.lab.repository.LabOrderRepository;
+import com.caresync.backend.lab.repository.LabTestRepository;
+import com.caresync.backend.billing.entity.Invoice;
+import com.caresync.backend.billing.entity.Payment;
+import com.caresync.backend.billing.repository.InvoiceRepository;
+import com.caresync.backend.pharmacy.repository.DispensingRepository;
 import com.caresync.backend.pharmacy.entity.MedicineBatch;
 import com.caresync.backend.pharmacy.repository.MedicineBatchRepository;
 import com.caresync.backend.pharmacy.repository.MedicineRepository;
@@ -59,6 +73,14 @@ class BusinessApiTests {
     @Autowired StaffRepository staff;
     @Autowired MedicineBatchRepository batches;
     @Autowired MedicineRepository medicines;
+    @Autowired DispensingRepository dispensings;
+    @Autowired VisitRepository visits;
+    @Autowired BedRepository beds;
+    @Autowired AdmissionRepository admissions;
+    @Autowired PrescriptionRepository prescriptions;
+    @Autowired LabOrderRepository labOrders;
+    @Autowired LabTestRepository labTests;
+    @Autowired InvoiceRepository invoices;
 
     private PatientRecord patient;
     private PatientRecord otherHospitalPatient;
@@ -67,6 +89,13 @@ class BusinessApiTests {
 
     @BeforeEach
     void resetAccounts() {
+        beds.deleteAll();
+        dispensings.deleteAll();
+        prescriptions.deleteAll();
+        admissions.deleteAll();
+        invoices.deleteAll();
+        visits.deleteAll();
+        labOrders.deleteAll();
         refreshTokens.deleteAll();
         auditEvents.deleteAll();
         accounts.deleteAll();
@@ -614,6 +643,340 @@ class BusinessApiTests {
         return mvc.perform(post("/api/pharmacy/dispensings").header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON).content(request))
                 .andReturn().getResponse().getStatus();
+    }
+
+    @Test
+    void dashboardStatisticsCalculationsAndScenarioVerification() throws Exception {
+        String token = login("admin1");
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalDate yesterday = today.minusDays(1);
+
+        // Scenario 1: Empty database returns zeroes cleanly
+        MvcResult emptyRes = mvc.perform(get("/api/reports/dashboard/stats")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.todayOpdPatients").value(0))
+                .andExpect(jsonPath("$.data.todayRevenue").value(0.0))
+                .andExpect(jsonPath("$.data.bedOccupancy.totalBeds").value(0))
+                .andExpect(jsonPath("$.data.bedOccupancy.occupiedBeds").value(0))
+                .andExpect(jsonPath("$.data.bedOccupancy.availableBeds").value(0))
+                .andExpect(jsonPath("$.data.bedOccupancy.occupancyPercentage").value(0.0))
+                .andExpect(jsonPath("$.data.pendingLabTests").value(0))
+                .andReturn();
+
+        // Scenario 2: Register new OPD visit today
+        String visitUuid1 = UUID.randomUUID().toString();
+        mvc.perform(post("/api/visits")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "uuid", visitUuid1,
+                                "patientUuid", patient.getUuid(),
+                                "doctorId", doctor.getId(),
+                                "visitType", "opd",
+                                "visitDate", today.toString(),
+                                "status", "open"
+                        ))))
+                .andExpect(status().isCreated());
+
+        // Verify count is now 1
+        mvc.perform(get("/api/reports/dashboard/stats").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.todayOpdPatients").value(1));
+
+        // Scenario 3: Multiple visits by SAME patient today does NOT cause duplicate counting
+        String visitUuid2 = UUID.randomUUID().toString();
+        mvc.perform(post("/api/visits")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "uuid", visitUuid2,
+                                "patientUuid", patient.getUuid(),
+                                "doctorId", doctor.getId(),
+                                "visitType", "opd",
+                                "visitDate", today.toString(),
+                                "status", "closed"
+                        ))))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/reports/dashboard/stats").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.todayOpdPatients").value(1))
+                .andExpect(jsonPath("$.data.todayOpdVisits").value(2));
+
+        // Scenario 4: Visit from previous date does NOT affect today's count
+        String visitYesterday = UUID.randomUUID().toString();
+        mvc.perform(post("/api/visits")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "uuid", visitYesterday,
+                                "patientUuid", otherHospitalPatient.getUuid(),
+                                "doctorId", doctor.getId(),
+                                "visitType", "opd",
+                                "visitDate", yesterday.toString(),
+                                "status", "open"
+                        ))))
+                .andExpect(status().isNotFound()); // other hospital patient rejected with 404
+
+        String p2Uuid = UUID.randomUUID().toString();
+        PatientRecord patient2 = patients.save(new PatientRecord(42L, p2Uuid, "UHID-P2", "Patient 2"));
+        mvc.perform(post("/api/visits")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "uuid", visitYesterday,
+                                "patientUuid", patient2.getUuid(),
+                                "doctorId", doctor.getId(),
+                                "visitType", "opd",
+                                "visitDate", yesterday.toString(),
+                                "status", "open"
+                        ))))
+                .andExpect(status().isCreated());
+
+        // Still today count is 1
+        mvc.perform(get("/api/reports/dashboard/stats").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.todayOpdPatients").value(1));
+
+        // Scenario 5: Successful payment recorded -> todayRevenue increases
+        String accountsToken = login("accounts1");
+        MvcResult invoiceRes = mvc.perform(post("/api/billing/invoices")
+                        .header("Authorization", bearer(accountsToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "patientId", patient.getId(),
+                                "patientName", patient.getName(),
+                                "invoiceType", "opd",
+                                "discountPaise", 0,
+                                "items", java.util.List.of(Map.of(
+                                        "itemType", "service",
+                                        "description", "Consultation",
+                                        "qty", 1,
+                                        "unitPricePaise", 50000,
+                                        "discountPaise", 0,
+                                        "taxRatePct", 0
+                                ))
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long invoiceId = mapper.readTree(invoiceRes.getResponse().getContentAsString()).path("id").asLong();
+
+        // Add payment of 50000 paise (₹500.00)
+        mvc.perform(post("/api/billing/invoices/" + invoiceId + "/payments")
+                        .header("Authorization", bearer(accountsToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "paymentMode", "cash",
+                                "amountPaise", 50000,
+                                "referenceNo", "REC-001"
+                        ))))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/reports/dashboard/stats").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.todayRevenue").value(500.0))
+                .andExpect(jsonPath("$.data.todayRevenuePaise").value(50000));
+
+        // Scenario 6: Cancelled invoice is excluded from revenue
+        MvcResult cancelledInvRes = mvc.perform(post("/api/billing/invoices")
+                        .header("Authorization", bearer(accountsToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "patientId", patient.getId(),
+                                "patientName", patient.getName(),
+                                "invoiceType", "opd",
+                                "discountPaise", 0,
+                                "items", java.util.List.of(Map.of(
+                                        "itemType", "service",
+                                        "description", "Procedure",
+                                        "qty", 1,
+                                        "unitPricePaise", 30000,
+                                        "discountPaise", 0,
+                                        "taxRatePct", 0
+                                ))
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long cancelledInvId = mapper.readTree(cancelledInvRes.getResponse().getContentAsString()).path("id").asLong();
+        mvc.perform(post("/api/billing/invoices/" + cancelledInvId + "/payments")
+                        .header("Authorization", bearer(accountsToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "paymentMode", "upi",
+                                "amountPaise", 30000,
+                                "referenceNo", "REC-002"
+                        ))))
+                .andExpect(status().isCreated());
+        // Cancel the second invoice
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/billing/invoices/" + cancelledInvId)
+                        .header("Authorization", bearer(accountsToken)))
+                .andExpect(status().isNoContent());
+
+        // Revenue should still be ₹500.00, cancelled invoice payment is excluded!
+        mvc.perform(get("/api/reports/dashboard/stats").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.todayRevenue").value(500.0));
+
+        // Scenario 7: Bed Creation and Allocation
+        // Create 2 beds
+        MvcResult bed1Res = mvc.perform(post("/api/admissions/beds")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "bedNumber", "B-101",
+                                "ward", "General Ward",
+                                "bedType", "General",
+                                "tariffPaise", 80000,
+                                "status", "available"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long bed1Id = mapper.readTree(bed1Res.getResponse().getContentAsString()).path("id").asLong();
+
+        mvc.perform(post("/api/admissions/beds")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "bedNumber", "B-102",
+                                "ward", "ICU",
+                                "bedType", "ICU",
+                                "tariffPaise", 250000,
+                                "status", "available"
+                        ))))
+                .andExpect(status().isCreated());
+
+        // Check occupancy: 0/2 = 0%
+        mvc.perform(get("/api/reports/dashboard/stats").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.bedOccupancy.totalBeds").value(2))
+                .andExpect(jsonPath("$.data.bedOccupancy.occupiedBeds").value(0))
+                .andExpect(jsonPath("$.data.bedOccupancy.availableBeds").value(2))
+                .andExpect(jsonPath("$.data.bedOccupancy.occupancyPercentage").value(0.0));
+
+        // Allocate Bed 1
+        mvc.perform(post("/api/admissions/beds/" + bed1Id + "/allocate")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "patientId", patient.getId(),
+                                "patientName", patient.getName(),
+                                "uhid", patient.getUhid()
+                        ))))
+                .andExpect(status().isOk());
+
+        // Check occupancy: 1/2 = 50%
+        mvc.perform(get("/api/reports/dashboard/stats").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.bedOccupancy.totalBeds").value(2))
+                .andExpect(jsonPath("$.data.bedOccupancy.occupiedBeds").value(1))
+                .andExpect(jsonPath("$.data.bedOccupancy.availableBeds").value(1))
+                .andExpect(jsonPath("$.data.bedOccupancy.occupancyPercentage").value(50.0));
+
+        // Scenario 8: Release bed
+        mvc.perform(post("/api/admissions/beds/" + bed1Id + "/release?status=available")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
+
+        // Check occupancy back to 0%
+        mvc.perform(get("/api/reports/dashboard/stats").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.bedOccupancy.occupiedBeds").value(0))
+                .andExpect(jsonPath("$.data.bedOccupancy.availableBeds").value(2))
+                .andExpect(jsonPath("$.data.bedOccupancy.occupancyPercentage").value(0.0));
+
+        // Scenario 9 & 10: Lab Orders
+        // Create Lab Test
+        String labToken = login("lab1");
+        MvcResult testRes = mvc.perform(post("/api/lab/tests")
+                        .header("Authorization", bearer(labToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "name", "Complete Blood Count",
+                                "category", "Hematology",
+                                "sampleType", "Whole Blood",
+                                "turnaroundHours", 4,
+                                "pricePaise", 40000,
+                                "parameters", java.util.List.of(Map.of(
+                                        "parameterName", "Hemoglobin",
+                                        "unit", "g/dL",
+                                        "rangeLow", 12.0,
+                                        "rangeHigh", 16.0
+                                ))
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long labTestId = mapper.readTree(testRes.getResponse().getContentAsString()).path("id").asLong();
+
+        // Create Lab Order
+        String docToken = login("doctor1");
+        MvcResult orderRes = mvc.perform(post("/api/lab/orders")
+                        .header("Authorization", bearer(docToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "patientId", patient.getId(),
+                                "patientName", patient.getName(),
+                                "uhid", patient.getUhid(),
+                                "testId", labTestId,
+                                "priority", "routine"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long labOrderId = mapper.readTree(orderRes.getResponse().getContentAsString()).path("id").asLong();
+
+        // Pending count is 1
+        mvc.perform(get("/api/reports/dashboard/stats").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.pendingLabTests").value(1));
+
+        // Sample collected -> still pending
+        mvc.perform(post("/api/lab/orders/" + labOrderId + "/collect")
+                        .header("Authorization", bearer(labToken)))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/reports/dashboard/stats").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.pendingLabTests").value(1));
+
+        // Results entered -> resulted
+        mvc.perform(post("/api/lab/orders/" + labOrderId + "/results")
+                        .header("Authorization", bearer(labToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "results", java.util.List.of(Map.of(
+                                        "parameterName", "Hemoglobin",
+                                        "resultValue", "13.5",
+                                        "unit", "g/dL",
+                                        "referenceRange", "12-16"
+                                ))
+                        ))))
+                .andExpect(status().isOk());
+
+        // Once resulted, it is no longer pending!
+        mvc.perform(get("/api/reports/dashboard/stats").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.pendingLabTests").value(0));
+
+        // Scenario 11: Granular single metric endpoints
+        mvc.perform(get("/api/reports/dashboard/today-opd-patients").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.todayOpdPatients").value(1));
+
+        mvc.perform(get("/api/reports/dashboard/today-revenue").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.todayRevenue").value(500.0));
+
+        mvc.perform(get("/api/reports/dashboard/bed-occupancy").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.totalBeds").value(2));
+
+        mvc.perform(get("/api/reports/dashboard/pending-lab-tests").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.pendingLabTests").value(0));
     }
 
     private static JsonNode findById(JsonNode rows, long id) {

@@ -18,16 +18,18 @@ public class ReferenceService {
     private final VisitRepository visits;
     private final AdmissionRepository admissions;
     private final PrescriptionRepository prescriptions;
+    private final BedRepository beds;
 
     public ReferenceService(AccessContext access, PatientRepository patients, StaffRepository staff,
                             VisitRepository visits, AdmissionRepository admissions,
-                            PrescriptionRepository prescriptions) {
+                            PrescriptionRepository prescriptions, BedRepository beds) {
         this.access = access;
         this.patients = patients;
         this.staff = staff;
         this.visits = visits;
         this.admissions = admissions;
         this.prescriptions = prescriptions;
+        this.beds = beds;
     }
 
     public ReferenceDtos.VisitResponse createVisit(ReferenceDtos.VisitRequest request) {
@@ -198,6 +200,96 @@ public class ReferenceService {
         if (id != null && uuid != null) {
             throw BusinessException.invalid("Provide either " + resource + " ID or UUID, not both");
         }
+    }
+
+    public ReferenceDtos.AdmissionResponse dischargeAdmission(long id) {
+        long hospitalId = access.hospitalId();
+        AdmissionRecord admission = admissions.findByIdAndHospitalIdAndDeletedFalse(id, hospitalId)
+                .orElseThrow(() -> BusinessException.notFound("Admission not found"));
+        admission.discharge();
+        beds.findByAdmissionIdAndHospitalIdAndDeletedFalse(id, hospitalId)
+                .ifPresent(bed -> bed.release("available"));
+        return admissionResponse(admission);
+    }
+
+    public ReferenceDtos.AdmissionResponse getAdmission(long id) {
+        return admissions.findByIdAndHospitalIdAndDeletedFalse(id, access.hospitalId())
+                .map(ReferenceService::admissionResponse)
+                .orElseThrow(() -> BusinessException.notFound("Admission not found"));
+    }
+
+    public java.util.List<ReferenceDtos.AdmissionResponse> listAdmissions() {
+        return admissions.findAll().stream()
+                .filter(a -> a.getHospitalId().equals(access.hospitalId()) && !a.isDeleted())
+                .map(ReferenceService::admissionResponse)
+                .toList();
+    }
+
+    public ReferenceDtos.BedResponse createBed(ReferenceDtos.BedRequest request) {
+        long hospitalId = access.hospitalId();
+        beds.findByBedNumberAndHospitalIdAndDeletedFalse(request.bedNumber(), hospitalId)
+                .ifPresent(existing -> {
+                    throw BusinessException.conflict("Bed number already exists: " + request.bedNumber());
+                });
+        long tariff = request.tariffPaise() != null ? request.tariffPaise() : 80000;
+        BedRecord bed = beds.save(new BedRecord(hospitalId, request.uuid(), request.bedNumber(),
+                request.ward(), request.bedType(), tariff, request.status()));
+        return bedResponse(bed);
+    }
+
+    public ReferenceDtos.BedResponse updateBed(long id, ReferenceDtos.BedRequest request) {
+        long hospitalId = access.hospitalId();
+        BedRecord bed = beds.findByIdAndHospitalIdAndDeletedFalse(id, hospitalId)
+                .orElseThrow(() -> BusinessException.notFound("Bed not found"));
+        if (request.bedNumber() != null && !request.bedNumber().isBlank()) {
+            bed.setBedNumber(request.bedNumber().trim());
+        }
+        if (request.ward() != null) bed.setWard(request.ward().trim());
+        if (request.bedType() != null) bed.setBedType(request.bedType().trim());
+        if (request.tariffPaise() != null) bed.setTariffPaise(request.tariffPaise());
+        if (request.status() != null) bed.setStatus(request.status().trim().toLowerCase());
+        return bedResponse(bed);
+    }
+
+    public java.util.List<ReferenceDtos.BedResponse> listBeds() {
+        return beds.findAllByHospitalIdAndDeletedFalseOrderByBedNumberAsc(access.hospitalId()).stream()
+                .map(ReferenceService::bedResponse)
+                .toList();
+    }
+
+    public ReferenceDtos.BedResponse getBed(long id) {
+        return beds.findByIdAndHospitalIdAndDeletedFalse(id, access.hospitalId())
+                .map(ReferenceService::bedResponse)
+                .orElseThrow(() -> BusinessException.notFound("Bed not found"));
+    }
+
+    public ReferenceDtos.BedResponse allocateBed(long bedId, ReferenceDtos.BedAllocationRequest request) {
+        long hospitalId = access.hospitalId();
+        BedRecord bed = beds.findByIdAndHospitalIdAndDeletedFalse(bedId, hospitalId)
+                .orElseThrow(() -> BusinessException.notFound("Bed not found"));
+        bed.allocate(request.patientId(), request.patientName(), request.uhid(), request.admissionId());
+        return bedResponse(bed);
+    }
+
+    public ReferenceDtos.BedResponse releaseBed(long bedId, String status) {
+        long hospitalId = access.hospitalId();
+        BedRecord bed = beds.findByIdAndHospitalIdAndDeletedFalse(bedId, hospitalId)
+                .orElseThrow(() -> BusinessException.notFound("Bed not found"));
+        bed.release(status);
+        return bedResponse(bed);
+    }
+
+    public void deleteBed(long id) {
+        long hospitalId = access.hospitalId();
+        BedRecord bed = beds.findByIdAndHospitalIdAndDeletedFalse(id, hospitalId)
+                .orElseThrow(() -> BusinessException.notFound("Bed not found"));
+        bed.markDeleted();
+    }
+
+    private static ReferenceDtos.BedResponse bedResponse(BedRecord b) {
+        return new ReferenceDtos.BedResponse(b.getId(), b.getUuid(), b.getBedNumber(), b.getWard(),
+                b.getBedType(), b.getTariffPaise(), b.getStatus(), b.getPatientId(), b.getPatientName(),
+                b.getUhid(), b.getAdmissionId(), b.getCreatedAt(), b.getUpdatedAt());
     }
 
     private static ReferenceDtos.VisitResponse visitResponse(VisitRecord visit) {

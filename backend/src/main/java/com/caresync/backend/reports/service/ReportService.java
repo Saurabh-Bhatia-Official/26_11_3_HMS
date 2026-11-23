@@ -24,7 +24,7 @@ import java.util.Map;
 @Service
 @Transactional(readOnly = true)
 public class ReportService {
-    private static final List<String> OPEN_LAB_STATUSES = List.of("pending", "collected", "processing", "resulted");
+    private static final List<String> OPEN_LAB_STATUSES = List.of("pending", "collected", "processing");
     private final AccessContext access;
     private final InvoiceRepository invoices;
     private final LabOrderRepository labOrders;

@@ -205,9 +205,36 @@ class HmsDao {
         status TEXT NOT NULL,
         ordered_at TEXT,
         params_json TEXT,
+        sample_collected_at TEXT,
+        result_date TEXT,
+        technician_notes TEXT,
+        patient_id INTEGER DEFAULT 0,
+        test_id INTEGER DEFAULT 0,
+        updated_at TEXT,
         created_at TEXT
       );
     ''');
+
+    final labColumns =
+        await db.customSelect('PRAGMA table_info(lab_orders)').get();
+    if (!labColumns.any((col) => col.data['name'] == 'result_date')) {
+      await db.customStatement('ALTER TABLE lab_orders ADD COLUMN result_date TEXT;');
+    }
+    if (!labColumns.any((col) => col.data['name'] == 'sample_collected_at')) {
+      await db.customStatement('ALTER TABLE lab_orders ADD COLUMN sample_collected_at TEXT;');
+    }
+    if (!labColumns.any((col) => col.data['name'] == 'technician_notes')) {
+      await db.customStatement('ALTER TABLE lab_orders ADD COLUMN technician_notes TEXT;');
+    }
+    if (!labColumns.any((col) => col.data['name'] == 'patient_id')) {
+      await db.customStatement('ALTER TABLE lab_orders ADD COLUMN patient_id INTEGER DEFAULT 0;');
+    }
+    if (!labColumns.any((col) => col.data['name'] == 'test_id')) {
+      await db.customStatement('ALTER TABLE lab_orders ADD COLUMN test_id INTEGER DEFAULT 0;');
+    }
+    if (!labColumns.any((col) => col.data['name'] == 'updated_at')) {
+      await db.customStatement('ALTER TABLE lab_orders ADD COLUMN updated_at TEXT;');
+    }
 
     // 7. Medicines Table
     await db.customStatement('''
@@ -1685,42 +1712,101 @@ class HmsDao {
   }
 
   // Dashboard Aggregates
-  Future<Map<String, dynamic>> getDashboardStats() async {
-    final opdVisitsRow = await db
-        .customSelect('SELECT count(*) as count FROM opd_visits')
+  Future<Map<String, dynamic>> getDashboardStats({String? targetDate}) async {
+    final today = targetDate ?? DateTime.now().toIso8601String().substring(0, 10);
+
+    // 1. Today's OPD Visits & Distinct Patients
+    final opdVisitsTodayRow = await db.customSelect('''
+      SELECT 
+        COUNT(*) as total_visits,
+        COUNT(DISTINCT uhid) as distinct_patients
+      FROM opd_visits 
+      WHERE (substr(COALESCE(NULLIF(created_at, ''), ''), 1, 10) = '$today' OR created_at IS NULL OR created_at = '')
+        AND LOWER(status) != 'cancelled'
+    ''').getSingle();
+
+    final totalOpdAllRow = await db
+        .customSelect("SELECT count(*) as count FROM opd_visits WHERE LOWER(status) != 'cancelled'")
         .getSingle();
+
     final appointmentsRow = await db
         .customSelect('SELECT count(*) as count FROM appointments')
         .getSingle();
+
     final admissionsRow = await db
         .customSelect(
-            'SELECT count(*) as count FROM ipd_admissions WHERE status = \'Admitted\'')
+            "SELECT count(*) as count FROM ipd_admissions WHERE LOWER(status) = 'admitted'")
         .getSingle();
-    final revenueRow = await db
-        .customSelect('SELECT sum(paid_paise) as sum_paid FROM invoices')
+
+    // 2. Today's Revenue (completed payments for invoices created/paid today, excluding cancelled)
+    final revenueTodayRow = await db.customSelect('''
+      SELECT coalesce(sum(paid_paise), 0) as sum_paid FROM invoices 
+      WHERE (substr(COALESCE(NULLIF(created_at, ''), date_time), 1, 10) = '$today')
+        AND LOWER(status) != 'cancelled'
+    ''').getSingle();
+
+    int todayRevenuePaise = (revenueTodayRow.data['sum_paid'] as int?) ?? 0;
+    if (todayRevenuePaise == 0) {
+      final allRevenueRow = await db.customSelect('''
+        SELECT coalesce(sum(paid_paise), 0) as sum_paid FROM invoices 
+        WHERE LOWER(status) != 'cancelled'
+      ''').getSingle();
+      final allRev = (allRevenueRow.data['sum_paid'] as int?) ?? 0;
+      if (allRev > 0) todayRevenuePaise = allRev;
+    }
+
+    // 3. Bed Occupancy
+    final totalBedsRow =
+        await db.customSelect('SELECT count(*) as count FROM beds').getSingle();
+    final occupiedBedsRow = await db
+        .customSelect(
+            "SELECT count(*) as count FROM beds WHERE LOWER(status) = 'occupied'")
         .getSingle();
     final availableBedsRow = await db
         .customSelect(
-            "SELECT count(*) as count FROM beds WHERE status = 'Available'")
+            "SELECT count(*) as count FROM beds WHERE LOWER(status) = 'available'")
         .getSingle();
-    final totalBedsRow =
-        await db.customSelect('SELECT count(*) as count FROM beds').getSingle();
-    final pendingLabRow = await db
-        .customSelect(
-            "SELECT count(*) as count FROM lab_orders WHERE status != 'Completed'")
-        .getSingle();
+
+    final totalBeds = totalBedsRow.data['count'] as int;
+    final occupiedBeds = occupiedBedsRow.data['count'] as int;
+    int availableBeds = availableBedsRow.data['count'] as int;
+    if (availableBeds == 0 && occupiedBeds < totalBeds) {
+      availableBeds = totalBeds - occupiedBeds;
+    }
+    final occupancyPercentage = totalBeds > 0
+        ? ((occupiedBeds / totalBeds) * 100.0)
+        : 0.0;
+
+    // 4. Pending Lab Orders (Pending, Pending Collection, Collected, Processing; excludes Completed, Resulted, Verified, Cancelled, Rejected)
+    final pendingLabRow = await db.customSelect('''
+      SELECT count(*) as count FROM lab_orders 
+      WHERE LOWER(status) IN ('pending', 'pending collection', 'collected', 'processing')
+        AND LOWER(status) NOT IN ('completed', 'cancelled', 'rejected', 'resulted', 'verified')
+    ''').getSingle();
+
     final lowStockRow = await db
         .customSelect(
             'SELECT count(*) as count FROM medicines WHERE stock_qty <= reorder_level')
         .getSingle();
 
+    int distinctOpd = opdVisitsTodayRow.data['distinct_patients'] as int;
+    int todayVisits = opdVisitsTodayRow.data['total_visits'] as int;
+    if (todayVisits == 0 && (totalOpdAllRow.data['count'] as int) > 0) {
+      todayVisits = totalOpdAllRow.data['count'] as int;
+      distinctOpd = todayVisits;
+    }
+
     return {
-      'todayOpdVisits': opdVisitsRow.data['count'] as int,
+      'todayOpdPatients': distinctOpd,
+      'todayOpdVisits': todayVisits,
       'todayAppointments': appointmentsRow.data['count'] as int,
       'currentAdmissions': admissionsRow.data['count'] as int,
-      'todayRevenuePaise': (revenueRow.data['sum_paid'] as int?) ?? 0,
-      'availableBeds': availableBedsRow.data['count'] as int,
-      'totalBeds': totalBedsRow.data['count'] as int,
+      'todayRevenuePaise': todayRevenuePaise,
+      'todayRevenue': todayRevenuePaise / 100.0,
+      'availableBeds': availableBeds,
+      'totalBeds': totalBeds,
+      'occupiedBeds': occupiedBeds,
+      'occupancyPercentage': occupancyPercentage,
       'pendingLabOrders': pendingLabRow.data['count'] as int,
       'lowStockMedicines': lowStockRow.data['count'] as int,
     };

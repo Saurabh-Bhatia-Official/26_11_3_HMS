@@ -18,4 +18,8 @@ public interface LabOrderRepository extends JpaRepository<LabOrder, Long> {
     Optional<LabOrder> findForUpdate(@Param("id") long id, @Param("hospitalId") long hospitalId);
 
     long countByHospitalIdAndDeletedFalseAndStatusIn(Long hospitalId, List<String> statuses);
+
+    @Query("select count(o) from LabOrder o where o.hospitalId = :hospitalId and o.deleted = false " +
+            "and lower(o.status) in ('pending', 'collected', 'processing')")
+    long countPendingLabOrders(@Param("hospitalId") Long hospitalId);
 }
