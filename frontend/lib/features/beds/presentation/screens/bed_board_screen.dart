@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/permissions/permission_service.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
+import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/data/database/app_database.dart';
@@ -419,6 +421,18 @@ class _BedBoardScreenState extends ConsumerState<BedBoardScreen> {
       appBar: AppBar(
         title: const Text('Bed & Ward Management (Bed Board)'),
         actions: [
+          OutlinedButton.icon(
+            onPressed: () {
+              final hosp = ref.read(hospitalNameProvider).value ?? 'CareSync Hospital';
+              HmsPdfGenerator.printBedCensus(
+                hospitalName: hosp,
+                beds: allBeds,
+              );
+            },
+            icon: const Icon(Icons.print_outlined, size: 18),
+            label: const Text('Print Bed Census'),
+          ),
+          const Gap(8),
           if (checker.can(Modules.beds, AppActions.create)) ...[
             OutlinedButton.icon(
               onPressed: () => _showAddEditBedDialog(),

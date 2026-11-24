@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:hospital_management/core/auth/session_service.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
 import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
@@ -274,13 +275,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
     );
   }
 
-  void _exportCsv(String type) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Exported $type to Documents/HMS_Exports_${DateTime.now().year}.csv'),
-        backgroundColor: Colors.teal.shade800,
-      ),
-    );
+  Future<void> _exportCsv(String type) async {
+    try {
+      final db = ref.read(appDatabaseProvider);
+      if (type.toLowerCase().contains('patient')) {
+        final patients = await db.patientsDao.getAllPatients();
+        final rows = <List<dynamic>>[
+          ['ID', 'UHID', 'Name', 'Gender', 'Age', 'Phone', 'Blood Group', 'Address', 'Emergency Contact', 'Registered At'],
+          for (final p in patients)
+            [p.id, p.uhid, p.name, p.gender ?? '', p.ageYears ?? 0, p.phone ?? '', p.bloodGroup ?? '', p.address ?? '', p.emergencyContactName ?? '', p.createdAt.toIso8601String()],
+        ];
+        await HmsPdfGenerator.exportCsvFile(
+          filename: 'CareSync_Patients_Directory_${DateTime.now().year}.csv',
+          rows: rows,
+        );
+      } else {
+        final invoices = await db.hmsDao.getAllInvoices();
+        final rows = <List<dynamic>>[
+          ['Invoice No', 'Date', 'Patient Name', 'UHID', 'Bill Type', 'Subtotal (Paise)', 'Tax (Paise)', 'Total (Paise)', 'Paid (Paise)', 'Due (Paise)', 'Status', 'Payment Mode'],
+          for (final inv in invoices)
+            [inv.invoiceNo, inv.dateTime, inv.patientName, inv.uhid, inv.billType, inv.subtotalPaise, inv.taxPaise, inv.totalPaise, inv.paidPaise, inv.duePaise, inv.status, inv.paymentMode],
+        ];
+        await HmsPdfGenerator.exportCsvFile(
+          filename: 'CareSync_Revenue_Ledger_${DateTime.now().year}.csv',
+          rows: rows,
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Exported $type to CSV successfully!'),
+            backgroundColor: Colors.teal.shade800,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to export $type: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   void _confirmClearAllData() {

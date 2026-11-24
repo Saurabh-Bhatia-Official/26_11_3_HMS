@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/permissions/permission_service.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
+import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
@@ -67,6 +69,19 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
       appBar: AppBar(
         title: const Text('Doctors & Hospital Staff Directory'),
         actions: [
+          OutlinedButton.icon(
+            onPressed: () {
+              final staffList = staffAsync.value ?? [];
+              final hosp = ref.read(hospitalNameProvider).value ?? 'CareSync Hospital';
+              HmsPdfGenerator.printStaffDirectory(
+                hospitalName: hosp,
+                staff: staffList,
+              );
+            },
+            icon: const Icon(Icons.print_outlined, size: 18),
+            label: const Text('Print Directory'),
+          ),
+          const Gap(8),
           if (checker.can(Modules.staff, AppActions.create)) ...[
             FilledButton.icon(
               onPressed: () => context.go(AppRoutes.doctorNew),

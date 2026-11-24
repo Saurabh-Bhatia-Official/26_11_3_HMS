@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
@@ -316,11 +317,9 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
           FilledButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Report for ${order.patientName} (#${order.orderNo}) sent to print queue!'),
-                  backgroundColor: Colors.green.shade800,
-                ),
+              HmsPdfGenerator.printLabReport(
+                hospitalName: hospitalName,
+                order: order,
               );
             },
             icon: const Icon(Icons.print, size: 16),

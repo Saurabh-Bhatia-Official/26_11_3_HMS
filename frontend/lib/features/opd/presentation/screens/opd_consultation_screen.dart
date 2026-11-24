@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
+import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
@@ -242,8 +244,21 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
             actions: [
               OutlinedButton.icon(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Prescription printed for $_patientName.')),
+                  final hosp = ref.read(hospitalNameProvider).value ?? 'CareSync Hospital';
+                  final bp = _bpSysController.text.isNotEmpty ? '${_bpSysController.text}/${_bpDiaController.text} mmHg' : 'Normal';
+                  final vitals = 'BP: $bp • Pulse: ${_pulseController.text} bpm • Temp: ${_tempController.text} °F • SpO2: ${_spo2Controller.text}%';
+                  HmsPdfGenerator.printPrescription(
+                    hospitalName: hosp,
+                    patientName: _patientName,
+                    uhid: _uhid,
+                    ageGender: _ageGender,
+                    doctorName: _doctorName.isNotEmpty ? _doctorName : 'Attending Consultant',
+                    department: _department.isNotEmpty ? _department : 'General Medicine',
+                    tokenNo: _tokenNo,
+                    vitals: vitals,
+                    diagnosis: _diagnosisController.text,
+                    medicines: _medications,
+                    clinicalNotes: _adviceController.text,
                   );
                 },
                 icon: const Icon(Icons.print_outlined, size: 18),

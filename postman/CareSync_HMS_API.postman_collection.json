@@ -1,0 +1,763 @@
+{
+  "info": {
+    "_postman_id": "c8530b7e-caresync-hms-api-v2",
+    "name": "CareSync Hospital Management System (HMS) Complete API",
+    "description": "Comprehensive Postman Collection for CareSync HMS covering Authentication, Real Database Dashboard Analytics, OPD & Appointments, Patients, Inpatient Admissions & Bed Board, Billing & Cashier Payments, Pharmacy, Laboratory Diagnostics, and PostgreSQL Offline-to-Online Synchronization with automated test scripts and assertions.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Login - Success (Extract JWT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response contains accessToken and user details', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('accessToken');",
+                  "    pm.expect(json.accessToken).to.be.a('string').and.not.empty;",
+                  "    pm.environment.set('jwt_token', json.accessToken);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"{{admin_username}}\",\n    \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login - Invalid Credentials (Should Fail 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"invalid_user\",\n    \"password\": \"wrong_password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current Authenticated User (/me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('User details returned with username and roles', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('username');",
+                  "    pm.expect(json).to.have.property('roles');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Dashboard Statistics & Analytics (Real DB)",
+      "item": [
+        {
+          "name": "Get All Dashboard Stats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Dashboard stats has all required non-negative metrics', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('todayOpdPatients');",
+                  "    pm.expect(json.todayOpdPatients).to.be.at.least(0);",
+                  "    pm.expect(json).to.have.property('todayRevenuePaise');",
+                  "    pm.expect(json.todayRevenuePaise).to.be.at.least(0);",
+                  "    pm.expect(json).to.have.property('totalBeds');",
+                  "    pm.expect(json.totalBeds).to.be.at.least(0);",
+                  "    pm.expect(json).to.have.property('occupiedBeds');",
+                  "    pm.expect(json.occupiedBeds).to.be.at.least(0);",
+                  "    pm.expect(json).to.have.property('bedOccupancyPercentage');",
+                  "    pm.expect(json.bedOccupancyPercentage).to.be.at.least(0);",
+                  "    pm.expect(json).to.have.property('pendingLabTests');",
+                  "    pm.expect(json.pendingLabTests).to.be.at.least(0);",
+                  "});",
+                  "pm.test('Occupancy percentage formula matches (occupied/total * 100)', function () {",
+                  "    var json = pm.response.json();",
+                  "    if (json.totalBeds > 0) {",
+                  "        var expected = (json.occupiedBeds / json.totalBeds) * 100;",
+                  "        pm.expect(Math.abs(json.bedOccupancyPercentage - expected)).to.be.below(0.1);",
+                  "    } else {",
+                  "        pm.expect(json.bedOccupancyPercentage).to.equal(0);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/reports/dashboard/stats?date={{today_date}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "dashboard", "stats"],
+              "query": [
+                { "key": "date", "value": "{{today_date}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Today OPD Patients",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Returns count and date', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('count');",
+                  "    pm.expect(json.count).to.be.a('number').and.at.least(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/reports/dashboard/today-opd-patients",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "dashboard", "today-opd-patients"]
+            }
+          }
+        },
+        {
+          "name": "Get Today Revenue (Completed Payments Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Returns revenue in paise without negative numbers', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('todayRevenuePaise');",
+                  "    pm.expect(json.todayRevenuePaise).to.be.a('number').and.at.least(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/reports/dashboard/today-revenue",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "dashboard", "today-revenue"]
+            }
+          }
+        },
+        {
+          "name": "Get Bed Occupancy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Bed totals, available and occupancy percentage are consistent', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('totalBeds');",
+                  "    pm.expect(json).to.have.property('occupiedBeds');",
+                  "    pm.expect(json).to.have.property('availableBeds');",
+                  "    pm.expect(json).to.have.property('occupancyPercentage');",
+                  "    pm.expect(json.totalBeds).to.equal(json.occupiedBeds + json.availableBeds);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/reports/dashboard/bed-occupancy",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "dashboard", "bed-occupancy"]
+            }
+          }
+        },
+        {
+          "name": "Get Pending Lab Tests",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Pending lab tests count is non-negative integer', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('pendingLabTests');",
+                  "    pm.expect(json.pendingLabTests).to.be.a('number').and.at.least(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/reports/dashboard/pending-lab-tests",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "dashboard", "pending-lab-tests"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Appointments",
+      "item": [
+        {
+          "name": "Book New Appointment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test('Appointment created with token number', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('tokenNo');",
+                  "    pm.environment.set('created_appointment_id', json.id || json.tokenNo);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"tokenNo\": \"TK-{{$randomInt}}\",\n    \"patientName\": \"Rahul Sharma\",\n    \"uhid\": \"UHID-100234\",\n    \"doctorName\": \"Dr. Rajesh Verma\",\n    \"department\": \"Cardiology\",\n    \"date\": \"{{today_date}}\",\n    \"timeSlot\": \"10:00 AM\",\n    \"status\": \"Scheduled\",\n    \"visitType\": \"First Visit\",\n    \"notes\": \"Chest discomfort review\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments"]
+            }
+          }
+        },
+        {
+          "name": "List All Appointments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is a list of appointment records', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Patients & OPD Registration",
+      "item": [
+        {
+          "name": "Register Patient (Online / Sync Endpoint)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test('Patient record returns valid UUID', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('uuid');",
+                  "    pm.environment.set('created_patient_uuid', json.uuid);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"uuid\": \"p-{{$guid}}\",\n    \"uhid\": \"UHID-{{$randomInt}}\",\n    \"name\": \"Amit Patel\",\n    \"gender\": \"Male\",\n    \"dob\": \"1988-04-12\",\n    \"ageYears\": 36,\n    \"phone\": \"9876543210\",\n    \"address\": \"12 MG Road, Delhi\",\n    \"bloodGroup\": \"O+\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patients",
+              "host": ["{{base_url}}"],
+              "path": ["api", "patients"]
+            }
+          }
+        },
+        {
+          "name": "Create OPD Visit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"uuid\": \"v-{{$guid}}\",\n    \"patientUuid\": \"{{created_patient_uuid}}\",\n    \"visitType\": \"opd\",\n    \"visitDate\": \"{{today_date}}\",\n    \"status\": \"open\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/visits",
+              "host": ["{{base_url}}"],
+              "path": ["api", "visits"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Inpatient Care & Bed Allocation",
+      "item": [
+        {
+          "name": "Get Bed Board Census",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is a list of beds', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admissions/beds",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admissions", "beds"]
+            }
+          }
+        },
+        {
+          "name": "Allocate Bed to Patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"patientName\": \"Pooja Mehta\",\n    \"uhid\": \"UHID-100235\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admissions/beds/1/allocate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admissions", "beds", "1", "allocate"]
+            }
+          }
+        },
+        {
+          "name": "Release Bed (Mark Available / Cleaning)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admissions/beds/1/release",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admissions", "beds", "1", "release"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Billing & Revenue Payments",
+      "item": [
+        {
+          "name": "Get Billing Services Catalog",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/billing/services",
+              "host": ["{{base_url}}"],
+              "path": ["api", "billing", "services"]
+            }
+          }
+        },
+        {
+          "name": "Create Tax Invoice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test('Invoice generated with invoice number', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('invoiceNo');",
+                  "    pm.environment.set('created_invoice_no', json.invoiceNo);",
+                  "    pm.environment.set('created_invoice_id', json.id || json.invoiceNo);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"invoiceNo\": \"INV-{{$randomInt}}\",\n    \"patientName\": \"Rahul Sharma\",\n    \"uhid\": \"UHID-100234\",\n    \"billType\": \"opd\",\n    \"subtotalPaise\": 80000,\n    \"taxPaise\": 0,\n    \"totalPaise\": 80000,\n    \"paidPaise\": 0,\n    \"duePaise\": 80000,\n    \"paymentMode\": \"cash\",\n    \"status\": \"pending\",\n    \"dateTime\": \"{{today_date}} 10:30 AM\",\n    \"items\": [\n        {\n            \"name\": \"Cardiology Consultation Fee\",\n            \"quantity\": 1,\n            \"unitPricePaise\": 80000,\n            \"totalPaise\": 80000\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/billing/invoices",
+              "host": ["{{base_url}}"],
+              "path": ["api", "billing", "invoices"]
+            }
+          }
+        },
+        {
+          "name": "Record Successful Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Payment updates invoice status to paid', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status.toLowerCase()).to.be.oneOf(['paid', 'completed']);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amountPaise\": 80000,\n    \"paymentMode\": \"upi\",\n    \"reference\": \"UPI-TXN-{{$randomInt}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/billing/invoices/{{created_invoice_id}}/payments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "billing", "invoices", "{{created_invoice_id}}", "payments"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Laboratory Diagnostic Orders",
+      "item": [
+        {
+          "name": "Get Pathology Tests Catalog",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/lab/tests",
+              "host": ["{{base_url}}"],
+              "path": ["api", "lab", "tests"]
+            }
+          }
+        },
+        {
+          "name": "Create Laboratory Investigation Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test('Lab order returns orderNo', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('orderNo');",
+                  "    pm.environment.set('created_lab_order_no', json.orderNo);",
+                  "    pm.environment.set('created_lab_order_id', json.id || json.orderNo);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"orderNo\": \"LAB-{{$randomInt}}\",\n    \"patientName\": \"Rahul Sharma\",\n    \"uhid\": \"UHID-100234\",\n    \"testName\": \"Complete Blood Count (CBC)\",\n    \"doctorName\": \"Dr. Rajesh Verma\",\n    \"sampleType\": \"Whole Blood EDTA\",\n    \"priority\": \"Routine\",\n    \"status\": \"pending\",\n    \"orderedAt\": \"{{today_date}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/lab/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "lab", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Enter Lab Results",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"parameters\": [\n        { \"name\": \"Hemoglobin\", \"value\": \"14.2\", \"unit\": \"g/dL\", \"range\": \"13.0 - 17.0\", \"flag\": \"NORMAL\" },\n        { \"name\": \"Total Leukocyte Count (TLC)\", \"value\": \"7500\", \"unit\": \"cells/cu.mm\", \"range\": \"4000 - 11000\", \"flag\": \"NORMAL\" },\n        { \"name\": \"Platelet Count\", \"value\": \"250000\", \"unit\": \"cells/cu.mm\", \"range\": \"150000 - 450000\", \"flag\": \"NORMAL\" }\n    ],\n    \"technicianNotes\": \"Parameters within normal physiological range.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/lab/orders/{{created_lab_order_id}}/results",
+              "host": ["{{base_url}}"],
+              "path": ["api", "lab", "orders", "{{created_lab_order_id}}", "results"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Offline-to-Online Synchronization",
+      "item": [
+        {
+          "name": "Idempotent Sync Submission (Prevents Duplication)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Duplicate submission handled gracefully (Status 200, 201, or 409 handled)', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 409]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "sync-op-{{today_date}}-test" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"uuid\": \"p-sync-idempotent-check\",\n    \"uhid\": \"UHID-SYNC-01\",\n    \"name\": \"Suresh Kumar\",\n    \"phone\": \"9811223344\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patients",
+              "host": ["{{base_url}}"],
+              "path": ["api", "patients"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

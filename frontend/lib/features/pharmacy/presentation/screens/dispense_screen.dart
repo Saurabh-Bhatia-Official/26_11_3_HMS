@@ -4,6 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/data/database/app_database.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
 import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
@@ -418,12 +419,10 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
           FilledButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      'Thermal receipt for ${inv.invoiceNo} sent to POS printer.'),
-                  backgroundColor: Colors.teal.shade800,
-                ),
+              final hosp = ref.read(hospitalNameProvider).value ?? 'CareSync Hospital';
+              HmsPdfGenerator.printThermalReceipt80mm(
+                hospitalName: hosp,
+                invoice: inv,
               );
             },
             icon: const Icon(Icons.print),

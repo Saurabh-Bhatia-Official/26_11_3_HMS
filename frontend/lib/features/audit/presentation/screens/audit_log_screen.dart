@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
 
 class AuditLogScreen extends ConsumerWidget {
@@ -17,9 +18,16 @@ class AuditLogScreen extends ConsumerWidget {
         title: const Text('Security & Regulatory Audit Trail'),
         actions: [
           OutlinedButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Audit log exported as CSV for legal compliance.')),
+            onPressed: () async {
+              final logs = logsAsync.value ?? [];
+              final rows = <List<dynamic>>[
+                ['ID', 'Timestamp', 'User', 'Action', 'Entity', 'Details'],
+                for (final l in logs)
+                  [l.id, l.timestamp, l.userName, l.action, l.entity, l.details],
+              ];
+              await HmsPdfGenerator.exportCsvFile(
+                filename: 'CareSync_Audit_Log_${DateTime.now().year}.csv',
+                rows: rows,
               );
             },
             icon: const Icon(Icons.file_download_outlined, size: 18),

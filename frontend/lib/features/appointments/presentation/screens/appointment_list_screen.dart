@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/auth/session_service.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
+import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
 import 'package:hospital_management/data/database/app_database.dart';
@@ -92,65 +94,8 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
 
   Future<void> _printAppointment(AppointmentModel item) async {
     try {
-      final pdf = pw.Document();
-      pdf.addPage(
-        pw.Page(
-          margin: const pw.EdgeInsets.all(32),
-          build: (context) => pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
-            children: [
-              pw.Text(
-                'CareSync Central Hospital',
-                style: const pw.TextStyle(
-                  fontSize: 20,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 6),
-              pw.Text(
-                'APPOINTMENT TOKEN',
-                style: const pw.TextStyle(fontSize: 12),
-              ),
-              pw.Divider(),
-              pw.SizedBox(height: 12),
-              pw.Text(
-                'TOKEN #${item.tokenNo}',
-                style: const pw.TextStyle(
-                  fontSize: 28,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 20),
-              _printDetail('Patient Name', item.patientName),
-              _printDetail('UHID', item.uhid),
-              _printDetail('Doctor', item.doctorName),
-              _printDetail('Department', item.department),
-              _printDetail('Appointment Date', item.date),
-              _printDetail('Time Slot', item.timeSlot),
-              _printDetail('Visit Type', item.visitType),
-              if (item.notes.trim().isNotEmpty) ...[
-                pw.SizedBox(height: 12),
-                _printDetail('Booking Notes', item.notes),
-              ],
-              pw.Spacer(),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                'Please arrive before your appointment time.',
-                textAlign: pw.TextAlign.center,
-                style: const pw.TextStyle(fontSize: 10),
-              ),
-              pw.SizedBox(height: 5),
-              pw.Text(
-                'Thank you for choosing CareSync.',
-                style: const pw.TextStyle(fontSize: 10),
-              ),
-            ],
-          ),
-        ),
-      );
-
-      await Printing.layoutPdf(onLayout: (_) async => pdf.save());
+      final hosp = ref.read(hospitalNameProvider).value ?? 'CareSync Hospital';
+      await HmsPdfGenerator.printAppointmentToken(hospitalName: hosp, appointment: item);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

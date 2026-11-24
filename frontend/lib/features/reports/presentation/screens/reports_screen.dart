@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
+import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/widgets/kpi_card.dart';
 import 'package:intl/intl.dart';
 
@@ -19,10 +21,14 @@ class ReportsScreen extends ConsumerWidget {
         actions: [
           OutlinedButton.icon(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Monthly financial report exported to PDF.')),
-              );
+              final hosp = ref.read(hospitalNameProvider).value ?? 'CareSync Hospital';
+              final data = reportsAsync.value;
+              if (data != null) {
+                HmsPdfGenerator.printFinancialReport(
+                  hospitalName: hosp,
+                  data: data,
+                );
+              }
             },
             icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
             label: const Text('Export PDF Report'),
