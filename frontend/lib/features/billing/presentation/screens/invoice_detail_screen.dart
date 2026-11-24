@@ -94,18 +94,19 @@ class InvoiceDetailScreen extends ConsumerWidget {
       );
     }
 
-    final items = invoice.items;
-    final subtotal = invoice.subtotalPaise / 100.0;
-    final discount = invoice.discountPaise / 100.0;
-    final tax = invoice.taxPaise / 100.0;
-    final grandTotal = invoice.totalPaise / 100.0;
-    final paid = invoice.paidPaise / 100.0;
-    final due = invoice.duePaise / 100.0;
+    final resolvedInvoice = invoice;
+    final items = resolvedInvoice.items;
+    final subtotal = resolvedInvoice.subtotalPaise / 100.0;
+    final discount = resolvedInvoice.discountPaise / 100.0;
+    final tax = resolvedInvoice.taxPaise / 100.0;
+    final grandTotal = resolvedInvoice.totalPaise / 100.0;
+    final paid = resolvedInvoice.paidPaise / 100.0;
+    final due = resolvedInvoice.duePaise / 100.0;
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
-        title: Text('Invoice #${invoice.invoiceNo}'),
+        title: Text('Invoice #${resolvedInvoice.invoiceNo}'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(AppRoutes.billing),
@@ -116,7 +117,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
               final hosp = ref.read(hospitalNameProvider).value ?? 'CareSync Hospital';
               HmsPdfGenerator.printThermalReceipt80mm(
                 hospitalName: hosp,
-                invoice: invoice,
+                invoice: resolvedInvoice,
               );
             },
             icon: const Icon(Icons.receipt, size: 16),
@@ -128,7 +129,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
               final hosp = ref.read(hospitalNameProvider).value ?? 'CareSync Hospital';
               HmsPdfGenerator.printInvoiceA4(
                 hospitalName: hosp,
-                invoice: invoice,
+                invoice: resolvedInvoice,
               );
             },
             icon: const Icon(Icons.print_outlined, size: 16),

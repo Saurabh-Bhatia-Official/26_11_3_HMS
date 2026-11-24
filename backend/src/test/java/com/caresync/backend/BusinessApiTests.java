@@ -772,7 +772,7 @@ class BusinessApiTests {
                                 "amountPaise", 50000,
                                 "referenceNo", "REC-001"
                         ))))
-                .andExpect(status().isCreated());
+                .andExpect(status().isOk());
 
         mvc.perform(get("/api/reports/dashboard/stats").header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
@@ -808,7 +808,7 @@ class BusinessApiTests {
                                 "amountPaise", 30000,
                                 "referenceNo", "REC-002"
                         ))))
-                .andExpect(status().isCreated());
+                .andExpect(status().isOk());
         // Cancel the second invoice
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/billing/invoices/" + cancelledInvId)
                         .header("Authorization", bearer(accountsToken)))

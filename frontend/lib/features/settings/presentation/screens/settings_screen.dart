@@ -283,7 +283,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
         final rows = <List<dynamic>>[
           ['ID', 'UHID', 'Name', 'Gender', 'Age', 'Phone', 'Blood Group', 'Address', 'Emergency Contact', 'Registered At'],
           for (final p in patients)
-            [p.id, p.uhid, p.name, p.gender ?? '', p.ageYears ?? 0, p.phone ?? '', p.bloodGroup ?? '', p.address ?? '', p.emergencyContactName ?? '', p.createdAt.toIso8601String()],
+            [p.id, p.uhid, p.name, p.gender ?? '', p.ageYears ?? 0, p.phone ?? '', p.bloodGroup ?? '', p.address ?? '', p.emergencyContactName ?? '', p.createdAt],
         ];
         await HmsPdfGenerator.exportCsvFile(
           filename: 'CareSync_Patients_Directory_${DateTime.now().year}.csv',

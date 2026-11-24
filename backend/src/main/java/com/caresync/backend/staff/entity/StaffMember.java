@@ -101,6 +101,7 @@ public class StaffMember extends HospitalScopedEntity {
     }
 
     public String getName() { return name; }
+    public String getFullName() { return name; }
     public String getGender() { return gender; }
     public LocalDate getDob() { return dob; }
     public String getPhone() { return phone; }

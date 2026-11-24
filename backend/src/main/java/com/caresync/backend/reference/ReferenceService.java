@@ -332,7 +332,7 @@ public class ReferenceService {
                 a.getId(), a.getUuid(), a.getPatient().getId(), a.getPatient().getUuid(),
                 a.getPatient().getName(), a.getPatient().getUhid(),
                 a.getDoctor() == null ? null : a.getDoctor().getId(),
-                a.getDoctor() == null ? "Any Available Doctor" : a.getDoctor().getFullName(),
+                a.getDoctor() == null ? "Any Available Doctor" : a.getDoctor().getName(),
                 a.getAppointmentDate(), a.getTimeSlot(), a.getTokenNo(),
                 a.getVisitType(), a.getStatus(), a.getNotes()
         );
