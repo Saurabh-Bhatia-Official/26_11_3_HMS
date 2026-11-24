@@ -162,7 +162,7 @@ public class PharmacyService {
                 .orElseThrow(() -> BusinessException.notFound("Patient"));
         Long visitId = references.resolveVisitId(request.visitId(), request.visitUuid(), patient.getId());
         Long prescriptionId = references.resolvePrescriptionId(request.prescriptionId(), request.prescriptionUuid(),
-                patient.getId(), visitId, null);
+                patient.getId(), visitId, request.visitUuid());
         if (request.items() == null || request.items().isEmpty()) {
             throw BusinessException.invalid("A dispensing must contain at least one item");
         }

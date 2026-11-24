@@ -1,13 +1,5 @@
 package com.caresync.backend.security;
 
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import com.caresync.backend.hospital.entity.HospitalStatus;
-import com.caresync.backend.hospital.repository.HospitalRepository;
-import com.caresync.backend.membership.service.MembershipService;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -16,6 +8,15 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.caresync.backend.hospital.entity.HospitalStatus;
+import com.caresync.backend.hospital.repository.HospitalRepository;
+import com.caresync.backend.membership.service.MembershipService;
 
 @Service
 public class AuthService {

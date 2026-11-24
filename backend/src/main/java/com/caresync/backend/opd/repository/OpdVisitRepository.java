@@ -61,6 +61,11 @@ public interface OpdVisitRepository extends JpaRepository<OpdVisit, Long> {
             UUID hospitalUuid
     );
 
+    Optional<OpdVisit> findByUuidAndHospitalId(
+            UUID uuid,
+            Long hospitalId
+    );
+
     Optional<OpdVisit> findByHospitalUuidAndAppointmentUuid(
             UUID hospitalUuid,
             UUID appointmentUuid

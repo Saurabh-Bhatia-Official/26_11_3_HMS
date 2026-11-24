@@ -11,5 +11,6 @@ public interface StaffRepository extends JpaRepository<StaffMember, Long> {
     List<StaffMember> findAllByHospitalIdAndDeletedFalseOrderByNameAsc(Long hospitalId);
     List<StaffMember> findAllByHospitalIdAndRoleAndDeletedFalseOrderByNameAsc(Long hospitalId, String role);
     Optional<StaffMember> findByIdAndHospitalIdAndDeletedFalse(Long id, Long hospitalId);
+    Optional<StaffMember> findByUuidAndHospitalIdAndDeletedFalse(String uuid, Long hospitalId);
     long countByHospitalIdAndActiveTrueAndDeletedFalse(Long hospitalId);
 }

@@ -356,11 +356,34 @@ class AuthControllerTests {
         assertEquals(1, cleanupJob.deleteExpiredNow());
     }
 
-    private JsonNode login(String username, String password) throws Exception {
-        return mapper.readTree(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(java.util.Map.of("username", username, "password", password))))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+  
+private JsonNode login(String username, String password) throws Exception {
+    AuthAccount account = accounts.findByUsername(username).orElseThrow();
+
+    boolean isSuperAdmin = "SUPER_ADMIN".equals(account.getRole());
+    String path = isSuperAdmin
+            ? "/api/auth/login"
+            : "/api/auth/hospital-login";
+
+    java.util.Map<String, String> body = new java.util.HashMap<>();
+    body.put("username", username);
+    body.put("password", password);
+
+    if (!isSuperAdmin) {
+        body.put("hospitalId", String.valueOf(account.getHospitalId()));
     }
+
+    return mapper.readTree(
+            mvc.perform(post(path)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(mapper.writeValueAsString(body)))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString()
+    );
+}
+
 
     private void loginStatus(String username, String password, int status) throws Exception {
         String path = accounts.findByUsername(username).map(account -> account.getRole().equals("SUPER_ADMIN"))

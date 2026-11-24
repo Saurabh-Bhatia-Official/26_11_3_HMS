@@ -72,8 +72,9 @@ public class PatientService {
                                                      BearerTokenFilter.AuthPrincipal principal) {
         TenantContext context = requireContext(principal);
         requirePermission(PatientPermissionPolicy.canView(context.membershipRole()));
-        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
-        UUID uuidQuery = parseUuid(normalizedQuery);
+String normalizedQuery = query == null || query.isBlank()
+        ? ""
+        : query.trim();        UUID uuidQuery = parseUuid(normalizedQuery);
         Page<Patient> result = patients.searchHospitalPatients(context.hospitalUuid(), normalizedQuery,
                 uuidQuery, status, PageRequest.of(page.page(), page.size(),
                         Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))));

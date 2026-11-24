@@ -24,18 +24,21 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     Optional<Patient> findByUuidAndHospital_HospitalIdAndArchivedAtIsNull(UUID uuid, Long hospitalId);
 
     @Query("""
-            select p from Patient p
-            where p.hospital.id = :hospitalId
-              and p.archivedAt is null
-              and (:status is null or p.status = :status)
-              and (:query is null or lower(p.name) like lower(concat('%', :query, '%'))
-                   or lower(p.uhid) like lower(concat('%', :query, '%'))
-                   or lower(coalesce(p.phone, '')) like lower(concat('%', :query, '%'))
-                   or (:uuidQuery is not null and p.uuid = :uuidQuery))
-            """)
-    Page<Patient> searchHospitalPatients(@Param("hospitalId") UUID hospitalId,
-                                         @Param("query") String query,
-                                         @Param("uuidQuery") UUID uuidQuery,
-                                         @Param("status") PatientStatus status,
-                                         Pageable pageable);
+        select p from Patient p
+        where p.hospital.id = :hospitalId
+          and p.archivedAt is null
+          and (:status is null or p.status = :status)
+          and (
+              lower(p.name) like lower(concat('%', :query, '%'))
+              or lower(p.uhid) like lower(concat('%', :query, '%'))
+              or lower(coalesce(p.phone, '')) like lower(concat('%', :query, '%'))
+              or (:uuidQuery is not null and p.uuid = :uuidQuery)
+          )
+        """)
+Page<Patient> searchHospitalPatients(
+        @Param("hospitalId") UUID hospitalId,
+        @Param("query") String query,
+        @Param("uuidQuery") UUID uuidQuery,
+        @Param("status") PatientStatus status,
+        Pageable pageable);
 }

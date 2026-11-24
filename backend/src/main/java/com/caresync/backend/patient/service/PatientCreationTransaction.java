@@ -1,5 +1,13 @@
 package com.caresync.backend.patient.service;
 
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.UUID;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.caresync.backend.hospital.entity.Hospital;
 import com.caresync.backend.hospital.entity.HospitalStatus;
 import com.caresync.backend.hospital.repository.HospitalRepository;
@@ -9,14 +17,8 @@ import com.caresync.backend.patient.entity.Patient;
 import com.caresync.backend.patient.repository.PatientRepository;
 import com.caresync.backend.security.SecurityAuditEvent;
 import com.caresync.backend.security.SecurityAuditEventRepository;
-import jakarta.persistence.EntityManager;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.UUID;
-import java.security.SecureRandom;
+import jakarta.persistence.EntityManager;
 
 /** Isolated transaction boundary so a UUID uniqueness race can be resolved after rollback. */
 @Service
@@ -40,7 +42,12 @@ public class PatientCreationTransaction {
         Hospital hospital = hospitals.findById(hospitalUuid)
                 .filter(item -> item.getStatus() == HospitalStatus.APPROVED)
                 .orElseThrow(() -> new PatientApiException(HttpStatus.FORBIDDEN, "Hospital access is unavailable"));
-
+        if (hospital.getHospitalId() == null) {
+    throw new PatientApiException(
+            HttpStatus.CONFLICT,
+            "Approved hospital is missing its numeric hospital ID"
+    );
+}
         Patient existing = patients.findByUuid(request.uuid()).orElse(null);
         if (existing != null) {
             if (existing.getHospital().getId().equals(hospitalUuid) && existing.getArchivedAt() == null

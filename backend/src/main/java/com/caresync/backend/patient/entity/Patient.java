@@ -1,6 +1,12 @@
+
 package com.caresync.backend.patient.entity;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.UUID;
+
 import com.caresync.backend.hospital.entity.Hospital;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -17,10 +23,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 
-import java.time.Instant;
-import java.time.LocalDate;
-import java.util.UUID;
-
 @Entity
 @Table(name = "patients",
         uniqueConstraints = {
@@ -33,6 +35,7 @@ import java.util.UUID;
                 @Index(name = "ix_patient_hospital_phone", columnList = "hospital_uuid, phone")
         })
 public class Patient {
+
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "patient_id_generator")
     @SequenceGenerator(name = "patient_id_generator", sequenceName = "patient_id_sequence", allocationSize = 1)
@@ -42,10 +45,15 @@ public class Patient {
     /** Client-generated immutable cross-device key; never an authorization credential. */
     @Column(name = "patient_uuid", nullable = false, updatable = false)
     private UUID uuid;
-
+    @Column(name = "uuid", nullable = false, updatable = false)
+    private String legacyUuid;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "hospital_uuid", referencedColumnName = "hospital_uuid", nullable = false, updatable = false)
     private Hospital hospital;
+
+    // Numeric hospital identifier, separate from the hospital UUID.
+    @Column(name = "hospital_id", nullable = false, updatable = false)
+    private Long hospitalId;
 
     @Column(name = "uhid", nullable = false, length = 30)
     private String uhid;
@@ -99,6 +107,10 @@ public class Patient {
     @Column(name = "archived_at")
     private Instant archivedAt;
 
+    // Soft-delete flag: new patients are not deleted.
+    @Column(name = "is_deleted", nullable = false)
+    private boolean isDeleted = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -121,8 +133,11 @@ public class Patient {
                    Integer ageYears, String phone, String alternatePhone, String email, String address,
                    String city, String state, String pincode, String bloodGroup, String emergencyContactName,
                    String emergencyContactPhone, long actorAccountId, Instant now) {
+
         this.uuid = uuid;
+        this.legacyUuid = uuid.toString();
         this.hospital = hospital;
+        this.hospitalId = hospital.getHospitalId();
         this.uhid = uhid;
         this.name = name;
         this.gender = gender;
@@ -139,6 +154,7 @@ public class Patient {
         this.emergencyContactName = emergencyContactName;
         this.emergencyContactPhone = emergencyContactPhone;
         this.status = PatientStatus.ACTIVE;
+        this.isDeleted = false;
         this.createdAt = now;
         this.updatedAt = now;
         this.createdByAccountId = actorAccountId;
@@ -149,6 +165,7 @@ public class Patient {
                        String alternatePhone, String email, String address, String city, String state,
                        String pincode, String bloodGroup, String emergencyContactName,
                        String emergencyContactPhone, long actorAccountId, Instant now) {
+
         this.name = name;
         this.gender = gender;
         this.dateOfBirth = dateOfBirth;
@@ -182,13 +199,18 @@ public class Patient {
     }
 
     public void assignServerUhid(String uhid) {
-        if (this.uhid != null) throw new IllegalStateException("Patient UHID is immutable after assignment");
+        if (this.uhid != null) {
+            throw new IllegalStateException("Patient UHID is immutable after assignment");
+        }
         this.uhid = uhid;
     }
-
+    public String getLegacyUuid() {
+    return legacyUuid;
+}
     public Long getId() { return id; }
     public UUID getUuid() { return uuid; }
     public Hospital getHospital() { return hospital; }
+    public Long getHospitalId() { return hospitalId; }
     public String getUhid() { return uhid; }
     public String getName() { return name; }
     public String getGender() { return gender; }
@@ -206,6 +228,7 @@ public class Patient {
     public String getEmergencyContactPhone() { return emergencyContactPhone; }
     public PatientStatus getStatus() { return status; }
     public Instant getArchivedAt() { return archivedAt; }
+    public boolean isDeleted() { return isDeleted; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public Long getCreatedByAccountId() { return createdByAccountId; }
