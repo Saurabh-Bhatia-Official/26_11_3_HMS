@@ -108,7 +108,6 @@ public class Invoice extends HospitalScopedEntity {
     }
 
     public void cancel() {
-        if (paidPaise > 0) throw new IllegalStateException("An invoice with payments cannot be cancelled");
         status = "cancelled";
         duePaise = 0;
     }
