@@ -893,7 +893,7 @@ class BusinessApiTests {
                         .header("Authorization", bearer(labToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(Map.of(
-                                "name", "Complete Blood Count",
+                                "name", "Complete Blood Count Panel",
                                 "category", "Hematology",
                                 "sampleType", "Whole Blood",
                                 "turnaroundHours", 4,
@@ -938,6 +938,11 @@ class BusinessApiTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.pendingLabTests").value(1));
 
+        // Start processing
+        mvc.perform(post("/api/lab/orders/" + labOrderId + "/start")
+                        .header("Authorization", bearer(labToken)))
+                .andExpect(status().isOk());
+
         // Results entered -> resulted
         mvc.perform(post("/api/lab/orders/" + labOrderId + "/results")
                         .header("Authorization", bearer(labToken))
@@ -945,7 +950,7 @@ class BusinessApiTests {
                         .content(mapper.writeValueAsString(Map.of(
                                 "results", java.util.List.of(Map.of(
                                         "parameterName", "Hemoglobin",
-                                        "resultValue", "13.5",
+                                        "value", "13.5",
                                         "unit", "g/dL",
                                         "referenceRange", "12-16"
                                 ))

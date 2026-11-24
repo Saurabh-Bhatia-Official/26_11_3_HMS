@@ -37,6 +37,7 @@ public final class LabDtos {
                                @Size(max = 1000) String notes) {}
     public record ResultRequest(@NotEmpty List<@NotNull @Valid ResultValueRequest> results) {}
     public record ResultValueRequest(@NotBlank @Size(max = 160) String parameterName,
+                                     @com.fasterxml.jackson.annotation.JsonAlias({"resultValue", "parameterValue", "val"})
                                      @NotBlank @Size(max = 500) String value, @Size(max = 32) String unit,
                                      @Size(max = 200) String referenceRange,
                                      @Pattern(regexp = "normal|low|high|critical_low|critical_high")

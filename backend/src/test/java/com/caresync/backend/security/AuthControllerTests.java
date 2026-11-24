@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 @SpringBootTest(properties = {
         "caresync.security.jwt-secret=local-test-secret-change-before-deployment-123456789",
         "caresync.security.cors.allowed-origins=https://client.caresync.test",
-        "spring.datasource.url=jdbc:h2:mem:caresync-auth-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+        "spring.datasource.url=jdbc:h2:mem:caresync-auth-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;DEFAULT_LOCK_TIMEOUT=10000",
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect"
 })

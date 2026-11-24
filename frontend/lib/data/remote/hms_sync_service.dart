@@ -154,11 +154,40 @@ class HmsSyncService {
       debugPrint('Background pull notice: $e');
     }
   }
+  Timer? _autoSyncTimer;
+
+  void startAutoSync({Duration interval = const Duration(seconds: 15)}) {
+    _autoSyncTimer?.cancel();
+    _autoSyncTimer = Timer.periodic(interval, (_) async {
+      if (_api.isConfigured && !_isSyncing) {
+        try {
+          final pending = await _database.hmsDao.getPendingSyncCount();
+          if (pending > 0) {
+            await syncAll();
+          } else {
+            await pullLatestChanges();
+          }
+        } catch (_) {}
+      }
+    });
+  }
+
+  void stopAutoSync() {
+    _autoSyncTimer?.cancel();
+    _autoSyncTimer = null;
+  }
 }
 
 class SyncStatusNotifier extends StateNotifier<AsyncValue<SyncStatusInfo>> {
   SyncStatusNotifier(this._syncService) : super(const AsyncLoading()) {
     refresh();
+    _syncService.startAutoSync();
+  }
+
+  @override
+  void dispose() {
+    _syncService.stopAutoSync();
+    super.dispose();
   }
 
   final HmsSyncService _syncService;
