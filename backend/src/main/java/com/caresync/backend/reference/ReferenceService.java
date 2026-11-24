@@ -19,10 +19,12 @@ public class ReferenceService {
     private final AdmissionRepository admissions;
     private final PrescriptionRepository prescriptions;
     private final BedRepository beds;
+    private final AppointmentRepository appointments;
 
     public ReferenceService(AccessContext access, PatientRepository patients, StaffRepository staff,
                             VisitRepository visits, AdmissionRepository admissions,
-                            PrescriptionRepository prescriptions, BedRepository beds) {
+                            PrescriptionRepository prescriptions, BedRepository beds,
+                            AppointmentRepository appointments) {
         this.access = access;
         this.patients = patients;
         this.staff = staff;
@@ -30,6 +32,7 @@ public class ReferenceService {
         this.admissions = admissions;
         this.prescriptions = prescriptions;
         this.beds = beds;
+        this.appointments = appointments;
     }
 
     public ReferenceDtos.VisitResponse createVisit(ReferenceDtos.VisitRequest request) {
@@ -284,6 +287,55 @@ public class ReferenceService {
         BedRecord bed = beds.findByIdAndHospitalIdAndDeletedFalse(id, hospitalId)
                 .orElseThrow(() -> BusinessException.notFound("Bed not found"));
         bed.markDeleted();
+    }
+
+    public java.util.List<AppointmentDtos.AppointmentResponse> listAppointments() {
+        return appointments.findAllByHospitalIdAndDeletedFalseOrderByAppointmentDateDesc(access.hospitalId())
+                .stream().map(ReferenceService::appointmentResponse).toList();
+    }
+
+    public AppointmentDtos.AppointmentResponse createAppointment(AppointmentDtos.AppointmentRequest request) {
+        long hospitalId = access.hospitalId();
+        PatientRecord patient = patient(request.patientUuid(), hospitalId);
+        String uuid = request.uuid() == null || request.uuid().isBlank()
+                ? java.util.UUID.randomUUID().toString() : request.uuid().trim();
+        AppointmentRecord existing = appointments.findByUuidAndHospitalIdAndDeletedFalse(uuid, hospitalId)
+                .orElse(null);
+        if (existing != null) {
+            return appointmentResponse(existing);
+        }
+        StaffMember doctor = request.doctorId() == null ? null : doctor(request.doctorId(), hospitalId);
+        int tokenNo = request.tokenNo() != null ? request.tokenNo() : 1;
+        AppointmentRecord appointment = appointments.save(new AppointmentRecord(hospitalId, uuid, patient, doctor,
+                request.appointmentDate(), request.timeSlot(), tokenNo, request.visitType(), request.status(),
+                request.notes()));
+        return appointmentResponse(appointment);
+    }
+
+    public AppointmentDtos.AppointmentResponse updateAppointmentStatus(long id, String status) {
+        long hospitalId = access.hospitalId();
+        AppointmentRecord appt = appointments.findByIdAndHospitalIdAndDeletedFalse(id, hospitalId)
+                .orElseThrow(() -> BusinessException.notFound("Appointment not found"));
+        appt.setStatus(status);
+        return appointmentResponse(appt);
+    }
+
+    public void deleteAppointment(long id) {
+        long hospitalId = access.hospitalId();
+        AppointmentRecord appt = appointments.findByIdAndHospitalIdAndDeletedFalse(id, hospitalId)
+                .orElseThrow(() -> BusinessException.notFound("Appointment not found"));
+        appt.markDeleted();
+    }
+
+    private static AppointmentDtos.AppointmentResponse appointmentResponse(AppointmentRecord a) {
+        return new AppointmentDtos.AppointmentResponse(
+                a.getId(), a.getUuid(), a.getPatient().getId(), a.getPatient().getUuid(),
+                a.getPatient().getName(), a.getPatient().getUhid(),
+                a.getDoctor() == null ? null : a.getDoctor().getId(),
+                a.getDoctor() == null ? "Any Available Doctor" : a.getDoctor().getFullName(),
+                a.getAppointmentDate(), a.getTimeSlot(), a.getTokenNo(),
+                a.getVisitType(), a.getStatus(), a.getNotes()
+        );
     }
 
     private static ReferenceDtos.BedResponse bedResponse(BedRecord b) {

@@ -94,4 +94,29 @@ public class ReferenceController {
             @Valid @RequestBody ReferenceDtos.PrescriptionRequest request) {
         return service.createPrescription(request);
     }
+
+    @GetMapping("/appointments")
+    public java.util.List<AppointmentDtos.AppointmentResponse> listAppointments() {
+        return service.listAppointments();
+    }
+
+    @PostMapping("/appointments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AppointmentDtos.AppointmentResponse createAppointment(
+            @Valid @RequestBody AppointmentDtos.AppointmentRequest request) {
+        return service.createAppointment(request);
+    }
+
+    @PutMapping("/appointments/{id}/status")
+    public AppointmentDtos.AppointmentResponse updateAppointmentStatus(
+            @PathVariable long id,
+            @RequestParam String status) {
+        return service.updateAppointmentStatus(id, status);
+    }
+
+    @DeleteMapping("/appointments/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAppointment(@PathVariable long id) {
+        service.deleteAppointment(id);
+    }
 }

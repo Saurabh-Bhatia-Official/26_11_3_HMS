@@ -6,6 +6,7 @@ import com.caresync.backend.lab.repository.LabOrderRepository;
 import com.caresync.backend.pharmacy.repository.MedicineBatchRepository;
 import com.caresync.backend.pharmacy.repository.MedicineRepository;
 import com.caresync.backend.reference.AdmissionRepository;
+import com.caresync.backend.reference.AppointmentRepository;
 import com.caresync.backend.reference.BedRepository;
 import com.caresync.backend.reference.VisitRepository;
 import com.caresync.backend.reports.dto.DashboardDtos;
@@ -24,18 +25,21 @@ public class DashboardService {
     private final InvoiceRepository invoices;
     private final BedRepository beds;
     private final AdmissionRepository admissions;
+    private final AppointmentRepository appointments;
     private final LabOrderRepository labOrders;
     private final MedicineRepository medicines;
     private final MedicineBatchRepository batches;
 
     public DashboardService(AccessContext access, VisitRepository visits, InvoiceRepository invoices,
-                            BedRepository beds, AdmissionRepository admissions, LabOrderRepository labOrders,
+                            BedRepository beds, AdmissionRepository admissions,
+                            AppointmentRepository appointments, LabOrderRepository labOrders,
                             MedicineRepository medicines, MedicineBatchRepository batches) {
         this.access = access;
         this.visits = visits;
         this.invoices = invoices;
         this.beds = beds;
         this.admissions = admissions;
+        this.appointments = appointments;
         this.labOrders = labOrders;
         this.medicines = medicines;
         this.batches = batches;
@@ -62,7 +66,10 @@ public class DashboardService {
         // 4. Pending Lab Tests (Pending, Collected, Processing; excludes Resulted, Verified, Cancelled, Rejected)
         long pendingLabTests = labOrders.countPendingLabOrders(hospitalId);
 
-        // 5. Low Stock Medicines
+        // 5. Appointments for today
+        long todayAppointments = appointments.countAppointmentsByDate(hospitalId, today);
+
+        // 6. Low Stock Medicines
         long lowStockMedicines = countLowStockMedicines(hospitalId);
 
         DashboardDtos.DashboardData data = new DashboardDtos.DashboardData(
@@ -72,7 +79,7 @@ public class DashboardService {
                 bedOccupancy,
                 pendingLabTests,
                 todayOpdVisits,
-                todayOpdVisits,
+                todayAppointments,
                 currentAdmissions,
                 lowStockMedicines
         );
@@ -90,10 +97,6 @@ public class DashboardService {
         long availableBeds = beds.countAvailableBeds(hospitalId);
 
         if (totalBeds == 0) {
-            long activeAdmissions = admissions.countByHospitalIdAndDeletedFalseAndStatusIgnoreCase(hospitalId, "admitted");
-            if (activeAdmissions > 0) {
-                return new DashboardDtos.BedOccupancy(activeAdmissions, activeAdmissions, 0, 100.0);
-            }
             return new DashboardDtos.BedOccupancy(0, 0, 0, 0.0);
         }
 

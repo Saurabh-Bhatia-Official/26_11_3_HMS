@@ -11,6 +11,7 @@ import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/theme/theme_provider.dart';
 import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
+import 'package:hospital_management/data/remote/hms_sync_service.dart';
 import 'package:hospital_management/features/patients/patients_provider.dart';
 
 class NavDestination {
@@ -428,6 +429,162 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 
+  void _showSyncDialog(BuildContext context, WidgetRef ref, SyncStatusInfo status) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.cloud_sync_rounded, color: Colors.blue),
+            Gap(10),
+            Text('PostgreSQL Cloud Synchronization'),
+          ],
+        ),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.storage_rounded, size: 20, color: Colors.blue),
+                    Gap(10),
+                    Expanded(
+                      child: Text(
+                        'Local SQLite (Drift) ⇄ Cloud PostgreSQL\nCareSync Bidirectional Data Bridge',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Gap(16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Pending Local Mutations:'),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: status.pendingCount > 0 ? Colors.amber.shade100 : Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${status.pendingCount} records',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: status.pendingCount > 0 ? Colors.amber.shade900 : Colors.green.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Gap(8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Failed Sync Operations:'),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: status.failedCount > 0 ? Colors.red.shade100 : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${status.failedCount} records',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: status.failedCount > 0 ? Colors.red.shade900 : Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Gap(8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Last Synchronized:'),
+                  Text(
+                    status.lastSyncedAt != null && status.lastSyncedAt!.isNotEmpty
+                        ? status.lastSyncedAt!.replaceFirst('T', ' ').substring(0, 19)
+                        : 'Never',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+              if (status.lastError != null && status.lastError!.isNotEmpty) ...[
+                const Gap(12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.error_outline, size: 18, color: Colors.red),
+                      const Gap(8),
+                      Expanded(
+                        child: Text(
+                          status.lastError!,
+                          style: TextStyle(fontSize: 12, color: Colors.red.shade800),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          if (status.failedCount > 0)
+            OutlinedButton.icon(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await ref.read(syncStatusNotifierProvider.notifier).retryFailed();
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Retry Failed'),
+            ),
+          FilledButton.icon(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final errors = await ref.read(syncStatusNotifierProvider.notifier).triggerSync();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(errors.isEmpty
+                        ? 'Synchronization completed successfully!'
+                        : 'Sync finished with ${errors.length} notice(s): ${errors.first}'),
+                    backgroundColor: errors.isEmpty ? Colors.green.shade800 : Colors.orange.shade800,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.sync_rounded, size: 16),
+            label: const Text('Sync Now'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
@@ -794,6 +951,85 @@ class _AppShellState extends ConsumerState<AppShell> {
                 },
               ),
             const Gap(4),
+
+            // Offline-to-Online PostgreSQL Sync Status Widget
+            Consumer(
+              builder: (context, ref, _) {
+                final syncStatusAsync = ref.watch(syncStatusNotifierProvider);
+                final status = syncStatusAsync.value;
+                if (status == null) return const SizedBox.shrink();
+
+                Color badgeColor = Colors.green;
+                IconData badgeIcon = Icons.cloud_done_rounded;
+                String tooltipText = 'Online & Synchronized';
+
+                if (status.isSyncing) {
+                  badgeColor = Colors.blue;
+                  badgeIcon = Icons.sync_rounded;
+                  tooltipText = 'Synchronizing with PostgreSQL...';
+                } else if (status.failedCount > 0) {
+                  badgeColor = Colors.redAccent;
+                  badgeIcon = Icons.sync_problem_rounded;
+                  tooltipText = '${status.failedCount} sync error(s) - Tap to retry';
+                } else if (status.pendingCount > 0) {
+                  badgeColor = Colors.amber.shade700;
+                  badgeIcon = Icons.cloud_upload_rounded;
+                  tooltipText = '${status.pendingCount} pending local record(s) - Tap to sync';
+                } else if (!status.isConfigured) {
+                  badgeColor = Colors.grey;
+                  badgeIcon = Icons.cloud_off_rounded;
+                  tooltipText = 'Offline Mode (Local Drift DB)';
+                }
+
+                return Tooltip(
+                  message: tooltipText,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => _showSyncDialog(context, ref, status),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: badgeColor.withOpacity(0.4)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (status.isSyncing)
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: badgeColor,
+                              ),
+                            )
+                          else
+                            Icon(badgeIcon, size: 16, color: badgeColor),
+                          const Gap(6),
+                          Text(
+                            status.isSyncing
+                                ? 'Syncing...'
+                                : status.failedCount > 0
+                                    ? '${status.failedCount} Failed'
+                                    : status.pendingCount > 0
+                                        ? '${status.pendingCount} Pending'
+                                        : 'Synced',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: badgeColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
 
             // Dark / Light Mode Toggle
             IconButton(

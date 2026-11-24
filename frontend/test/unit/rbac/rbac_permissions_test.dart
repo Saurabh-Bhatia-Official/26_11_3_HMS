@@ -142,16 +142,16 @@ void main() {
       );
 
       final allUsers = await db.getAllUsers();
-      expect(allUsers.any((u) => u.username == 'dr_miller'), isTrue);
+      expect(allUsers.any((u) => u['username'] == 'dr_miller'), isTrue);
 
-      final miller = allUsers.firstWhere((u) => u.username == 'dr_miller');
-      expect(miller.role, equals('Doctor'));
-      expect(miller.hospitalId, equals(1));
-      expect(miller.hospitalName, equals('CareSync Central Hospital'));
+      final miller = allUsers.firstWhere((u) => u['username'] == 'dr_miller');
+      expect(miller['role'], equals('Doctor'));
+      expect(miller['hospital_id'] ?? miller['hospitalId'], equals(1));
+      expect(miller['hospital_name'] ?? miller['hospitalName'], equals('CareSync Central Hospital'));
 
       await db.deleteCustomUser('dr_miller');
       final afterDelete = await db.getAllUsers();
-      expect(afterDelete.any((u) => u.username == 'dr_miller'), isFalse);
+      expect(afterDelete.any((u) => u['username'] == 'dr_miller'), isFalse);
     });
   });
 }

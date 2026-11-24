@@ -497,6 +497,23 @@ class HmsDao {
     ''');
   }
 
+  Future<int> getPendingSyncCount() async {
+    final row = await db.customSelect(
+        "SELECT count(*) as count FROM sync_outbox WHERE status = 'pending'").getSingle();
+    return (row.data['count'] as int?) ?? 0;
+  }
+
+  Future<int> getFailedSyncCount() async {
+    final row = await db.customSelect(
+        "SELECT count(*) as count FROM sync_outbox WHERE status = 'failed'").getSingle();
+    return (row.data['count'] as int?) ?? 0;
+  }
+
+  Future<void> retryAllFailedSyncOperations() async {
+    await db.customStatement(
+        "UPDATE sync_outbox SET status = 'pending' WHERE status = 'failed'");
+  }
+
   Future<void> _seedIfEmpty() async {
     final now = DateTime.now().toIso8601String();
 
@@ -919,6 +936,20 @@ class HmsDao {
     ''');
     await insertAuditLog(
         'admin', 'UPDATE', 'Bed #$bedNo', 'Changed bed status to $status');
+    try {
+      await enqueueSyncOperation(
+        operationId: 'bed_${bedNo}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'bed',
+        method: 'PUT',
+        path: '/api/admissions/beds/$bedNo',
+        payloadJson: jsonEncode({
+          'bedNo': bedNo,
+          'status': status,
+          'patientName': patientName,
+          'uhid': uhid,
+        }),
+      );
+    } catch (_) {}
   }
 
   // Appointments
@@ -979,6 +1010,26 @@ class HmsDao {
         'BOOK',
         'Appointment #${appointment.patientName}',
         'Booked appointment for ${appointment.patientName} with ${appointment.doctorName}');
+    try {
+      await enqueueSyncOperation(
+        operationId: 'apt_${appointment.tokenNo}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'appointment',
+        method: 'POST',
+        path: '/api/appointments',
+        payloadJson: jsonEncode({
+          'tokenNo': appointment.tokenNo,
+          'patientName': appointment.patientName,
+          'uhid': appointment.uhid,
+          'doctorName': appointment.doctorName,
+          'department': appointment.department,
+          'date': appointment.date,
+          'timeSlot': appointment.timeSlot,
+          'status': appointment.status,
+          'visitType': appointment.visitType,
+          'notes': appointment.notes,
+        }),
+      );
+    } catch (_) {}
   }
 
   Future<void> updateAppointmentStatus(int id, String status) async {
@@ -987,6 +1038,15 @@ class HmsDao {
     ''');
     await insertAuditLog('reception', 'UPDATE', 'Appointment #$id',
         'Changed appointment status to $status');
+    try {
+      await enqueueSyncOperation(
+        operationId: 'apt_status_${id}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'appointment',
+        method: 'PUT',
+        path: '/api/appointments/$id/status',
+        payloadJson: jsonEncode({'status': status}),
+      );
+    } catch (_) {}
   }
 
   Future<int> startOpdForAppointment(AppointmentModel appointment) async {
@@ -1246,6 +1306,21 @@ class HmsDao {
     ''');
     await insertAuditLog('lab', 'UPDATE', 'Lab Order #$orderNo',
         'Results recorded, status set to $status');
+    try {
+      await enqueueSyncOperation(
+        operationId: 'lab_res_${orderNo}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'lab_order',
+        method: 'POST',
+        path: '/api/lab/orders/$orderNo/results',
+        payloadJson: jsonEncode({
+          'orderNo': orderNo,
+          'status': status,
+          'parameters': parameters,
+          'notes': notes,
+          'resultDate': effectiveResultDate,
+        }),
+      );
+    } catch (_) {}
   }
 
   Future<void> insertLabOrder(LabOrderModel order) async {
@@ -1257,6 +1332,26 @@ class HmsDao {
     ''');
     await insertAuditLog('lab', 'CREATE', 'Lab Order #${order.orderNo}',
         'Ordered investigation ${order.testName} for ${order.patientName}');
+    try {
+      await enqueueSyncOperation(
+        operationId: 'lab_new_${order.orderNo}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'lab_order',
+        method: 'POST',
+        path: '/api/lab/orders',
+        payloadJson: jsonEncode({
+          'orderNo': order.orderNo,
+          'patientName': order.patientName,
+          'uhid': order.uhid,
+          'testName': order.testName,
+          'doctorName': order.doctorName,
+          'sampleType': order.sampleType,
+          'priority': order.priority,
+          'status': order.status,
+          'orderedAt': order.orderedAt,
+          'parameters': order.parameters,
+        }),
+      );
+    } catch (_) {}
   }
 
   Future<void> deleteLabOrder(String orderNo, String testName) async {
@@ -1629,6 +1724,15 @@ class HmsDao {
     }
     await insertAuditLog('ipd', 'DISCHARGE', 'Admission #$admissionId',
         'Patient discharged from bed $bedNo. Bed marked for cleaning.');
+    try {
+      await enqueueSyncOperation(
+        operationId: 'discharge_${admissionId}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'admission',
+        method: 'POST',
+        path: '/api/admissions/$admissionId/discharge',
+        payloadJson: jsonEncode({'bedNo': bedNo}),
+      );
+    } catch (_) {}
   }
 
   Future<void> updateIpdAdmission(IpdAdmissionModel admission) async {
@@ -1673,6 +1777,29 @@ class HmsDao {
     ''');
     await insertAuditLog('accounts', 'INVOICE', 'Invoice #${invoice.invoiceNo}',
         'Generated invoice ${invoice.invoiceNo} for ${invoice.patientName} total ₹${(invoice.totalPaise / 100).toStringAsFixed(2)}');
+    try {
+      await enqueueSyncOperation(
+        operationId: 'inv_${invoice.invoiceNo}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'invoice',
+        method: 'POST',
+        path: '/api/billing/invoices',
+        payloadJson: jsonEncode({
+          'invoiceNo': invoice.invoiceNo,
+          'patientName': invoice.patientName,
+          'uhid': invoice.uhid,
+          'billType': invoice.billType,
+          'subtotalPaise': invoice.subtotalPaise,
+          'taxPaise': invoice.taxPaise,
+          'totalPaise': invoice.totalPaise,
+          'paidPaise': invoice.paidPaise,
+          'duePaise': invoice.duePaise,
+          'paymentMode': invoice.paymentMode,
+          'status': invoice.status,
+          'dateTime': invoice.dateTime,
+          'items': invoice.items,
+        }),
+      );
+    } catch (_) {}
   }
 
   Future<void> updateInvoiceStatus(
@@ -1683,6 +1810,19 @@ class HmsDao {
     ''');
     await insertAuditLog('accounts', 'UPDATE', 'Invoice #$invoiceNo',
         'Updated payment status to $status (Paid ₹${(paidPaise / 100).toStringAsFixed(2)})');
+    try {
+      await enqueueSyncOperation(
+        operationId: 'inv_pay_${invoiceNo}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'payment',
+        method: 'POST',
+        path: '/api/billing/invoices/$invoiceNo/payments',
+        payloadJson: jsonEncode({
+          'invoiceNo': invoiceNo,
+          'status': status,
+          'paidPaise': paidPaise,
+        }),
+      );
+    } catch (_) {}
   }
 
   Future<void> deleteInvoice(int id, String invoiceNo) async {
@@ -1721,17 +1861,15 @@ class HmsDao {
         COUNT(*) as total_visits,
         COUNT(DISTINCT uhid) as distinct_patients
       FROM opd_visits 
-      WHERE (substr(COALESCE(NULLIF(created_at, ''), ''), 1, 10) = '$today' OR created_at IS NULL OR created_at = '')
+      WHERE (substr(COALESCE(NULLIF(created_at, ''), ''), 1, 10) = '$today')
         AND LOWER(status) != 'cancelled'
     ''').getSingle();
 
-    final totalOpdAllRow = await db
-        .customSelect("SELECT count(*) as count FROM opd_visits WHERE LOWER(status) != 'cancelled'")
-        .getSingle();
-
-    final appointmentsRow = await db
-        .customSelect('SELECT count(*) as count FROM appointments')
-        .getSingle();
+    final appointmentsRow = await db.customSelect('''
+      SELECT count(*) as count FROM appointments
+      WHERE (substr(COALESCE(NULLIF(date, ''), ''), 1, 10) = '$today')
+        AND LOWER(status) != 'cancelled'
+    ''').getSingle();
 
     final admissionsRow = await db
         .customSelect(
@@ -1746,14 +1884,6 @@ class HmsDao {
     ''').getSingle();
 
     int todayRevenuePaise = (revenueTodayRow.data['sum_paid'] as int?) ?? 0;
-    if (todayRevenuePaise == 0) {
-      final allRevenueRow = await db.customSelect('''
-        SELECT coalesce(sum(paid_paise), 0) as sum_paid FROM invoices 
-        WHERE LOWER(status) != 'cancelled'
-      ''').getSingle();
-      final allRev = (allRevenueRow.data['sum_paid'] as int?) ?? 0;
-      if (allRev > 0) todayRevenuePaise = allRev;
-    }
 
     // 3. Bed Occupancy
     final totalBedsRow =
@@ -1791,10 +1921,6 @@ class HmsDao {
 
     int distinctOpd = opdVisitsTodayRow.data['distinct_patients'] as int;
     int todayVisits = opdVisitsTodayRow.data['total_visits'] as int;
-    if (todayVisits == 0 && (totalOpdAllRow.data['count'] as int) > 0) {
-      todayVisits = totalOpdAllRow.data['count'] as int;
-      distinctOpd = todayVisits;
-    }
 
     return {
       'todayOpdPatients': distinctOpd,

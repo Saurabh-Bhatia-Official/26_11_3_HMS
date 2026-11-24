@@ -1,4 +1,4 @@
 {
     "java.compile.nullAnalysis.mode": "automatic",
-    "aiderAgent.provider": "remote"
+    "aiderAgent.provider": "local"
 }
