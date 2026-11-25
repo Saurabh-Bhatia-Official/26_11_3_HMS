@@ -1,12 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/auth/session_service.dart';
+import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/data/database/app_database.dart';
-import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
-import 'package:hospital_management/features/patients/patients_provider.dart';
+import 'package:hospital_management/data/remote/hms_sync_service.dart';
+import 'package:uuid/uuid.dart';
 
 class AdmitPatientScreen extends ConsumerStatefulWidget {
   const AdmitPatientScreen({super.key});
@@ -37,13 +41,29 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
       patientName = nameText.split('(').first.trim();
       uhid = nameText.split('(').last.replaceAll(')', '').trim();
     }
+    final remoteSession = ref.read(sessionProvider).user?.isRemote ?? false;
+    final localPatient = await db.patientsDao.findPatientByUhid(uhid);
+    if (remoteSession && localPatient == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Select a synced patient before admission.')),
+      );
+      return;
+    }
 
-    final deposit = (int.tryParse(_depositController.text.trim()) ?? 0) * 100;
+    final depositAmount = double.parse(_depositController.text.trim());
+
+    final deposit = (depositAmount * 100).round();
     final now = DateTime.now();
     final dateStr = '${now.day}/${now.month}/${now.year}';
+    final visitUuid = const Uuid().v4();
+    final admissionUuid = const Uuid().v4();
 
     final admission = IpdAdmissionModel(
       id: 0,
+      uuid: admissionUuid,
+      visitUuid: visitUuid,
       patientName: patientName,
       uhid: uhid,
       ward: _ward,
@@ -59,6 +79,40 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
     );
 
     await db.hmsDao.insertIpdAdmission(admission);
+    String? syncError;
+    if (remoteSession && localPatient != null) {
+      final serverDate =
+          DateTime.now().toUtc().toIso8601String().substring(0, 10);
+      await db.hmsDao.enqueueSyncOperation(
+        operationId: visitUuid,
+        resourceType: 'visit',
+        method: 'POST',
+        path: '/api/visits',
+        payloadJson: jsonEncode({
+          'uuid': visitUuid,
+          'patientUuid': localPatient.uuid,
+          'visitType': 'ipd',
+          'visitDate': serverDate,
+          'status': 'open',
+        }),
+      );
+      await db.hmsDao.enqueueSyncOperation(
+        operationId: admissionUuid,
+        resourceType: 'admission',
+        method: 'POST',
+        path: '/api/admissions',
+        payloadJson: jsonEncode({
+          'uuid': admissionUuid,
+          'patientUuid': localPatient.uuid,
+          'visitUuid': visitUuid,
+          'admitDate': serverDate,
+          'reason': _reasonController.text.trim(),
+          'status': 'admitted',
+        }),
+      );
+      final errors = await ref.read(hmsSyncServiceProvider).syncPending();
+      if (errors.isNotEmpty) syncError = errors.first;
+    }
     ref.invalidate(ipdAdmissionsListProvider);
     ref.invalidate(bedsListProvider);
     ref.invalidate(dashboardStatsProvider);
@@ -66,8 +120,12 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$patientName admitted to $_ward Bed $_bed.'),
-          backgroundColor: Colors.green.shade700,
+          content: Text(syncError == null
+              ? '$patientName admitted to $_ward Bed $_bed.'
+              : 'Admission saved locally; backend sync failed: $syncError'),
+          backgroundColor: syncError == null
+              ? Colors.green.shade700
+              : Colors.orange.shade800,
         ),
       );
       context.go(AppRoutes.ipd);
@@ -91,7 +149,8 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
 
     final patients = patientsAsync.value ?? [];
     final allBeds = bedsAsync.value ?? [];
-    final availableBeds = allBeds.where((b) => b.status == 'Available').toList();
+    final availableBeds =
+        allBeds.where((b) => b.status == 'Available').toList();
     final wards = ['All', ...availableBeds.map((b) => b.ward).toSet()];
 
     final filteredBeds = _ward == 'All'
@@ -100,7 +159,8 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
 
     if (_bed.isEmpty && filteredBeds.isNotEmpty) {
       _bed = filteredBeds.first.bedNo;
-    } else if (filteredBeds.isNotEmpty && !filteredBeds.any((b) => b.bedNo == _bed)) {
+    } else if (filteredBeds.isNotEmpty &&
+        !filteredBeds.any((b) => b.bedNo == _bed)) {
       _bed = filteredBeds.first.bedNo;
     }
 
@@ -136,12 +196,16 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                 padding: const EdgeInsets.all(32),
                 child: Form(
                   key: _formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Patient Admission Details',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const Gap(24),
 
@@ -156,7 +220,8 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                           items: patients.map((p) {
                             return DropdownMenuItem<String>(
                               value: '${p.name} (${p.uhid})',
-                              child: Text('${p.name} (${p.uhid}) - ${p.phone ?? "-"}'),
+                              child: Text(
+                                  '${p.name} (${p.uhid}) - ${p.phone ?? "-"}'),
                             );
                           }).toList(),
                           onChanged: (val) {
@@ -174,7 +239,8 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                           hintText: 'Select above or enter name (UHID)',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
-                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Required' : null,
                       ),
                       const Gap(16),
 
@@ -182,12 +248,19 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: wards.contains(_ward) ? _ward : wards.first,
+                              value:
+                                  wards.contains(_ward) ? _ward : wards.first,
                               decoration: const InputDecoration(
                                 labelText: 'Ward *',
                                 prefixIcon: Icon(Icons.apartment),
                               ),
-                              items: wards.map((w) => DropdownMenuItem(value: w, child: Text(w == 'All' ? 'All Wards' : '$w Ward'))).toList(),
+                              items: wards
+                                  .map((w) => DropdownMenuItem(
+                                      value: w,
+                                      child: Text(w == 'All'
+                                          ? 'All Wards'
+                                          : '$w Ward')))
+                                  .toList(),
                               onChanged: (v) {
                                 if (v != null) {
                                   setState(() {
@@ -200,18 +273,34 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: filteredBeds.any((b) => b.bedNo == _bed) ? _bed : (filteredBeds.isNotEmpty ? filteredBeds.first.bedNo : null),
+                              value: filteredBeds.any((b) => b.bedNo == _bed)
+                                  ? _bed
+                                  : (filteredBeds.isNotEmpty
+                                      ? filteredBeds.first.bedNo
+                                      : null),
                               decoration: const InputDecoration(
                                 labelText: 'Available Bed *',
                                 prefixIcon: Icon(Icons.hotel),
                               ),
                               items: filteredBeds.isNotEmpty
-                                  ? filteredBeds.map((b) => DropdownMenuItem(value: b.bedNo, child: Text('${b.bedNo} (${b.ward}) - ${b.tariffFormatted}/day'))).toList()
-                                  : const [DropdownMenuItem(value: '', child: Text('No available beds'))],
+                                  ? filteredBeds
+                                      .map((b) => DropdownMenuItem(
+                                          value: b.bedNo,
+                                          child: Text(
+                                              '${b.bedNo} (${b.ward}) - ${b.tariffFormatted}/day')))
+                                      .toList()
+                                  : const [
+                                      DropdownMenuItem(
+                                          value: '',
+                                          child: Text('No available beds'))
+                                    ],
                               onChanged: (v) {
-                                if (v != null && v.isNotEmpty) setState(() => _bed = v);
+                                if (v != null && v.isNotEmpty)
+                                  setState(() => _bed = v);
                               },
-                              validator: (v) => v == null || v.isEmpty ? 'Bed required' : null,
+                              validator: (v) => v == null || v.isEmpty
+                                  ? 'Bed required'
+                                  : null,
                             ),
                           ),
                         ],
@@ -219,18 +308,29 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                       const Gap(16),
 
                       DropdownButtonFormField<String>(
-                        value: doctors.contains(_doctor) ? _doctor : (doctors.isNotEmpty ? doctors.first : null),
+                        value: doctors.contains(_doctor)
+                            ? _doctor
+                            : (doctors.isNotEmpty ? doctors.first : null),
                         decoration: const InputDecoration(
                           labelText: 'Admitting / Attending Doctor *',
                           prefixIcon: Icon(Icons.person_pin),
                         ),
                         items: doctors.isNotEmpty
-                            ? doctors.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList()
-                            : const [DropdownMenuItem(value: '', child: Text('No doctors registered'))],
+                            ? doctors
+                                .map((d) =>
+                                    DropdownMenuItem(value: d, child: Text(d)))
+                                .toList()
+                            : const [
+                                DropdownMenuItem(
+                                    value: '',
+                                    child: Text('No doctors registered'))
+                              ],
                         onChanged: (v) {
-                          if (v != null && v.isNotEmpty) setState(() => _doctor = v);
+                          if (v != null && v.isNotEmpty)
+                            setState(() => _doctor = v);
                         },
-                        validator: (v) => v == null || v.isEmpty ? 'Doctor required' : null,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Doctor required' : null,
                       ),
                       const Gap(16),
 
@@ -238,17 +338,33 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                         controller: _reasonController,
                         maxLines: 2,
                         decoration: const InputDecoration(
-                          labelText: 'Provisional Diagnosis / Admission Reason *',
+                          labelText:
+                              'Provisional Diagnosis / Admission Reason *',
                           hintText: 'Enter clinical reason for inpatient stay',
                           prefixIcon: Icon(Icons.notes),
                         ),
-                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                        validator: (v) {
+                          final value = v?.trim() ?? '';
+
+                          if (value.isEmpty) {
+                            return 'Provisional diagnosis is required';
+                          }
+
+                          if (value.length < 3) {
+                            return 'Enter at least 3 characters';
+                          }
+
+                          return null;
+                        },
                       ),
                       const Gap(24),
 
                       Text(
                         'Financial Deposit & Advance',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const Gap(16),
 
@@ -257,18 +373,45 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                           Expanded(
                             child: TextFormField(
                               controller: _depositController,
-                              keyboardType: TextInputType.number,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
                               decoration: const InputDecoration(
+                                hintText: 'e.g. 5000 or 5000.50',
+                                helperText: 'Enter amount in Indian Rupees',
                                 labelText: 'Advance Deposit Amount (₹) *',
                                 prefixIcon: Icon(Icons.currency_rupee),
                               ),
-                              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                              validator: (v) {
+                                final value = v?.trim() ?? '';
+
+                                if (value.isEmpty) {
+                                  return 'Advance deposit is required';
+                                }
+
+                                final amount = double.tryParse(value);
+
+                                if (amount == null || !amount.isFinite) {
+                                  return 'Enter a valid amount';
+                                }
+
+                                if (amount <= 0) {
+                                  return 'Deposit must be greater than ₹0';
+                                }
+
+                                return null;
+                              },
                             ),
                           ),
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: const ['Cash', 'UPI / QR', 'Card (POS)', 'Bank Transfer (NEFT)'].contains(_paymentMode)
+                              value: const [
+                                'Cash',
+                                'UPI / QR',
+                                'Card (POS)',
+                                'Bank Transfer (NEFT)'
+                              ].contains(_paymentMode)
                                   ? _paymentMode
                                   : 'Cash',
                               decoration: const InputDecoration(
@@ -276,10 +419,16 @@ class _AdmitPatientScreenState extends ConsumerState<AdmitPatientScreen> {
                                 prefixIcon: Icon(Icons.payment),
                               ),
                               items: const [
-                                DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                                DropdownMenuItem(value: 'UPI / QR', child: Text('UPI / QR')),
-                                DropdownMenuItem(value: 'Card (POS)', child: Text('Card (POS)')),
-                                DropdownMenuItem(value: 'Bank Transfer (NEFT)', child: Text('NEFT / RTGS')),
+                                DropdownMenuItem(
+                                    value: 'Cash', child: Text('Cash')),
+                                DropdownMenuItem(
+                                    value: 'UPI / QR', child: Text('UPI / QR')),
+                                DropdownMenuItem(
+                                    value: 'Card (POS)',
+                                    child: Text('Card (POS)')),
+                                DropdownMenuItem(
+                                    value: 'Bank Transfer (NEFT)',
+                                    child: Text('NEFT / RTGS')),
                               ],
                               onChanged: (v) {
                                 if (v != null) setState(() => _paymentMode = v);

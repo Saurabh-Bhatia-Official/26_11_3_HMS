@@ -1,0 +1,24 @@
+$kind: http-request
+name: 'Get Current User'
+order: 2000
+method: GET
+url: '{{base_url}}/api/auth/me'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has id, username, role", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+          pm.expect(jsonData).to.have.property("username");
+          pm.expect(jsonData).to.have.property("role");
+      });

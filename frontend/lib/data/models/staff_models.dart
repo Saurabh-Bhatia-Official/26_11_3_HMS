@@ -2,24 +2,6 @@ import 'dart:convert';
 
 /// Staff & Doctor record model representing hospital employees.
 class StaffModel {
-  final int id;
-  final String uuid;
-  final String name;
-  final String role;
-  final String regNo;
-  final String department;
-  final String phone;
-  final String email;
-  final int feePaise;
-  final String status;
-  final String gender;
-  final String dob;
-  final String address;
-  final String qualification;
-  final String photoPath;
-  final String createdAt;
-  final String updatedAt;
-
   const StaffModel({
     required this.id,
     required this.uuid,
@@ -39,11 +21,6 @@ class StaffModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  String get feeFormatted =>
-      feePaise > 0 ? '₹${(feePaise / 100).toStringAsFixed(2)}' : '-';
-
-  bool get isActive => status.toLowerCase() == 'active';
 
   factory StaffModel.fromMap(Map<String, dynamic> map) {
     return StaffModel(
@@ -67,6 +44,31 @@ class StaffModel {
     );
   }
 
+  factory StaffModel.fromJson(String source) =>
+      StaffModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final String name;
+  final String role;
+  final String regNo;
+  final String department;
+  final String phone;
+  final String email;
+  final int feePaise;
+  final String status;
+  final String gender;
+  final String dob;
+  final String address;
+  final String qualification;
+  final String photoPath;
+  final String createdAt;
+  final String updatedAt;
+
+  String get feeFormatted =>
+      feePaise > 0 ? '₹${(feePaise / 100).toStringAsFixed(2)}' : '-';
+
+  bool get isActive => status.toLowerCase() == 'active';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -88,9 +90,6 @@ class StaffModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory StaffModel.fromJson(String source) =>
-      StaffModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   StaffModel copyWith({
     int? id,
@@ -154,19 +153,12 @@ class StaffModel {
       department.hashCode;
 
   @override
-  String toString() => 'StaffModel(id: $id, name: $name, role: $role, dept: $department)';
+  String toString() =>
+      'StaffModel(id: $id, name: $name, role: $role, dept: $department)';
 }
 
 /// Clinical Department model
 class DepartmentModel {
-  final int id;
-  final String uuid;
-  final String name;
-  final String description;
-  final bool isActive;
-  final String createdAt;
-  final String updatedAt;
-
   const DepartmentModel({
     required this.id,
     required this.uuid,
@@ -191,6 +183,16 @@ class DepartmentModel {
     );
   }
 
+  factory DepartmentModel.fromJson(String source) =>
+      DepartmentModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final String name;
+  final String description;
+  final bool isActive;
+  final String createdAt;
+  final String updatedAt;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -202,9 +204,6 @@ class DepartmentModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory DepartmentModel.fromJson(String source) =>
-      DepartmentModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   DepartmentModel copyWith({
     int? id,
@@ -243,19 +242,6 @@ class DepartmentModel {
 
 /// Doctor profile model with consultation fee and slot configuration
 class DoctorModel {
-  final int id;
-  final String uuid;
-  final int staffId;
-  final String doctorName;
-  final String specialisation;
-  final String department;
-  final int consultationFeePaise;
-  final int followupFeePaise;
-  final int followupDays;
-  final int maxSlotsPerDay;
-  final String createdAt;
-  final String updatedAt;
-
   const DoctorModel({
     required this.id,
     required this.uuid,
@@ -270,11 +256,6 @@ class DoctorModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  String get consultationFeeFormatted =>
-      '₹${(consultationFeePaise / 100).toStringAsFixed(2)}';
-  String get followupFeeFormatted =>
-      '₹${(followupFeePaise / 100).toStringAsFixed(2)}';
 
   factory DoctorModel.fromMap(Map<String, dynamic> map) {
     return DoctorModel(
@@ -293,6 +274,26 @@ class DoctorModel {
     );
   }
 
+  factory DoctorModel.fromJson(String source) =>
+      DoctorModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int staffId;
+  final String doctorName;
+  final String specialisation;
+  final String department;
+  final int consultationFeePaise;
+  final int followupFeePaise;
+  final int followupDays;
+  final int maxSlotsPerDay;
+  final String createdAt;
+  final String updatedAt;
+
+  String get consultationFeeFormatted =>
+      '₹${(consultationFeePaise / 100).toStringAsFixed(2)}';
+  String get followupFeeFormatted =>
+      '₹${(followupFeePaise / 100).toStringAsFixed(2)}';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -309,9 +310,6 @@ class DoctorModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory DoctorModel.fromJson(String source) =>
-      DoctorModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   DoctorModel copyWith({
     int? id,
@@ -356,22 +354,12 @@ class DoctorModel {
   int get hashCode => id.hashCode ^ staffId.hashCode ^ doctorName.hashCode;
 
   @override
-  String toString() => 'DoctorModel(id: $id, name: $doctorName, spec: $specialisation)';
+  String toString() =>
+      'DoctorModel(id: $id, name: $doctorName, spec: $specialisation)';
 }
 
 /// Doctor schedule representation per weekday
 class DoctorScheduleModel {
-  final int id;
-  final String uuid;
-  final int doctorId;
-  final int weekday; // 0 = Mon, 6 = Sun
-  final String startTime;
-  final String endTime;
-  final int slotMinutes;
-  final bool isActive;
-  final String createdAt;
-  final String updatedAt;
-
   const DoctorScheduleModel({
     required this.id,
     required this.uuid,
@@ -384,20 +372,6 @@ class DoctorScheduleModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  String get weekdayName {
-    const names = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday'
-    ];
-    if (weekday >= 0 && weekday < names.length) return names[weekday];
-    return 'Day $weekday';
-  }
 
   factory DoctorScheduleModel.fromMap(Map<String, dynamic> map) {
     return DoctorScheduleModel(
@@ -416,6 +390,33 @@ class DoctorScheduleModel {
     );
   }
 
+  factory DoctorScheduleModel.fromJson(String source) =>
+      DoctorScheduleModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int doctorId;
+  final int weekday; // 0 = Mon, 6 = Sun
+  final String startTime;
+  final String endTime;
+  final int slotMinutes;
+  final bool isActive;
+  final String createdAt;
+  final String updatedAt;
+
+  String get weekdayName {
+    const names = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    if (weekday >= 0 && weekday < names.length) return names[weekday];
+    return 'Day $weekday';
+  }
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -430,9 +431,6 @@ class DoctorScheduleModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory DoctorScheduleModel.fromJson(String source) =>
-      DoctorScheduleModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   DoctorScheduleModel copyWith({
     int? id,
@@ -473,6 +471,6 @@ class DoctorScheduleModel {
   int get hashCode => id.hashCode ^ doctorId.hashCode ^ weekday.hashCode;
 
   @override
-  String toString() => 'DoctorScheduleModel($weekdayName: $startTime - $endTime)';
+  String toString() =>
+      'DoctorScheduleModel($weekdayName: $startTime - $endTime)';
 }
-

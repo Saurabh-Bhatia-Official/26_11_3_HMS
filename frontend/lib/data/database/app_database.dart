@@ -2,32 +2,20 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hospital_management/core/auth/session_service.dart';
 
-import 'tables/patients_table.dart';
-import 'tables/patient_allergies_table.dart';
-import 'tables/settings_table.dart';
-import 'daos/patients_dao.dart';
-import 'daos/settings_dao.dart';
-import 'daos/hms_dao.dart';
+import 'package:hospital_management/data/database/tables/patients_table.dart';
+import 'package:hospital_management/data/database/tables/patient_allergies_table.dart';
+import 'package:hospital_management/data/database/tables/settings_table.dart';
+import 'package:hospital_management/data/database/daos/patients_dao.dart';
+import 'package:hospital_management/data/database/daos/settings_dao.dart';
+import 'package:hospital_management/data/database/daos/hms_dao.dart';
+import 'package:hospital_management/data/database/daos/patient_sync_dao.dart';
 
 part 'app_database.g.dart';
 
 /// User record returned for authentication
 class UserAuthRecord {
-  final int id;
-  final String uuid;
-  final String username;
-  final String fullName;
-  final String role;
-  final String email;
-  final String? avatarPath;
-  final String passwordHash;
-  final int? hospitalId;
-  final String? hospitalName;
-  final int? failedAttempts;
-  final String? lockedUntil;
-  final bool isDeleted;
-
   UserAuthRecord({
     required this.id,
     required this.uuid,
@@ -43,6 +31,19 @@ class UserAuthRecord {
     this.lockedUntil,
     this.isDeleted = false,
   });
+  final int id;
+  final String uuid;
+  final String username;
+  final String fullName;
+  final String role;
+  final String email;
+  final String? avatarPath;
+  final String passwordHash;
+  final int? hospitalId;
+  final String? hospitalName;
+  final int? failedAttempts;
+  final String? lockedUntil;
+  final bool isDeleted;
 }
 
 /// Singleton Drift database for the Hospital Management System.
@@ -79,12 +80,13 @@ class AppDatabase extends _$AppDatabase {
   // ── Schema ────────────────────────────────────────────────────────────────
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
+          await _createPatientSyncTables();
           // Seed default settings
           await settingsDao.upsertSetting('uhid_prefix', 'UHID');
           await settingsDao.upsertSetting('uhid_sequence', '0');
@@ -92,13 +94,48 @@ class AppDatabase extends _$AppDatabase {
           await settingsDao.upsertSetting('currency_symbol', '₹');
         },
         onUpgrade: (m, from, to) async {
-          // Future migrations go here
+          if (from < 2) {
+            await _createPatientSyncTables();
+          }
         },
       );
 
-  // ── Connection ────────────────────────────────────────────────────────────
+  Future<void> _createPatientSyncTables() async {
+    await customStatement('''
+              CREATE TABLE patient_sync_states (
+                patient_uuid TEXT NOT NULL PRIMARY KEY,
+                server_patient_id INTEGER,
+                canonical_uhid TEXT,
+                server_version INTEGER,
+                server_status TEXT,
+                sync_state TEXT NOT NULL DEFAULT 'PENDING',
+                last_error_code TEXT,
+                updated_at TEXT NOT NULL
+              )
+            ''');
+    await customStatement('''
+              CREATE TABLE patient_sync_outbox (
+                operation_id TEXT NOT NULL PRIMARY KEY,
+                patient_uuid TEXT NOT NULL,
+                operation TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                base_version INTEGER,
+                created_at TEXT NOT NULL,
+                attempt_count INTEGER NOT NULL DEFAULT 0,
+                state TEXT NOT NULL DEFAULT 'PENDING',
+                last_error_code TEXT
+              )
+            ''');
+    await customStatement(
+      'CREATE INDEX patient_sync_outbox_order_idx ON patient_sync_outbox(state, created_at, operation_id)',
+    );
+    await customStatement(
+      'CREATE INDEX patient_sync_outbox_patient_idx ON patient_sync_outbox(patient_uuid, state)',
+    );
+  }
 
- static QueryExecutor _openConnection() {
+  // ── Connection ────────────────────────────────────────────────────────────
+  static QueryExecutor _openConnection() {
     return driftDatabase(
       name: 'hospital_hms',
       web: DriftWebOptions(
@@ -109,12 +146,14 @@ class AppDatabase extends _$AppDatabase {
   }
 
   late final HmsDao hmsDao = HmsDao(this);
+  late final PatientSyncDao patientSyncDao = PatientSyncDao(this);
 
   // ── Public Helpers ────────────────────────────────────────────────────────
 
   Future<void> open() async {
     await customSelect('SELECT 1').get();
     await hmsDao.initTablesAndSeed();
+    await _seedDemoUsers();
   }
 
   Future<String?> getSetting(String key) async {
@@ -136,7 +175,8 @@ class AppDatabase extends _$AppDatabase {
       fullName: 'Super Administrator',
       role: 'Super Admin',
       email: 'superadmin@caresync.health',
-      passwordHash: 'salt_superadmin_secure:1c4d9bc26920b4e694f5e096a4e3827be11f39ec8d96e8e8bd3685c576f715e4',
+      passwordHash:
+          'salt_superadmin_secure:1c4d9bc26920b4e694f5e096a4e3827be11f39ec8d96e8e8bd3685c576f715e4',
       isDeleted: false,
     ),
     'admin': UserAuthRecord(
@@ -146,7 +186,8 @@ class AppDatabase extends _$AppDatabase {
       fullName: 'Hospital Administrator',
       role: 'Admin',
       email: 'admin@hospital.local',
-      passwordHash: 'salt_admin_secure:18efdf6a78016d99624c2352ff2a9671887f6fa810eab9d408e12214604cef10',
+      passwordHash:
+          'salt_admin_secure:18efdf6a78016d99624c2352ff2a9671887f6fa810eab9d408e12214604cef10',
       isDeleted: false,
     ),
     'doctor': UserAuthRecord(
@@ -156,7 +197,8 @@ class AppDatabase extends _$AppDatabase {
       fullName: 'Duty Doctor',
       role: 'Doctor',
       email: 'doctor@hospital.local',
-      passwordHash: 'salt_doctor_secure:1fa1c23b7c09a5390480e9320e1e4af4324cfd92cf764fab187e8711dab456e3',
+      passwordHash:
+          'salt_doctor_secure:1fa1c23b7c09a5390480e9320e1e4af4324cfd92cf764fab187e8711dab456e3',
       isDeleted: false,
     ),
     'nurse': UserAuthRecord(
@@ -166,7 +208,8 @@ class AppDatabase extends _$AppDatabase {
       fullName: 'Staff Nurse',
       role: 'Nurse',
       email: 'nurse@hospital.local',
-      passwordHash: 'salt_nurse_secure:e3f44a61fc988df0f706af94a0435fae549f419ea0dc518b7b2c8a45db9dc740',
+      passwordHash:
+          'salt_nurse_secure:e3f44a61fc988df0f706af94a0435fae549f419ea0dc518b7b2c8a45db9dc740',
       isDeleted: false,
     ),
     'reception': UserAuthRecord(
@@ -176,7 +219,8 @@ class AppDatabase extends _$AppDatabase {
       fullName: 'Front Desk Receptionist',
       role: 'Receptionist',
       email: 'reception@hospital.local',
-      passwordHash: 'salt_reception_secure:426b1f0e540915bc1ccc8d17e5523d1464840b39dee28bdb6a71066e1665b175',
+      passwordHash:
+          'salt_reception_secure:426b1f0e540915bc1ccc8d17e5523d1464840b39dee28bdb6a71066e1665b175',
       isDeleted: false,
     ),
     'pharmacy': UserAuthRecord(
@@ -186,7 +230,8 @@ class AppDatabase extends _$AppDatabase {
       fullName: 'Chief Pharmacist',
       role: 'Pharmacist',
       email: 'pharmacy@hospital.local',
-      passwordHash: 'salt_pharmacy_secure:1cb40934731e5ae5198eafd8e1d4b6fe354c39da7a62e6c602137de991a88635',
+      passwordHash:
+          'salt_pharmacy_secure:1cb40934731e5ae5198eafd8e1d4b6fe354c39da7a62e6c602137de991a88635',
       isDeleted: false,
     ),
     'lab': UserAuthRecord(
@@ -196,7 +241,8 @@ class AppDatabase extends _$AppDatabase {
       fullName: 'Laboratory Technician',
       role: 'Lab Technician',
       email: 'lab@hospital.local',
-      passwordHash: 'salt_lab_secure:bbd238ae3a6e1c2eab09256778e0bb7aef9bdae8cf20ee388ef1bddf16feb76a',
+      passwordHash:
+          'salt_lab_secure:bbd238ae3a6e1c2eab09256778e0bb7aef9bdae8cf20ee388ef1bddf16feb76a',
       isDeleted: false,
     ),
     'accounts': UserAuthRecord(
@@ -206,7 +252,8 @@ class AppDatabase extends _$AppDatabase {
       fullName: 'Billing Officer',
       role: 'Accounts',
       email: 'accounts@hospital.local',
-      passwordHash: 'salt_accounts_secure:14263c8df7b9ba1c1bbcb2515732f435245db246988ee2c8174bb37c7f5947e4',
+      passwordHash:
+          'salt_accounts_secure:14263c8df7b9ba1c1bbcb2515732f435245db246988ee2c8174bb37c7f5947e4',
       isDeleted: false,
     ),
     'user': UserAuthRecord(
@@ -216,12 +263,133 @@ class AppDatabase extends _$AppDatabase {
       fullName: 'Hospital Staff Member',
       role: 'Staff',
       email: 'staff@hospital.local',
-      passwordHash: 'salt_user_secure:b817a531b8746650926e46ad1c96e13d2fd1a5e9bcfeca070d4cf82f629989e0',
+      passwordHash:
+          'salt_user_secure:b817a531b8746650926e46ad1c96e13d2fd1a5e9bcfeca070d4cf82f629989e0',
       isDeleted: false,
     ),
   };
 
-  /// Register or create a regular user account in persistent storage.
+  // ── Seed Demo Users ──────────────────────────────────────────────────────
+
+  Future<void> _seedDemoUsers() async {
+    final now = DateTime.now().toIso8601String();
+
+    final demoUsers = [
+      {
+        'uuid': 'user-demo-superadmin',
+        'username': 'superadmin',
+        'fullName': 'Super Administrator',
+        'role': 'Super Admin',
+        'email': 'superadmin@caresync.health',
+        'passwordHash':
+            hashPassword('superadmin@1234', 'salt_superadmin_secure'),
+        'hospitalId': null,
+        'hospitalName': null,
+      },
+      {
+        'uuid': 'user-demo-admin',
+        'username': 'admin',
+        'fullName': 'Hospital Administrator',
+        'role': 'Admin',
+        'email': 'admin@hospital.local',
+        'passwordHash': hashPassword('admin@1234', 'salt_admin_secure'),
+        'hospitalId': 1,
+        'hospitalName': 'CareSync Central Hospital',
+      },
+      {
+        'uuid': 'user-demo-doctor',
+        'username': 'doctor',
+        'fullName': 'Duty Doctor',
+        'role': 'Doctor',
+        'email': 'doctor@hospital.local',
+        'passwordHash': hashPassword('doctor@1234', 'salt_doctor_secure'),
+        'hospitalId': 1,
+        'hospitalName': 'CareSync Central Hospital',
+      },
+      {
+        'uuid': 'user-demo-nurse',
+        'username': 'nurse',
+        'fullName': 'Staff Nurse',
+        'role': 'Nurse',
+        'email': 'nurse@hospital.local',
+        'passwordHash': hashPassword('nurse@1234', 'salt_nurse_secure'),
+        'hospitalId': 1,
+        'hospitalName': 'CareSync Central Hospital',
+      },
+      {
+        'uuid': 'user-demo-reception',
+        'username': 'reception',
+        'fullName': 'Front Desk Receptionist',
+        'role': 'Receptionist',
+        'email': 'reception@hospital.local',
+        'passwordHash': hashPassword('reception@1234', 'salt_reception_secure'),
+        'hospitalId': 1,
+        'hospitalName': 'CareSync Central Hospital',
+      },
+      {
+        'uuid': 'user-demo-staff',
+        'username': 'staff',
+        'fullName': 'General Staff Member',
+        'role': 'Staff',
+        'email': 'staff@hospital.local',
+        'passwordHash': hashPassword('staff@1234', 'salt_staff_secure'),
+        'hospitalId': 1,
+        'hospitalName': 'CareSync Central Hospital',
+      },
+      {
+        'uuid': 'user-demo-pharmacy',
+        'username': 'pharmacy',
+        'fullName': 'Chief Pharmacist',
+        'role': 'Pharmacist',
+        'email': 'pharmacy@hospital.local',
+        'passwordHash': hashPassword('pharmacy@1234', 'salt_pharmacy_secure'),
+        'hospitalId': 1,
+        'hospitalName': 'CareSync Central Hospital',
+      },
+      {
+        'uuid': 'user-demo-lab',
+        'username': 'lab',
+        'fullName': 'Laboratory Technician',
+        'role': 'Lab Technician',
+        'email': 'lab@hospital.local',
+        'passwordHash': hashPassword('lab@1234', 'salt_lab_secure'),
+        'hospitalId': 1,
+        'hospitalName': 'CareSync Central Hospital',
+      },
+      {
+        'uuid': 'user-demo-accounts',
+        'username': 'accounts',
+        'fullName': 'Billing & Accounts Officer',
+        'role': 'Accounts',
+        'email': 'accounts@hospital.local',
+        'passwordHash': hashPassword('accounts@1234', 'salt_accounts_secure'),
+        'hospitalId': 1,
+        'hospitalName': 'CareSync Central Hospital',
+      },
+    ];
+
+    String esc(String s) => s.replaceAll("'", "''");
+    for (final u in demoUsers) {
+      await customStatement('''
+        INSERT OR IGNORE INTO app_users
+          (uuid, username, full_name, role, email, password_hash,
+           hospital_id, hospital_name, is_deleted, created_at, updated_at)
+        VALUES (
+          '${esc(u['uuid'] as String)}',
+          '${esc(u['username'] as String)}',
+          '${esc(u['fullName'] as String)}',
+          '${esc(u['role'] as String)}',
+          '${esc(u['email'] as String)}',
+          '${esc(u['passwordHash'] as String)}',
+          ${u['hospitalId'] ?? 'NULL'},
+          '${esc(u['hospitalName'] as String? ?? '')}',
+          0, '$now', '$now'
+        )
+      ''');
+    }
+  }
+
+  /// Register or create a regular user account in the app_users table.
   Future<void> createRegularUser({
     required String username,
     required String passwordHash,
@@ -231,25 +399,21 @@ class AppDatabase extends _$AppDatabase {
     int? hospitalId,
     String? hospitalName,
   }) async {
-    final key = 'custom_user_${username.trim().toLowerCase()}';
-    final payload = jsonEncode({
-      'username': username.trim(),
-      'passwordHash': passwordHash,
-      'fullName': fullName,
-      'role': role,
-      'email': email,
-      'hospitalId': hospitalId,
-      'hospitalName': hospitalName,
-    });
-    await saveSetting(key, payload);
+    await hmsDao.insertUser(
+      uuid: 'user-${DateTime.now().millisecondsSinceEpoch}',
+      username: username.trim(),
+      fullName: fullName,
+      role: role,
+      passwordHash: passwordHash,
+      email: email,
+      hospitalId: hospitalId,
+      hospitalName: hospitalName,
+    );
   }
 
-  /// Check whether a username is already taken by a demo user or custom user.
-  Future<bool> isUsernameTaken(String username) async {
-    final lower = username.trim().toLowerCase();
-    if (_demoUsers.containsKey(lower)) return true;
-    final customUserJson = await getSetting('custom_user_$lower');
-    return customUserJson != null;
+  /// Check whether a username is already taken (optionally scoped by hospital).
+  Future<bool> isUsernameTaken(String username, {int? hospitalId}) async {
+    return await hmsDao.isUsernameTaken(username, hospitalId: hospitalId);
   }
 
   /// List all registered custom users plus demo users.
@@ -272,7 +436,8 @@ class AppDatabase extends _$AppDatabase {
           if (!_demoUsers.containsKey(username.toLowerCase())) {
             users.add(UserAuthRecord(
               id: 100 + username.hashCode.abs() % 10000,
-              uuid: '00000000-0000-0000-0001-${username.hashCode.abs().toString().padLeft(12, '0')}',
+              uuid:
+                  '00000000-0000-0000-0001-${username.hashCode.abs().toString().padLeft(12, '0')}',
               username: username,
               fullName: map['fullName'] as String? ?? username,
               role: map['role'] as String? ?? 'Staff',
@@ -289,10 +454,13 @@ class AppDatabase extends _$AppDatabase {
     return users;
   }
 
-  /// Delete a custom user from persistent settings.
+  /// Delete a user from the app_users table.
   Future<void> deleteCustomUser(String username) async {
-    final key = 'custom_user_${username.trim().toLowerCase()}';
-    await customStatement("DELETE FROM settings WHERE key = '$key'");
+    // Look up by username then delete
+    final user = await hmsDao.getUserByUsernameAndHospital(username);
+    if (user != null) {
+      await hmsDao.deleteUser(user['id'] as int, username);
+    }
   }
 
   /// Retrieve a user by username (checks database custom users first, then demo users).
@@ -306,7 +474,8 @@ class AppDatabase extends _$AppDatabase {
         final map = jsonDecode(customUserJson) as Map<String, dynamic>;
         return UserAuthRecord(
           id: 100 + (map['username'] as String).hashCode.abs() % 10000,
-          uuid: '00000000-0000-0000-0001-${(map['username'] as String).hashCode.abs().toString().padLeft(12, '0')}',
+          uuid:
+              '00000000-0000-0000-0001-${(map['username'] as String).hashCode.abs().toString().padLeft(12, '0')}',
           username: map['username'] as String,
           fullName: map['fullName'] as String,
           role: map['role'] as String,
@@ -367,24 +536,57 @@ class AppDatabase extends _$AppDatabase {
       }
     }
 
-    const allActions = ['view', 'create', 'edit', 'delete', 'print', 'export', 'approve'];
+    const allActions = [
+      'view',
+      'create',
+      'edit',
+      'delete',
+      'print',
+      'export',
+      'approve'
+    ];
     const standardActions = ['view', 'create', 'edit', 'print'];
     const readOnlyActions = ['view', 'print'];
 
     if (lower.contains('super')) {
       const allModules = [
-        'dashboard', 'patients', 'appointments', 'opd', 'ipd', 'beds',
-        'staff', 'lab', 'pharmacy', 'billing', 'reports', 'settings',
-        'audit', 'prescriptions', 'emr', 'hospitals',
+        'dashboard',
+        'patients',
+        'appointments',
+        'opd',
+        'ipd',
+        'beds',
+        'staff',
+        'lab',
+        'pharmacy',
+        'billing',
+        'reports',
+        'settings',
+        'audit',
+        'prescriptions',
+        'emr',
+        'hospitals',
       ];
       for (final m in allModules) {
         grant(m, allActions);
       }
     } else if (lower.contains('admin')) {
       const allModules = [
-        'dashboard', 'patients', 'appointments', 'opd', 'ipd', 'beds',
-        'staff', 'lab', 'pharmacy', 'billing', 'reports', 'settings',
-        'audit', 'prescriptions', 'emr',
+        'dashboard',
+        'patients',
+        'appointments',
+        'opd',
+        'ipd',
+        'beds',
+        'staff',
+        'lab',
+        'pharmacy',
+        'billing',
+        'reports',
+        'settings',
+        'audit',
+        'prescriptions',
+        'emr',
       ];
       for (final m in allModules) {
         grant(m, allActions);
@@ -444,14 +646,16 @@ class AppDatabase extends _$AppDatabase {
 }
 
 class RolePermissionRow {
+  const RolePermissionRow(this.module, this.action);
   final String module;
   final String action;
-  const RolePermissionRow(this.module, this.action);
 }
 
 /// Riverpod provider for AppDatabase singleton
-final appDatabaseProvider = Provider<AppDatabase>((ref) => AppDatabase.instance);
+final appDatabaseProvider =
+    Provider<AppDatabase>((ref) => AppDatabase.instance);
 
+/// Riverpod provider for all user accounts (Super Admin & Admin management)
 /// Riverpod provider for all user accounts (Super Admin & Admin management)
 final allUsersProvider = FutureProvider<List<UserAuthRecord>>((ref) async {
   final db = ref.watch(appDatabaseProvider);

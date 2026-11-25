@@ -1,0 +1,31 @@
+$kind: http-request
+name: Reject Invalid Staff Phone
+order: 3000
+method: POST
+url: '{{base_url}}/api/staff'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Invalid Phone Test",
+      "gender": "Other",
+      "phone": "12AB456789",
+      "role": "staff",
+      "consultationFeePaise": 0,
+      "followupFeePaise": 0
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("A non-numeric phone is rejected", function () {
+          pm.response.to.have.status(400);
+      });

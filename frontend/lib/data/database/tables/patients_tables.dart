@@ -15,6 +15,7 @@ class Patients extends Table {
   TextColumn get name => text()();
   TextColumn get gender => text()();
   TextColumn get dob => text().nullable()();
+
   /// Used when dob is not known
   IntColumn get ageYears => integer().nullable()();
   TextColumn get phone => text()();
@@ -30,16 +31,15 @@ class Patients extends Table {
   TextColumn get idType => text().nullable()();
   TextColumn get idNumber => text().nullable()();
   TextColumn get photoPath => text().nullable()();
-  BoolColumn get isVip =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isVip => boolean().withDefault(const Constant(false))();
   TextColumn get notes => text().nullable()();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
+
   /// FK → users.id (plain int to avoid circular import)
   IntColumn get createdBy => integer().nullable()();
   IntColumn get updatedBy => integer().nullable()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 // ---------------------------------------------------------------------------
@@ -55,8 +55,7 @@ class PatientAllergies extends Table {
   TextColumn get severity => text()();
   TextColumn get createdAt => text()();
   IntColumn get createdBy => integer().nullable()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 // ---------------------------------------------------------------------------
@@ -68,13 +67,13 @@ class PatientDocuments extends Table {
   TextColumn get uuid => text().unique()();
   IntColumn get patientId => integer().references(Patients, #id)();
   TextColumn get filePath => text()();
+
   /// pdf | image
   TextColumn get fileType => text()();
-  TextColumn get description =>
-      text().withDefault(const Constant(''))();
+  TextColumn get description => text().withDefault(const Constant(''))();
+
   /// FK → users.id
   IntColumn get uploadedBy => integer().nullable()();
   TextColumn get createdAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }

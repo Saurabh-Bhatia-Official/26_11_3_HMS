@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/data/database/app_database.dart';
-import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
-import 'package:hospital_management/features/patients/patients_provider.dart';
 
 class AppointmentFormScreen extends ConsumerStatefulWidget {
-  const AppointmentFormScreen({super.key});
+  final AppointmentModel? appointment;
+
+  const AppointmentFormScreen({
+    super.key,
+    this.appointment,
+  });
 
   @override
   ConsumerState<AppointmentFormScreen> createState() =>
@@ -20,6 +24,12 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _patientSearchController = TextEditingController();
   final _notesController = TextEditingController();
+
+  List<StaffModel> _availableDoctors(List<StaffModel> staff) {
+    return staff
+        .where((member) => member.role.toLowerCase().contains('doctor'))
+        .toList();
+  }
 
   DateTime _selectedDate = DateTime.now();
   int? _selectedDoctorId;
@@ -42,24 +52,118 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final appointment = widget.appointment;
+    if (appointment == null) return;
+
+    _patientSearchController.text =
+        appointment.uhid.trim().toUpperCase() == 'WALK-IN'
+            ? appointment.patientName
+            : '${appointment.patientName} (${appointment.uhid})';
+    _notesController.text = appointment.notes;
+    _selectedDate = _parseAppointmentDate(appointment.date) ?? DateTime.now();
+    _selectedSlot = appointment.timeSlot;
+    _visitType = appointment.visitType;
+  }
+
+  DateTime? _parseAppointmentDate(String value) {
+    final parsed = DateTime.tryParse(value);
+    if (parsed != null) return parsed;
+
+    final parts = value.split('/');
+    if (parts.length != 3) return null;
+    final day = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) return null;
+
+    return DateTime(year, month, day);
+  }
+
+  @override
   void dispose() {
     _patientSearchController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
-  List<StaffModel> _availableDoctors(List<StaffModel> staff) => staff
-      .where((member) =>
-          member.role.toLowerCase().contains('doctor') && member.isActive)
-      .toList();
+  bool _isPastAppointmentSlot() {
+    final now = DateTime.now();
+
+    final selectedDay = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (selectedDay.isBefore(today)) {
+      return true;
+    }
+
+    final parts = _selectedSlot.split(' ');
+    final timeParts = parts[0].split(':');
+
+    int hour = int.parse(timeParts[0]);
+    final minute = int.parse(timeParts[1]);
+    final period = parts[1].toUpperCase();
+
+    if (period == 'PM' && hour != 12) hour += 12;
+    if (period == 'AM' && hour == 12) hour = 0;
+
+    final selectedDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      hour,
+      minute,
+    );
+
+    return !selectedDateTime.isAfter(now);
+  }
 
   Future<void> _book() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    debugPrint('BOOK BUTTON CLICKED');
 
-    final doctors = _availableDoctors(ref.read(staffListProvider).value ?? []);
-    final doctor = _selectedDoctorId == null
-        ? doctors.firstOrNull
-        : doctors.where((member) => member.id == _selectedDoctorId).firstOrNull;
+    debugPrint('Checking appointment date and time...');
+
+    if (_isPastAppointmentSlot()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cannot book an appointment for a past date or time slot.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      debugPrint('FORM VALIDATION FAILED');
+      return;
+    }
+
+    debugPrint('FORM VALIDATION PASSED');
+
+    final doctors = _availableDoctors(
+      ref.read(staffListProvider).value ?? [],
+    );
+
+    if (doctors.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No doctors available.')),
+      );
+      return;
+    }
+
+    final doctor = doctors.firstWhere(
+      (member) => member.id == _selectedDoctorId,
+      orElse: () => doctors.first,
+    );
+
     if (doctor == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -69,22 +173,26 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     }
 
     final db = ref.read(appDatabaseProvider);
+    final existing = widget.appointment;
+    final appointment = widget.appointment;
     final countRes = await db
         .customSelect('SELECT count(*) as count FROM appointments')
         .getSingle();
-    final token =
+    final token = appointment?.tokenNo ??
         ((countRes.data['count'] as int) + 1).toString().padLeft(2, '0');
 
     final nameText = _patientSearchController.text.trim();
     String patientName = nameText;
     String uhid = 'WALK-IN';
+
     if (nameText.contains('(') && nameText.contains(')')) {
       patientName = nameText.split('(').first.trim();
       uhid = nameText.split('(').last.replaceAll(')', '').trim();
     }
 
     final apt = AppointmentModel(
-      id: 0,
+      id: existing?.id ?? 0,
+      // id: appointment?.id ?? 0,
       tokenNo: token,
       patientName: patientName,
       uhid: uhid,
@@ -92,25 +200,42 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
       department: doctor.department,
       date: '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
       timeSlot: _selectedSlot,
-      status: 'Scheduled',
+      status: existing?.status ?? 'Scheduled',
       visitType: _visitType,
       notes: _notesController.text.trim(),
     );
 
-    await db.hmsDao.insertAppointment(apt);
+    try {
+      if (existing != null) {
+        await db.hmsDao.updateAppointment(apt);
+      } else {
+        await db.hmsDao.insertAppointment(apt);
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save appointment: $e')),
+      );
+      return;
+    }
+
     ref.invalidate(appointmentsListProvider);
     ref.invalidate(dashboardStatsProvider);
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Appointment confirmed for $patientName at $_selectedSlot (Token #$token)'),
-          backgroundColor: Colors.green.shade700,
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          existing != null
+              ? 'Appointment #$token updated successfully.'
+              : 'Appointment confirmed for $patientName at $_selectedSlot (Token #$token)',
         ),
-      );
-      context.go(AppRoutes.appointments);
-    }
+        backgroundColor: Colors.green.shade700,
+      ),
+    );
+    context.go(AppRoutes.appointments);
   }
 
   @override
@@ -120,17 +245,31 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     final patientsAsync = ref.watch(patientListProvider);
 
     final staffList = staffAsync.value ?? [];
+    debugPrint('STAFF LOADING: ${staffAsync.isLoading}');
+    debugPrint('STAFF ERROR: ${staffAsync.hasError}');
+    if (staffAsync.hasError) {
+      debugPrint('STAFF ERROR DETAILS: ${staffAsync.error}');
+    }
     final patients = patientsAsync.value ?? [];
 
     final doctors = _availableDoctors(staffList);
-    final selectedDoctor = _selectedDoctorId == null
-        ? doctors.firstOrNull
-        : doctors.where((member) => member.id == _selectedDoctorId).firstOrNull;
+
+    final int? selectedDoctorId = doctors.any(
+      (doctor) => doctor.id == _selectedDoctorId,
+    )
+        ? _selectedDoctorId
+        : doctors.isNotEmpty
+            ? doctors.first.id
+            : null;
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
-        title: const Text('Book Appointment / Token'),
+        title: Text(
+          widget.appointment == null
+              ? 'Book Appointment / Token'
+              : 'Edit Appointment #${widget.appointment!.tokenNo}',
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(AppRoutes.appointments),
@@ -199,53 +338,29 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                       const Gap(16),
 
                       // Doctor Selection
-                      if (staffAsync.isLoading)
-                        const LinearProgressIndicator()
-                      else if (staffAsync.hasError)
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                  'Unable to load doctors: ${staffAsync.error}'),
-                            ),
-                            TextButton(
-                              onPressed: () =>
-                                  ref.invalidate(staffListProvider),
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        )
-                      else if (doctors.isEmpty)
-                        Text(
-                          'No active doctors registered. Add an active doctor in the Staff Directory before booking.',
-                          style: TextStyle(color: colorScheme.error),
-                        )
-                      else
-                        DropdownButtonFormField<int>(
-                          initialValue: selectedDoctor?.id,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Consulting Doctor *',
-                            prefixIcon: Icon(Icons.medical_services_outlined),
-                          ),
-                          validator: (value) => value == null
-                              ? 'Select a consulting doctor'
-                              : null,
-                          items: doctors
-                              .map((doctor) => DropdownMenuItem(
-                                    value: doctor.id,
-                                    child: Text(
-                                      '${doctor.name} — ${doctor.department.isEmpty ? 'Specialty not set' : doctor.department}',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ))
-                              .toList(),
-                          onChanged: (id) {
-                            if (id != null) {
-                              setState(() => _selectedDoctorId = id);
-                            }
-                          },
+                      // Doctor Selection
+                      DropdownButtonFormField<int>(
+                        value: selectedDoctorId,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Consulting Doctor *',
+                          prefixIcon: Icon(Icons.medical_services_outlined),
                         ),
+                        items: doctors.map((doctor) {
+                          return DropdownMenuItem<int>(
+                            value: doctor.id,
+                            child:
+                                Text('${doctor.name} (${doctor.department})'),
+                          );
+                        }).toList(),
+                        validator: (value) =>
+                            value == null ? 'Please select a doctor' : null,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedDoctorId = value;
+                          });
+                        },
+                      ),
                       const Gap(16),
 
                       // Date Picker
@@ -265,7 +380,21 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                               onPressed: () async {
                                 final picked = await showDatePicker(
                                   context: context,
-                                  initialDate: _selectedDate,
+                                  initialDate: _selectedDate.isBefore(
+                                    DateTime.now().subtract(
+                                      Duration(
+                                        hours: DateTime.now().hour,
+                                        minutes: DateTime.now().minute,
+                                        seconds: DateTime.now().second,
+                                        milliseconds:
+                                            DateTime.now().millisecond,
+                                        microseconds:
+                                            DateTime.now().microsecond,
+                                      ),
+                                    ),
+                                  )
+                                      ? DateTime.now()
+                                      : _selectedDate,
                                   firstDate: DateTime.now(),
                                   lastDate: DateTime.now()
                                       .add(const Duration(days: 60)),
@@ -279,7 +408,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                           const Gap(16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: const [
+                              initialValue: const [
                                 'Scheduled Consultation',
                                 'Walk-in Token',
                                 'Follow-up Visit',
@@ -325,12 +454,22 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                         runSpacing: 8,
                         children: _slots.map((slot) {
                           final isSelected = _selectedSlot == slot;
+
+                          final previousSlot = _selectedSlot;
+                          _selectedSlot = slot;
+                          final isPast = _isPastAppointmentSlot();
+                          _selectedSlot = previousSlot;
+
                           return ChoiceChip(
                             label: Text(slot),
                             selected: isSelected,
-                            onSelected: (val) {
-                              if (val) setState(() => _selectedSlot = slot);
-                            },
+                            onSelected: isPast
+                                ? null
+                                : (val) {
+                                    if (val) {
+                                      setState(() => _selectedSlot = slot);
+                                    }
+                                  },
                           );
                         }).toList(),
                       ),
@@ -352,12 +491,17 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                         width: double.infinity,
                         height: 48,
                         child: FilledButton.icon(
-                          onPressed: doctors.isNotEmpty && !staffAsync.isLoading
+                          onPressed: doctors.isNotEmpty &&
+                                  !staffAsync.isLoading &&
+                                  !staffAsync.hasError
                               ? _book
                               : null,
                           icon: const Icon(Icons.check_circle_outline),
-                          label:
-                              const Text('Confirm Booking & Issue Token Slip'),
+                          label: Text(
+                            widget.appointment == null
+                                ? 'Confirm Booking & Issue Token Slip'
+                                : 'Save Appointment Changes',
+                          ),
                         ),
                       ),
                     ],

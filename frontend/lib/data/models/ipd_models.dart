@@ -3,6 +3,8 @@ import 'dart:convert';
 /// Inpatient Admission model representing admitted patients, bed occupancy and care summary.
 class IpdAdmissionModel {
   final int id;
+  final String uuid;
+  final String visitUuid;
   final String patientName;
   final String uhid;
   final String ward;
@@ -25,6 +27,8 @@ class IpdAdmissionModel {
 
   const IpdAdmissionModel({
     required this.id,
+    this.uuid = '',
+    this.visitUuid = '',
     required this.patientName,
     required this.uhid,
     required this.ward,
@@ -45,12 +49,6 @@ class IpdAdmissionModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  String get depositFormatted => '₹${(depositPaise / 100).toStringAsFixed(0)}';
-
-  bool get isAdmitted => status.toLowerCase() == 'admitted';
-  bool get isDischarged => status.toLowerCase() == 'discharged';
-  bool get isTransferred => status.toLowerCase() == 'transferred';
 
   factory IpdAdmissionModel.fromMap(Map<String, dynamic> map) {
     List<Map<String, dynamic>> parsedNotes = [];
@@ -77,6 +75,8 @@ class IpdAdmissionModel {
 
     return IpdAdmissionModel(
       id: map['id'] as int? ?? 0,
+      uuid: map['uuid'] as String? ?? '',
+      visitUuid: map['visit_uuid'] as String? ?? '',
       patientName: map['patient_name'] as String? ?? '',
       uhid: map['uhid'] as String? ?? '',
       ward: map['ward'] as String? ?? '',
@@ -99,8 +99,19 @@ class IpdAdmissionModel {
     );
   }
 
+  factory IpdAdmissionModel.fromJson(String source) =>
+      IpdAdmissionModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+
+  String get depositFormatted => '₹${(depositPaise / 100).toStringAsFixed(0)}';
+
+  bool get isAdmitted => status.toLowerCase() == 'admitted';
+  bool get isDischarged => status.toLowerCase() == 'discharged';
+  bool get isTransferred => status.toLowerCase() == 'transferred';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
+        'uuid': uuid,
+        'visit_uuid': visitUuid,
         'patient_name': patientName,
         'uhid': uhid,
         'ward': ward,
@@ -124,11 +135,10 @@ class IpdAdmissionModel {
 
   String toJson() => jsonEncode(toMap());
 
-  factory IpdAdmissionModel.fromJson(String source) =>
-      IpdAdmissionModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
-
   IpdAdmissionModel copyWith({
     int? id,
+    String? uuid,
+    String? visitUuid,
     String? patientName,
     String? uhid,
     String? ward,
@@ -151,6 +161,8 @@ class IpdAdmissionModel {
   }) {
     return IpdAdmissionModel(
       id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
+      visitUuid: visitUuid ?? this.visitUuid,
       patientName: patientName ?? this.patientName,
       uhid: uhid ?? this.uhid,
       ward: ward ?? this.ward,
@@ -192,14 +204,6 @@ class IpdAdmissionModel {
 
 /// Nursing clinical care note model
 class NursingNoteModel {
-  final int id;
-  final String uuid;
-  final int admissionId;
-  final String note;
-  final String authorName;
-  final String authorRole;
-  final String createdAt;
-
   const NursingNoteModel({
     required this.id,
     required this.uuid,
@@ -222,6 +226,16 @@ class NursingNoteModel {
     );
   }
 
+  factory NursingNoteModel.fromJson(String source) =>
+      NursingNoteModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int admissionId;
+  final String note;
+  final String authorName;
+  final String authorRole;
+  final String createdAt;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -233,21 +247,10 @@ class NursingNoteModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory NursingNoteModel.fromJson(String source) =>
-      NursingNoteModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Doctor daily round note model
 class DoctorRoundNoteModel {
-  final int id;
-  final String uuid;
-  final int admissionId;
-  final int doctorId;
-  final String doctorName;
-  final String note;
-  final String createdAt;
-
   const DoctorRoundNoteModel({
     required this.id,
     required this.uuid,
@@ -270,6 +273,16 @@ class DoctorRoundNoteModel {
     );
   }
 
+  factory DoctorRoundNoteModel.fromJson(String source) =>
+      DoctorRoundNoteModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int admissionId;
+  final int doctorId;
+  final String doctorName;
+  final String note;
+  final String createdAt;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -281,24 +294,10 @@ class DoctorRoundNoteModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory DoctorRoundNoteModel.fromJson(String source) =>
-      DoctorRoundNoteModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Inpatient Medication Administration Record (eMAR)
 class MedicationAdministrationModel {
-  final int id;
-  final String uuid;
-  final int admissionId;
-  final String medicineName;
-  final String dose;
-  final String route;
-  final String scheduledTime;
-  final String? givenTime;
-  final String status; // pending, given, skipped, held
-  final String administeredBy;
-
   const MedicationAdministrationModel({
     required this.id,
     required this.uuid,
@@ -311,9 +310,6 @@ class MedicationAdministrationModel {
     this.status = 'pending',
     this.administeredBy = '',
   });
-
-  bool get isGiven => status.toLowerCase() == 'given';
-  bool get isPending => status.toLowerCase() == 'pending';
 
   factory MedicationAdministrationModel.fromMap(Map<String, dynamic> map) {
     return MedicationAdministrationModel(
@@ -330,6 +326,23 @@ class MedicationAdministrationModel {
     );
   }
 
+  factory MedicationAdministrationModel.fromJson(String source) =>
+      MedicationAdministrationModel.fromMap(
+          jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int admissionId;
+  final String medicineName;
+  final String dose;
+  final String route;
+  final String scheduledTime;
+  final String? givenTime;
+  final String status; // pending, given, skipped, held
+  final String administeredBy;
+
+  bool get isGiven => status.toLowerCase() == 'given';
+  bool get isPending => status.toLowerCase() == 'pending';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -344,26 +357,10 @@ class MedicationAdministrationModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory MedicationAdministrationModel.fromJson(String source) =>
-      MedicationAdministrationModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Discharge summary card & documentation model
 class DischargeSummaryModel {
-  final int id;
-  final int admissionId;
-  final String patientName;
-  final String uhid;
-  final String admitDate;
-  final String dischargeDate;
-  final String admittingDiagnosis;
-  final String finalDiagnosis;
-  final String clinicalCourse;
-  final String dischargeAdvice;
-  final String followUpInstructions;
-  final String consultantDoctor;
-
   const DischargeSummaryModel({
     required this.id,
     required this.admissionId,
@@ -396,6 +393,21 @@ class DischargeSummaryModel {
     );
   }
 
+  factory DischargeSummaryModel.fromJson(String source) =>
+      DischargeSummaryModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final int admissionId;
+  final String patientName;
+  final String uhid;
+  final String admitDate;
+  final String dischargeDate;
+  final String admittingDiagnosis;
+  final String finalDiagnosis;
+  final String clinicalCourse;
+  final String dischargeAdvice;
+  final String followUpInstructions;
+  final String consultantDoctor;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'admission_id': admissionId,
@@ -412,8 +424,4 @@ class DischargeSummaryModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory DischargeSummaryModel.fromJson(String source) =>
-      DischargeSummaryModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
-

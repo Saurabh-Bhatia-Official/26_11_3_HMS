@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/data/database/app_database.dart';
-import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
 
 class OpdConsultationScreen extends ConsumerStatefulWidget {
@@ -19,6 +19,8 @@ class OpdConsultationScreen extends ConsumerStatefulWidget {
 
 class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
   bool _initialized = false;
+  final _vitalsFormKey = GlobalKey<FormState>();
+
   String _patientName = '';
   String _uhid = '';
   String _doctorName = '';
@@ -91,45 +93,68 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
     setState(() {
       switch (templateName) {
         case 'Viral Fever':
-          _complaintController.text = 'Fever with chills and body ache for 2 days.';
-          _historyController.text = 'No prior chronic conditions. Non-diabetic.';
-          _examController.text = 'Throat congested, chest clear, temperature 100.4°F.';
+          _complaintController.text =
+              'Fever with chills and body ache for 2 days.';
+          _historyController.text =
+              'No prior chronic conditions. Non-diabetic.';
+          _examController.text =
+              'Throat congested, chest clear, temperature 100.4°F.';
           _diagnosisController.text = 'B34.9 - Viral infection, unspecified';
-          _adviceController.text = 'Adequate oral hydration, rest, light diet. Return if high fever persists > 3 days.';
-          _addMedicineIfNotPresent('Tab. Paracetamol 650mg', '1 Tablet', 'Thrice daily (TDS)', '3 days', 'Take after food');
-          _addMedicineIfNotPresent('Tab. Pantoprazole 40mg', '1 Tablet', 'Once daily (OD)', '5 days', 'Take before breakfast');
+          _adviceController.text =
+              'Adequate oral hydration, rest, light diet. Return if high fever persists > 3 days.';
+          _addMedicineIfNotPresent('Tab. Paracetamol 650mg', '1 Tablet',
+              'Thrice daily (TDS)', '3 days', 'Take after food');
+          _addMedicineIfNotPresent('Tab. Pantoprazole 40mg', '1 Tablet',
+              'Once daily (OD)', '5 days', 'Take before breakfast');
           break;
         case 'Acute URI / Cold':
-          _complaintController.text = 'Runny nose, nasal congestion, sneezing, mild sore throat.';
+          _complaintController.text =
+              'Runny nose, nasal congestion, sneezing, mild sore throat.';
           _historyController.text = 'Seasonal cold episode.';
-          _examController.text = 'Mild pharyngeal erythema. Bilateral air entry normal.';
-          _diagnosisController.text = 'J06.9 - Acute upper respiratory infection';
-          _adviceController.text = 'Steam inhalation, warm saline gargles, avoid cold beverages.';
-          _addMedicineIfNotPresent('Tab. Cetirizine 10mg', '1 Tablet', 'Once daily at bedtime', '5 days', 'Take at night');
-          _addMedicineIfNotPresent('Tab. Paracetamol 650mg', '1 Tablet', 'SOS (if bodyache/fever)', '3 days', 'Take after food');
+          _examController.text =
+              'Mild pharyngeal erythema. Bilateral air entry normal.';
+          _diagnosisController.text =
+              'J06.9 - Acute upper respiratory infection';
+          _adviceController.text =
+              'Steam inhalation, warm saline gargles, avoid cold beverages.';
+          _addMedicineIfNotPresent('Tab. Cetirizine 10mg', '1 Tablet',
+              'Once daily at bedtime', '5 days', 'Take at night');
+          _addMedicineIfNotPresent('Tab. Paracetamol 650mg', '1 Tablet',
+              'SOS (if bodyache/fever)', '3 days', 'Take after food');
           break;
         case 'Hypertension':
-          _complaintController.text = 'Routine hypertensive follow-up, mild occipital heaviness.';
+          _complaintController.text =
+              'Routine hypertensive follow-up, mild occipital heaviness.';
           _historyController.text = 'Known hypertensive on medical therapy.';
           _examController.text = 'S1 S2 normal. No pedal edema. Chest clear.';
           _diagnosisController.text = 'I10 - Essential (primary) hypertension';
-          _adviceController.text = 'Low salt diet, 30 min daily walking, maintain BP diary.';
-          _addMedicineIfNotPresent('Tab. Telmisartan 40mg', '1 Tablet', 'Once daily (OD)', '30 days', 'Take morning after breakfast');
+          _adviceController.text =
+              'Low salt diet, 30 min daily walking, maintain BP diary.';
+          _addMedicineIfNotPresent('Tab. Telmisartan 40mg', '1 Tablet',
+              'Once daily (OD)', '30 days', 'Take morning after breakfast');
           break;
         case 'Gastroenteritis':
-          _complaintController.text = 'Watery stools 4-5 episodes since morning, nausea.';
-          _historyController.text = 'History of outside food consumption yesterday.';
-          _examController.text = 'Abdomen soft, mild peri-umbilical tenderness, bowel sounds hyperactive.';
-          _diagnosisController.text = 'A09 - Infectious gastroenteritis and colitis';
-          _adviceController.text = 'ORS frequent sips, curd, boiled potato. Avoid spicy/greasy food.';
-          _addMedicineIfNotPresent('ORS Sachet', '1 Sachet in 1L water', 'Frequent sips', '2 days', 'Drink throughout day');
-          _addMedicineIfNotPresent('Tab. Pantoprazole 40mg', '1 Tablet', 'Once daily (OD)', '5 days', 'Take before breakfast');
+          _complaintController.text =
+              'Watery stools 4-5 episodes since morning, nausea.';
+          _historyController.text =
+              'History of outside food consumption yesterday.';
+          _examController.text =
+              'Abdomen soft, mild peri-umbilical tenderness, bowel sounds hyperactive.';
+          _diagnosisController.text =
+              'A09 - Infectious gastroenteritis and colitis';
+          _adviceController.text =
+              'ORS frequent sips, curd, boiled potato. Avoid spicy/greasy food.';
+          _addMedicineIfNotPresent('ORS Sachet', '1 Sachet in 1L water',
+              'Frequent sips', '2 days', 'Drink throughout day');
+          _addMedicineIfNotPresent('Tab. Pantoprazole 40mg', '1 Tablet',
+              'Once daily (OD)', '5 days', 'Take before breakfast');
           break;
       }
     });
   }
 
-  void _addMedicineIfNotPresent(String name, String dosage, String frequency, String duration, String instructions) {
+  void _addMedicineIfNotPresent(String name, String dosage, String frequency,
+      String duration, String instructions) {
     if (!_medications.any((m) => m['name'] == name)) {
       _medications.add({
         'name': name,
@@ -165,7 +190,39 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
     return w / (h * h);
   }
 
+  String? _validateBpPair(bool isSystolic) {
+    final sysText = _bpSysController.text.trim();
+    final diaText = _bpDiaController.text.trim();
+
+    if (sysText.isEmpty && diaText.isEmpty) return null;
+
+    if (sysText.isEmpty || diaText.isEmpty) {
+      return 'Enter both BP values';
+    }
+
+    final sys = double.tryParse(sysText);
+    final dia = double.tryParse(diaText);
+
+    if (sys == null || dia == null) return null;
+
+    if (sys <= dia) {
+      return isSystolic
+          ? 'Must be higher than diastolic'
+          : 'Must be lower than systolic';
+    }
+
+    return null;
+  }
+
   Future<void> _finishConsultation() async {
+    if (!(_vitalsFormKey.currentState?.validate() ?? false)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please correct the patient vital entries.'),
+        ),
+      );
+      return;
+    }
     final db = ref.read(appDatabaseProvider);
     final visitId = int.tryParse(widget.visitId) ?? 1;
 
@@ -201,7 +258,8 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Consultation completed for $_patientName (#$_tokenNo)! Saved to database.'),
+          content: Text(
+              'Consultation completed for $_patientName (#$_tokenNo)! Saved to database.'),
           backgroundColor: Colors.green.shade700,
         ),
       );
@@ -243,7 +301,9 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
               OutlinedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Prescription printed for $_patientName.')),
+                    SnackBar(
+                        content:
+                            Text('Prescription printed for $_patientName.')),
                   );
                 },
                 icon: const Icon(Icons.print_outlined, size: 18),
@@ -283,21 +343,29 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
                           children: [
                             Row(
                               children: [
-                                Text(_patientName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                Text(_patientName,
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold)),
                                 const Gap(8),
                                 Chip(
-                                  label: Text(_uhid, style: const TextStyle(fontSize: 11)),
+                                  label: Text(_uhid,
+                                      style: const TextStyle(fontSize: 11)),
                                   visualDensity: VisualDensity.compact,
-                                  backgroundColor: colorScheme.secondaryContainer,
+                                  backgroundColor:
+                                      colorScheme.secondaryContainer,
                                 ),
                               ],
                             ),
-                            Text('$_ageGender • Doctor: $_doctorName', style: TextStyle(color: colorScheme.onSurfaceVariant)),
+                            Text('$_ageGender • Doctor: $_doctorName',
+                                style: TextStyle(
+                                    color: colorScheme.onSurfaceVariant)),
                           ],
                         ),
                         const Spacer(),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: Colors.red.shade50,
                             borderRadius: BorderRadius.circular(8),
@@ -305,11 +373,15 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.warning_amber_rounded, size: 18, color: Colors.red.shade700),
+                              Icon(Icons.warning_amber_rounded,
+                                  size: 18, color: Colors.red.shade700),
                               const Gap(6),
                               Text(
                                 'Alert: Check Drug Allergies before Rx',
-                                style: TextStyle(color: Colors.red.shade800, fontWeight: FontWeight.bold, fontSize: 12),
+                                style: TextStyle(
+                                    color: Colors.red.shade800,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12),
                               ),
                             ],
                           ),
@@ -324,12 +396,15 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
                 Card(
                   elevation: 0.5,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
                     child: Row(
                       children: [
                         const Icon(Icons.bolt, size: 18, color: Colors.amber),
                         const Gap(8),
-                        const Text('Quick Diagnosis Templates: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        const Text('Quick Diagnosis Templates: ',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 13)),
                         const Gap(8),
                         Expanded(
                           child: Wrap(
@@ -338,19 +413,23 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
                             children: [
                               ActionChip(
                                 label: const Text('Viral Fever'),
-                                onPressed: () => _applyDiagnosisTemplate('Viral Fever'),
+                                onPressed: () =>
+                                    _applyDiagnosisTemplate('Viral Fever'),
                               ),
                               ActionChip(
                                 label: const Text('Acute URI / Cold'),
-                                onPressed: () => _applyDiagnosisTemplate('Acute URI / Cold'),
+                                onPressed: () =>
+                                    _applyDiagnosisTemplate('Acute URI / Cold'),
                               ),
                               ActionChip(
                                 label: const Text('Hypertension Review'),
-                                onPressed: () => _applyDiagnosisTemplate('Hypertension'),
+                                onPressed: () =>
+                                    _applyDiagnosisTemplate('Hypertension'),
                               ),
                               ActionChip(
                                 label: const Text('Gastroenteritis'),
-                                onPressed: () => _applyDiagnosisTemplate('Gastroenteritis'),
+                                onPressed: () =>
+                                    _applyDiagnosisTemplate('Gastroenteritis'),
                               ),
                             ],
                           ),
@@ -379,44 +458,90 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text('Patient Vitals', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                                      Text('Patient Vitals',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleSmall
+                                              ?.copyWith(
+                                                  fontWeight: FontWeight.bold)),
                                       TextButton.icon(
                                         onPressed: _autofillNormalVitals,
                                         icon: const Icon(Icons.speed, size: 14),
-                                        label: const Text('Autofill Normal Vitals'),
+                                        label: const Text(
+                                            'Autofill Normal Vitals'),
                                       ),
                                     ],
                                   ),
                                   const Gap(8),
-                                  Wrap(
-                                    spacing: 12,
-                                    runSpacing: 12,
-                                    children: [
-                                      _vitalsField('BP (Sys)', _bpSysController, 'mmHg'),
-                                      _vitalsField('BP (Dia)', _bpDiaController, 'mmHg'),
-                                      _vitalsField('Pulse', _pulseController, 'bpm'),
-                                      _vitalsField('Temp', _tempController, '°F'),
-                                      _vitalsField('SpO2', _spo2Controller, '%'),
-                                      _vitalsField('Weight', _weightController, 'kg'),
-                                      _vitalsField('Height', _heightController, 'cm'),
-                                      Container(
-                                        width: 100,
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: colorScheme.primaryContainer.withValues(alpha: 0.4),
-                                          borderRadius: BorderRadius.circular(8),
+                                  Form(
+                                    key: _vitalsFormKey,
+                                    child: Wrap(
+                                      spacing: 12,
+                                      runSpacing: 16,
+                                      children: [
+                                        _vitalsField(
+                                          'BP (Sys)',
+                                          _bpSysController,
+                                          'mmHg',
+                                          min: 1,
+                                          max: 300,
+                                          extraValidator: () =>
+                                              _validateBpPair(true),
                                         ),
-                                        child: Column(
-                                          children: [
-                                            const Text('BMI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                                            const Gap(2),
-                                            Text(_bmi.toStringAsFixed(1), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                          ],
+                                        _vitalsField(
+                                          'BP (Dia)',
+                                          _bpDiaController,
+                                          'mmHg',
+                                          min: 1,
+                                          max: 200,
+                                          extraValidator: () =>
+                                              _validateBpPair(false),
                                         ),
-                                      ),
-                                    ],
+                                        _vitalsField(
+                                            'Pulse', _pulseController, 'bpm',
+                                            min: 1, max: 300),
+                                        _vitalsField(
+                                            'Temp', _tempController, '°F',
+                                            min: 80, max: 115),
+                                        _vitalsField(
+                                            'SpO2', _spo2Controller, '%',
+                                            min: 1, max: 100),
+                                        _vitalsField(
+                                            'Weight', _weightController, 'kg',
+                                            min: 0.1, max: 500),
+                                        _vitalsField(
+                                            'Height', _heightController, 'cm',
+                                            min: 1, max: 300),
+                                        Container(
+                                          width: 100,
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.primaryContainer
+                                                .withValues(alpha: 0.4),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              const Text('BMI',
+                                                  style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                              const Gap(2),
+                                              Text(_bmi.toStringAsFixed(1),
+                                                  style: const TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -432,24 +557,33 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Clinical Documentation', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                                  Text('Clinical Documentation',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.bold)),
                                   const Gap(16),
                                   TextFormField(
                                     controller: _complaintController,
                                     maxLines: 2,
-                                    decoration: const InputDecoration(labelText: 'Chief Complaint'),
+                                    decoration: const InputDecoration(
+                                        labelText: 'Chief Complaint'),
                                   ),
                                   const Gap(12),
                                   TextFormField(
                                     controller: _historyController,
                                     maxLines: 2,
-                                    decoration: const InputDecoration(labelText: 'Medical & Family History'),
+                                    decoration: const InputDecoration(
+                                        labelText: 'Medical & Family History'),
                                   ),
                                   const Gap(12),
                                   TextFormField(
                                     controller: _examController,
                                     maxLines: 2,
-                                    decoration: const InputDecoration(labelText: 'Physical Examination Findings'),
+                                    decoration: const InputDecoration(
+                                        labelText:
+                                            'Physical Examination Findings'),
                                   ),
                                   const Gap(12),
                                   TextFormField(
@@ -463,7 +597,9 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
                                   TextFormField(
                                     controller: _adviceController,
                                     maxLines: 2,
-                                    decoration: const InputDecoration(labelText: 'Doctor Advice & Follow-up Instructions'),
+                                    decoration: const InputDecoration(
+                                        labelText:
+                                            'Doctor Advice & Follow-up Instructions'),
                                   ),
                                 ],
                               ),
@@ -487,9 +623,15 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text('Prescription (Rx)', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                                      Text('Prescription (Rx)',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
+                                                  fontWeight: FontWeight.bold)),
                                       TextButton.icon(
                                         onPressed: () {
                                           _addMedicineIfNotPresent(
@@ -507,7 +649,10 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
                                     ],
                                   ),
                                   const Gap(8),
-                                  const Text('Quick Add Standard Medicines:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                  const Text('Quick Add Standard Medicines:',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600)),
                                   const Gap(8),
                                   Wrap(
                                     spacing: 6,
@@ -515,33 +660,57 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
                                     children: [
                                       ActionChip(
                                         avatar: const Icon(Icons.add, size: 14),
-                                        label: const Text('+ Paracetamol 650mg', style: TextStyle(fontSize: 11)),
+                                        label: const Text('+ Paracetamol 650mg',
+                                            style: TextStyle(fontSize: 11)),
                                         onPressed: () {
-                                          _addMedicineIfNotPresent('Tab. Paracetamol 650mg', '1 Tablet', 'TDS (after food)', '3 days', 'Take after food');
+                                          _addMedicineIfNotPresent(
+                                              'Tab. Paracetamol 650mg',
+                                              '1 Tablet',
+                                              'TDS (after food)',
+                                              '3 days',
+                                              'Take after food');
                                           setState(() {});
                                         },
                                       ),
                                       ActionChip(
                                         avatar: const Icon(Icons.add, size: 14),
-                                        label: const Text('+ Pantoprazole 40mg', style: TextStyle(fontSize: 11)),
+                                        label: const Text('+ Pantoprazole 40mg',
+                                            style: TextStyle(fontSize: 11)),
                                         onPressed: () {
-                                          _addMedicineIfNotPresent('Tab. Pantoprazole 40mg', '1 Tablet', 'OD (empty stomach)', '15 days', 'Take in morning before food');
+                                          _addMedicineIfNotPresent(
+                                              'Tab. Pantoprazole 40mg',
+                                              '1 Tablet',
+                                              'OD (empty stomach)',
+                                              '15 days',
+                                              'Take in morning before food');
                                           setState(() {});
                                         },
                                       ),
                                       ActionChip(
                                         avatar: const Icon(Icons.add, size: 14),
-                                        label: const Text('+ Amoxicillin 500mg', style: TextStyle(fontSize: 11)),
+                                        label: const Text('+ Amoxicillin 500mg',
+                                            style: TextStyle(fontSize: 11)),
                                         onPressed: () {
-                                          _addMedicineIfNotPresent('Cap. Amoxicillin 500mg', '1 Capsule', 'TDS (8 hourly)', '5 days', 'Complete full course');
+                                          _addMedicineIfNotPresent(
+                                              'Cap. Amoxicillin 500mg',
+                                              '1 Capsule',
+                                              'TDS (8 hourly)',
+                                              '5 days',
+                                              'Complete full course');
                                           setState(() {});
                                         },
                                       ),
                                       ActionChip(
                                         avatar: const Icon(Icons.add, size: 14),
-                                        label: const Text('+ Cetirizine 10mg', style: TextStyle(fontSize: 11)),
+                                        label: const Text('+ Cetirizine 10mg',
+                                            style: TextStyle(fontSize: 11)),
                                         onPressed: () {
-                                          _addMedicineIfNotPresent('Tab. Cetirizine 10mg', '1 Tablet', 'OD (at bedtime)', '5 days', 'May cause mild drowsiness');
+                                          _addMedicineIfNotPresent(
+                                              'Tab. Cetirizine 10mg',
+                                              '1 Tablet',
+                                              'OD (at bedtime)',
+                                              '5 days',
+                                              'May cause mild drowsiness');
                                           setState(() {});
                                         },
                                       ),
@@ -551,25 +720,35 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
                                   if (_medications.isEmpty)
                                     const Padding(
                                       padding: EdgeInsets.all(16),
-                                      child: Center(child: Text('No medicines added. Tap chips above to prescribe in 1 click.')),
+                                      child: Center(
+                                          child: Text(
+                                              'No medicines added. Tap chips above to prescribe in 1 click.')),
                                     )
                                   else
                                     ListView.separated(
                                       shrinkWrap: true,
-                                      physics: const NeverScrollableScrollPhysics(),
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
                                       itemCount: _medications.length,
-                                      separatorBuilder: (_, __) => const Divider(height: 1),
+                                      separatorBuilder: (_, __) =>
+                                          const Divider(height: 1),
                                       itemBuilder: (context, idx) {
                                         final m = _medications[idx];
                                         return ListTile(
                                           contentPadding: EdgeInsets.zero,
-                                          title: Text(m['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                          subtitle: Text('${m["dosage"]} • ${m["frequency"]} • ${m["duration"]}\n${m["instructions"]}'),
+                                          title: Text(m['name']!,
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold)),
+                                          subtitle: Text(
+                                              '${m["dosage"]} • ${m["frequency"]} • ${m["duration"]}\n${m["instructions"]}'),
                                           isThreeLine: true,
                                           trailing: IconButton(
-                                            icon: const Icon(Icons.delete_outline, size: 18),
+                                            icon: const Icon(
+                                                Icons.delete_outline,
+                                                size: 18),
                                             tooltip: 'Remove',
-                                            onPressed: () => setState(() => _medications.removeAt(idx)),
+                                            onPressed: () => setState(() =>
+                                                _medications.removeAt(idx)),
                                           ),
                                         );
                                       },
@@ -591,18 +770,45 @@ class _OpdConsultationScreenState extends ConsumerState<OpdConsultationScreen> {
     );
   }
 
-  Widget _vitalsField(String label, TextEditingController controller, String unit) {
+  Widget _vitalsField(
+    String label,
+    TextEditingController controller,
+    String unit, {
+    required double min,
+    required double max,
+    String? Function()? extraValidator,
+  }) {
     return SizedBox(
-      width: 100,
+      width: 145,
       child: TextFormField(
         controller: controller,
-        keyboardType: TextInputType.number,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(
           labelText: label,
           suffixText: unit,
-          isDense: true,
+          isDense: false,
+          border: const OutlineInputBorder(),
         ),
-        onChanged: (_) => setState(() {}),
+        validator: (value) {
+          final text = value?.trim() ?? '';
+
+          if (text.isEmpty) return null;
+
+          final number = double.tryParse(text);
+
+          if (number == null) {
+            return 'Enter a valid number';
+          }
+
+          if (number < min || number > max) {
+            return 'Range: $min–$max';
+          }
+
+          return extraValidator?.call();
+        },
+        onChanged: (_) => setState(() {
+          _vitalsFormKey.currentState?.validate();
+        }),
       ),
     );
   }

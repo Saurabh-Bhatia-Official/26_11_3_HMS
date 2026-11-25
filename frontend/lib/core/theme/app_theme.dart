@@ -32,10 +32,10 @@ class AppTheme {
       chipTheme: _chipTheme(base),
       dividerTheme: const DividerThemeData(space: 1, thickness: 1),
       extensions: [
-        AppColours(
+        const AppColours(
           warning: _warningColor,
           success: _successColor,
-          criticalBg: const Color(0xFFFFEBEE),
+          criticalBg: Color(0xFFFFEBEE),
           criticalFg: _errorColor,
         ),
       ],
@@ -63,11 +63,11 @@ class AppTheme {
       chipTheme: _chipTheme(base),
       dividerTheme: const DividerThemeData(space: 1, thickness: 1),
       extensions: [
-        AppColours(
-          warning: const Color(0xFFFFB74D),
-          success: const Color(0xFF81C784),
-          criticalBg: const Color(0xFF4E0000),
-          criticalFg: const Color(0xFFCF6679),
+        const AppColours(
+          warning: Color(0xFFFFB74D),
+          success: Color(0xFF81C784),
+          criticalBg: Color(0xFF4E0000),
+          criticalFg: Color(0xFFCF6679),
         ),
       ],
     );
@@ -79,48 +79,56 @@ class AppTheme {
       displayLarge: base.displayLarge?.copyWith(fontFamily: 'NotoSans'),
       displayMedium: base.displayMedium?.copyWith(fontFamily: 'NotoSans'),
       displaySmall: base.displaySmall?.copyWith(fontFamily: 'NotoSans'),
-      headlineLarge: base.headlineLarge?.copyWith(fontFamily: 'NotoSans', fontWeight: FontWeight.w700),
-      headlineMedium: base.headlineMedium?.copyWith(fontFamily: 'NotoSans', fontWeight: FontWeight.w600),
-      headlineSmall: base.headlineSmall?.copyWith(fontFamily: 'NotoSans', fontWeight: FontWeight.w600),
-      titleLarge: base.titleLarge?.copyWith(fontFamily: 'NotoSans', fontWeight: FontWeight.w600),
-      titleMedium: base.titleMedium?.copyWith(fontFamily: 'NotoSans', fontWeight: FontWeight.w500),
+      headlineLarge: base.headlineLarge
+          ?.copyWith(fontFamily: 'NotoSans', fontWeight: FontWeight.w700),
+      headlineMedium: base.headlineMedium
+          ?.copyWith(fontFamily: 'NotoSans', fontWeight: FontWeight.w600),
+      headlineSmall: base.headlineSmall
+          ?.copyWith(fontFamily: 'NotoSans', fontWeight: FontWeight.w600),
+      titleLarge: base.titleLarge
+          ?.copyWith(fontFamily: 'NotoSans', fontWeight: FontWeight.w600),
+      titleMedium: base.titleMedium
+          ?.copyWith(fontFamily: 'NotoSans', fontWeight: FontWeight.w500),
       titleSmall: base.titleSmall?.copyWith(fontFamily: 'NotoSans'),
       bodyLarge: base.bodyLarge?.copyWith(fontFamily: 'NotoSans'),
       bodyMedium: base.bodyMedium?.copyWith(fontFamily: 'NotoSans'),
       bodySmall: base.bodySmall?.copyWith(fontFamily: 'NotoSans'),
-      labelLarge: base.labelLarge?.copyWith(fontFamily: 'NotoSans', fontWeight: FontWeight.w600),
+      labelLarge: base.labelLarge
+          ?.copyWith(fontFamily: 'NotoSans', fontWeight: FontWeight.w600),
       labelMedium: base.labelMedium?.copyWith(fontFamily: 'NotoSans'),
       labelSmall: base.labelSmall?.copyWith(fontFamily: 'NotoSans'),
     );
   }
 
   static AppBarTheme _appBarTheme(ThemeData base) => AppBarTheme(
-    elevation: 0,
-    centerTitle: false,
-    scrolledUnderElevation: 2,
-    backgroundColor: base.colorScheme.surface,
-    foregroundColor: base.colorScheme.onSurface,
-  );
+        elevation: 0,
+        centerTitle: false,
+        scrolledUnderElevation: 2,
+        backgroundColor: base.colorScheme.surface,
+        foregroundColor: base.colorScheme.onSurface,
+      );
 
   static CardThemeData _cardTheme() => const CardThemeData(
-    elevation: 1,
-    margin: EdgeInsets.zero,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.all(Radius.circular(12)),
-    ),
-  );
+        elevation: 1,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
+      );
 
   static InputDecorationTheme _inputDecorationTheme(ThemeData base) =>
       InputDecorationTheme(
         filled: true,
-        fillColor: base.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        fillColor:
+            base.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: base.colorScheme.outline),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: base.colorScheme.outline.withOpacity(0.5)),
+          borderSide: BorderSide(
+              color: base.colorScheme.outline.withValues(alpha: 0.5)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -130,7 +138,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: base.colorScheme.error),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         isDense: true,
       );
 
@@ -160,25 +169,24 @@ class AppTheme {
       );
 
   static ChipThemeData _chipTheme(ThemeData base) => ChipThemeData(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-    side: BorderSide.none,
-  );
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        side: BorderSide.none,
+      );
 }
 
 // ── Custom theme extension ───────────────────────────────────────────────────
 
 class AppColours extends ThemeExtension<AppColours> {
-  final Color warning;
-  final Color success;
-  final Color criticalBg;
-  final Color criticalFg;
-
   const AppColours({
     required this.warning,
     required this.success,
     required this.criticalBg,
     required this.criticalFg,
   });
+  final Color warning;
+  final Color success;
+  final Color criticalBg;
+  final Color criticalFg;
 
   @override
   AppColours copyWith({
@@ -217,4 +225,3 @@ extension AppColoursX on BuildContext {
         criticalFg: Color(0xFFB00020),
       );
 }
-

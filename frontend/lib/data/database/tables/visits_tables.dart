@@ -3,9 +3,9 @@
 
 import 'package:drift/drift.dart';
 
-import 'appointments_tables.dart';
-import 'patients_tables.dart';
-import 'staff_tables.dart';
+import 'package:hospital_management/data/database/tables/appointments_tables.dart';
+import 'package:hospital_management/data/database/tables/patients_tables.dart';
+import 'package:hospital_management/data/database/tables/staff_tables.dart';
 
 // ---------------------------------------------------------------------------
 // Visits
@@ -22,14 +22,12 @@ class Visits extends Table {
       integer().nullable().references(Appointments, #id)();
   TextColumn get visitType => text()();
   TextColumn get visitDate => text()();
-  TextColumn get status =>
-      text().withDefault(const Constant('open'))();
+  TextColumn get status => text().withDefault(const Constant('open'))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
   IntColumn get createdBy => integer().nullable()();
   IntColumn get updatedBy => integer().nullable()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 // ---------------------------------------------------------------------------
@@ -46,14 +44,15 @@ class Vitals extends Table {
   IntColumn get spo2 => integer().nullable()();
   RealColumn get weightKg => real().nullable()();
   RealColumn get heightCm => real().nullable()();
+
   /// Computed (weight_kg / (height_m)^2) and stored for reporting
   RealColumn get bmi => real().nullable()();
+
   /// FK → users.id
   IntColumn get recordedBy => integer().nullable()();
   TextColumn get recordedAt => text()();
   TextColumn get notes => text().nullable()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +75,5 @@ class Consultations extends Table {
   TextColumn get updatedAt => text()();
   IntColumn get createdBy => integer().nullable()();
   IntColumn get updatedBy => integer().nullable()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }

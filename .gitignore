@@ -66,3 +66,41 @@ frontend/.pub/
 frontend/build/
 frontend/coverage/
 
+
+
+
+# JVM crash and replay logs
+hs_err_pid*.log
+replay_pid*.log
+
+# Local machine configuration
+frontend/android/local.properties
+
+# Flutter generated ephemeral files
+frontend/ios/Flutter/Generated.xcconfig
+frontend/ios/Flutter/flutter_export_environment.sh
+frontend/**/ephemeral/
+
+# Temporary generated source list
+backend/sources.txt
+
+# Temporary/unidentified file
+erstrupt26_11_3_HMS
+
+# Local IDE settings (exclude if not needed)
+.vscode/
+
+# Personal CareSync reference documents
+/docs/
+
+# Generated Flutter web build metadata
+/frontend/web/drift_worker.js.deps
+/frontend/web/drift_worker.js.map
+
+# Duplicate archived migration reference
+/backend/src/main/resources/db/migration-archive/auth_security_hardening.sql.moved-reference
+
+# Local database credentials
+backend/.env
+backend/.env.*
+!backend/.env.example

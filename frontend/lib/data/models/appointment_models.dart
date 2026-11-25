@@ -2,23 +2,6 @@ import 'dart:convert';
 
 /// Appointment record model for outpatient consultations and token queue.
 class AppointmentModel {
-  final int id;
-  final String tokenNo;
-  final String patientName;
-  final String uhid;
-  final String doctorName;
-  final String department;
-  final String date;
-  final String timeSlot;
-  final String status;
-  final String visitType;
-  final String notes;
-  final int patientId;
-  final int doctorId;
-  final int departmentId;
-  final String createdAt;
-  final String updatedAt;
-
   const AppointmentModel({
     required this.id,
     required this.tokenNo,
@@ -37,12 +20,6 @@ class AppointmentModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  bool get isScheduled => status.toLowerCase() == 'scheduled';
-  bool get isInProgress => status.toLowerCase() == 'in_progress';
-  bool get isCompleted => status.toLowerCase() == 'completed';
-  bool get isCancelled => status.toLowerCase() == 'cancelled';
-  bool get isNoShow => status.toLowerCase() == 'no_show';
 
   factory AppointmentModel.fromMap(Map<String, dynamic> map) {
     return AppointmentModel(
@@ -65,6 +42,31 @@ class AppointmentModel {
     );
   }
 
+  factory AppointmentModel.fromJson(String source) =>
+      AppointmentModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String tokenNo;
+  final String patientName;
+  final String uhid;
+  final String doctorName;
+  final String department;
+  final String date;
+  final String timeSlot;
+  final String status;
+  final String visitType;
+  final String notes;
+  final int patientId;
+  final int doctorId;
+  final int departmentId;
+  final String createdAt;
+  final String updatedAt;
+
+  bool get isScheduled => status.toLowerCase() == 'scheduled';
+  bool get isInProgress => status.toLowerCase() == 'in_progress';
+  bool get isCompleted => status.toLowerCase() == 'completed';
+  bool get isCancelled => status.toLowerCase() == 'cancelled';
+  bool get isNoShow => status.toLowerCase() == 'no_show';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'token_no': tokenNo,
@@ -85,9 +87,6 @@ class AppointmentModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory AppointmentModel.fromJson(String source) =>
-      AppointmentModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   AppointmentModel copyWith({
     int? id,
@@ -153,11 +152,6 @@ class AppointmentModel {
 
 /// Available appointment time slot
 class AppointmentSlotModel {
-  final String slotTime;
-  final bool isAvailable;
-  final int? appointmentId;
-  final String? patientName;
-
   const AppointmentSlotModel({
     required this.slotTime,
     required this.isAvailable,
@@ -174,6 +168,13 @@ class AppointmentSlotModel {
     );
   }
 
+  factory AppointmentSlotModel.fromJson(String source) =>
+      AppointmentSlotModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final String slotTime;
+  final bool isAvailable;
+  final int? appointmentId;
+  final String? patientName;
+
   Map<String, dynamic> toMap() => {
         'slot_time': slotTime,
         'is_available': isAvailable,
@@ -182,22 +183,10 @@ class AppointmentSlotModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory AppointmentSlotModel.fromJson(String source) =>
-      AppointmentSlotModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Live OPD walk-in token model
 class QueueTokenModel {
-  final String tokenNo;
-  final String patientName;
-  final String uhid;
-  final String doctorName;
-  final String department;
-  final String status;
-  final String issueTime;
-  final int waitMinutesEstimated;
-
   const QueueTokenModel({
     required this.tokenNo,
     required this.patientName,
@@ -222,6 +211,17 @@ class QueueTokenModel {
     );
   }
 
+  factory QueueTokenModel.fromJson(String source) =>
+      QueueTokenModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final String tokenNo;
+  final String patientName;
+  final String uhid;
+  final String doctorName;
+  final String department;
+  final String status;
+  final String issueTime;
+  final int waitMinutesEstimated;
+
   Map<String, dynamic> toMap() => {
         'token_no': tokenNo,
         'patient_name': patientName,
@@ -234,8 +234,4 @@ class QueueTokenModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory QueueTokenModel.fromJson(String source) =>
-      QueueTokenModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
-

@@ -16,6 +16,9 @@ abstract class PatientRepository {
   /// Soft-deletes the patient with [id] (sets is_deleted = 1).
   Future<void> softDelete(int id);
 
+  /// Changes the server-backed patient status; local offline state is queued until acknowledged.
+  Future<void> changeStatus(int id, String status);
+
   // ── Queries ───────────────────────────────────────────────────────────────
 
   /// Returns the patient with the given [id], or null if not found / deleted.

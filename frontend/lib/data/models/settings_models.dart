@@ -2,11 +2,6 @@ import 'dart:convert';
 
 /// System Configuration Setting key-value model
 class SettingModel {
-  final int id;
-  final String key;
-  final String value;
-  final String updatedAt;
-
   const SettingModel({
     required this.id,
     required this.key,
@@ -23,6 +18,13 @@ class SettingModel {
     );
   }
 
+  factory SettingModel.fromJson(String source) =>
+      SettingModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String key;
+  final String value;
+  final String updatedAt;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'key': key,
@@ -31,23 +33,10 @@ class SettingModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory SettingModel.fromJson(String source) =>
-      SettingModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Hospital Organization Profile model
 class HospitalProfileModel {
-  final String hospitalName;
-  final String tagline;
-  final String address;
-  final String phone;
-  final String email;
-  final String taxId;
-  final String currencySymbol;
-  final String logoPath;
-  final String uhidPrefix;
-
   const HospitalProfileModel({
     this.hospitalName = 'CareSync',
     this.tagline = 'Connecting Care. Simplifying Healthcare.',
@@ -63,7 +52,8 @@ class HospitalProfileModel {
   factory HospitalProfileModel.fromMap(Map<String, dynamic> map) {
     return HospitalProfileModel(
       hospitalName: map['hospital_name'] as String? ?? 'CareSync',
-      tagline: map['tagline'] as String? ?? 'Connecting Care. Simplifying Healthcare.',
+      tagline: map['tagline'] as String? ??
+          'Connecting Care. Simplifying Healthcare.',
       address: map['address'] as String? ?? '',
       phone: map['phone'] as String? ?? '',
       email: map['email'] as String? ?? '',
@@ -73,6 +63,18 @@ class HospitalProfileModel {
       uhidPrefix: map['uhid_prefix'] as String? ?? 'UHID',
     );
   }
+
+  factory HospitalProfileModel.fromJson(String source) =>
+      HospitalProfileModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final String hospitalName;
+  final String tagline;
+  final String address;
+  final String phone;
+  final String email;
+  final String taxId;
+  final String currencySymbol;
+  final String logoPath;
+  final String uhidPrefix;
 
   Map<String, dynamic> toMap() => {
         'hospital_name': hospitalName,
@@ -87,8 +89,4 @@ class HospitalProfileModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory HospitalProfileModel.fromJson(String source) =>
-      HospitalProfileModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
-

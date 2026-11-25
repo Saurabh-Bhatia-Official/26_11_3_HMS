@@ -73,5 +73,6 @@ class PatientAllergy extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, patientId, allergen, reaction, severity, createdAt];
+  List<Object?> get props =>
+      [id, patientId, allergen, reaction, severity, createdAt];
 }

@@ -1,10 +1,11 @@
-import 'package:drift/drift.dart';
-import 'package:uuid/uuid.dart';
+import 'dart:convert';
 
+import 'package:drift/drift.dart';
 import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/domain/entities/patient.dart';
 import 'package:hospital_management/domain/entities/patient_allergy.dart';
 import 'package:hospital_management/domain/repositories/patient_repository.dart';
+import 'package:uuid/uuid.dart';
 
 /// Drift-backed implementation of [PatientRepository].
 class PatientRepositoryImpl implements PatientRepository {
@@ -18,7 +19,7 @@ class PatientRepositoryImpl implements PatientRepository {
   @override
   Future<Patient> create(Patient patient) async {
     final now = DateTime.now().toIso8601String();
-    final uuid = _uuid.v4();
+    final uuid = _isUuid(patient.uuid) ? patient.uuid : _uuid.v4();
     final uhid = await generateUhid();
 
     final companion = PatientsCompanion(
@@ -48,8 +49,13 @@ class PatientRepositoryImpl implements PatientRepository {
       isDeleted: const Value(false),
     );
 
-    final id = await _db.patientsDao.insertPatient(companion);
-    return patient.copyWith(id: id, uuid: uuid, uhid: uhid, createdAt: DateTime.now());
+    late final int id;
+    await _db.transaction(() async {
+      id = await _db.patientsDao.insertPatient(companion);
+      await _enqueue(uuid, 'CREATE', _patientPayload(patient, uuid), now);
+    });
+    return patient.copyWith(
+        id: id, uuid: uuid, uhid: uhid, createdAt: DateTime.now());
   }
 
   @override
@@ -84,25 +90,96 @@ class PatientRepositoryImpl implements PatientRepository {
       isDeleted: Value(patient.isDeleted),
     );
 
-    await _db.patientsDao.updatePatient(companion);
+    await _db.transaction(() async {
+      final found = await _db.patientsDao.updatePatient(companion);
+      if (!found) throw StateError('Patient record no longer exists.');
+      final version = await _db.patientSyncDao.serverVersion(patient.uuid);
+      await _enqueue(
+          patient.uuid, 'UPDATE', _patientPayload(patient, patient.uuid), now,
+          baseVersion: version);
+    });
     return patient;
   }
 
   @override
-  Future<void> softDelete(int id) => _db.patientsDao.softDeletePatient(id);
+  Future<void> softDelete(int id) async {
+    final row = await _db.patientsDao.findPatientById(id);
+    if (row == null) return;
+    final now = DateTime.now().toIso8601String();
+    await _db.transaction(() async {
+      await _db.patientsDao.softDeletePatient(id);
+      await _enqueue(row.uuid, 'ARCHIVE', const {}, now,
+          baseVersion: await _db.patientSyncDao.serverVersion(row.uuid));
+    });
+  }
+
+  @override
+  Future<void> changeStatus(int id, String status) async {
+    if (status != 'ACTIVE' && status != 'INACTIVE') {
+      throw ArgumentError.value(
+          status, 'status', 'Expected ACTIVE or INACTIVE');
+    }
+    final row = await _db.patientsDao.findPatientById(id);
+    if (row == null) throw StateError('Patient record no longer exists.');
+    final now = DateTime.now().toIso8601String();
+    await _db.transaction(() async {
+      final version = await _db.patientSyncDao.serverVersion(row.uuid);
+      await _enqueue(row.uuid, 'STATUS', {'status': status}, now,
+          baseVersion: version);
+      await _db.customStatement(
+        'INSERT INTO patient_sync_states (patient_uuid, sync_state, updated_at) VALUES (?, \'PENDING\', ?) '
+        'ON CONFLICT(patient_uuid) DO UPDATE SET sync_state = \'PENDING\', updated_at = excluded.updated_at',
+        [row.uuid, now],
+      );
+    });
+  }
+
+  Future<void> _enqueue(String uuid, String operation,
+          Map<String, dynamic> payload, String createdAt,
+          {int? baseVersion}) =>
+      _db.patientSyncDao.enqueue(
+        operationId: _uuid.v4(),
+        patientUuid: uuid,
+        operation: operation,
+        payload: jsonEncode(payload),
+        baseVersion: baseVersion,
+        createdAt: createdAt,
+      );
+
+  Map<String, dynamic> _patientPayload(Patient patient, String uuid) => {
+        'uuid': uuid,
+        'name': patient.name,
+        'gender': patient.gender,
+        'dateOfBirth': patient.dob?.toIso8601String().split('T').first,
+        'ageYears': patient.ageYears,
+        'phone': patient.phone,
+        'alternatePhone': patient.altPhone,
+        'email': patient.email,
+        'address': patient.address,
+        'city': patient.city,
+        'state': patient.state,
+        'pincode': patient.pincode,
+        'bloodGroup': patient.bloodGroup,
+        'emergencyContactName': patient.emergencyContactName,
+        'emergencyContactPhone': patient.emergencyContactPhone,
+      };
+
+  bool _isUuid(String value) => RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+      ).hasMatch(value);
 
   // ── Queries ───────────────────────────────────────────────────────────────
 
   @override
   Future<Patient?> findById(int id) async {
     final row = await _db.patientsDao.findPatientById(id);
-    return row == null ? null : _mapRow(row);
+    return row == null ? null : await _mapRow(row);
   }
 
   @override
   Future<Patient?> findByUhid(String uhid) async {
     final row = await _db.patientsDao.findPatientByUhid(uhid);
-    return row == null ? null : _mapRow(row);
+    return row == null ? null : await _mapRow(row);
   }
 
   @override
@@ -116,14 +193,14 @@ class PatientRepositoryImpl implements PatientRepository {
       limit: limit,
       offset: offset,
     );
-    return rows.map(_mapRow).toList();
+    return Future.wait(rows.map(_mapRow));
   }
 
   @override
   Future<List<Patient>> getAll({int limit = 50, int offset = 0}) async {
     final rows =
         await _db.patientsDao.getAllPatients(limit: limit, offset: offset);
-    return rows.map(_mapRow).toList();
+    return Future.wait(rows.map(_mapRow));
   }
 
   /// Generates the next UHID by atomically incrementing uhid_sequence in
@@ -131,8 +208,7 @@ class PatientRepositoryImpl implements PatientRepository {
   @override
   Future<String> generateUhid() async {
     return _db.transaction(() async {
-      final prefixRow =
-          await _db.settingsDao.getSetting('uhid_prefix');
+      final prefixRow = await _db.settingsDao.getSetting('uhid_prefix');
       final seqRow = await _db.settingsDao.getSetting('uhid_sequence');
 
       final prefix = prefixRow?.value ?? 'UHID';
@@ -152,8 +228,7 @@ class PatientRepositoryImpl implements PatientRepository {
 
   @override
   Future<List<PatientAllergy>> getAllergies(int patientId) async {
-    final rows =
-        await _db.patientsDao.getAllergiesForPatient(patientId);
+    final rows = await _db.patientsDao.getAllergiesForPatient(patientId);
     return rows.map(_mapAllergyRow).toList();
   }
 
@@ -175,11 +250,13 @@ class PatientRepositoryImpl implements PatientRepository {
 
   // ── Mapping helpers ───────────────────────────────────────────────────────
 
-  Patient _mapRow(PatientRow row) {
+  Future<Patient> _mapRow(PatientRow row) async {
     return Patient(
       id: row.id,
       uuid: row.uuid,
       uhid: row.uhid,
+      serverUhid: await _db.patientSyncDao.canonicalUhid(row.uuid),
+      syncState: await _db.patientSyncDao.syncState(row.uuid),
       name: row.name,
       gender: row.gender,
       dob: row.dob != null ? DateTime.tryParse(row.dob!) : null,

@@ -55,9 +55,8 @@ class _ConfirmDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final confirmColor = isDangerous
-        ? theme.colorScheme.error
-        : theme.colorScheme.primary;
+    final confirmColor =
+        isDangerous ? theme.colorScheme.error : theme.colorScheme.primary;
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

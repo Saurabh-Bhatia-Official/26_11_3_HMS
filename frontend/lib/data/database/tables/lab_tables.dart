@@ -3,9 +3,9 @@
 
 import 'package:drift/drift.dart';
 
-import 'patients_tables.dart';
-import 'staff_tables.dart';
-import 'visits_tables.dart';
+import 'package:hospital_management/data/database/tables/patients_tables.dart';
+import 'package:hospital_management/data/database/tables/staff_tables.dart';
+import 'package:hospital_management/data/database/tables/visits_tables.dart';
 
 // ---------------------------------------------------------------------------
 // LabTests
@@ -17,14 +17,11 @@ class LabTests extends Table {
   TextColumn get category => text().withDefault(const Constant(''))();
   TextColumn get sampleType => text().withDefault(const Constant(''))();
   IntColumn get pricePaise => integer().withDefault(const Constant(0))();
-  IntColumn get turnaroundHours =>
-      integer().withDefault(const Constant(24))();
-  BoolColumn get isOutsourced =>
-      boolean().withDefault(const Constant(false))();
+  IntColumn get turnaroundHours => integer().withDefault(const Constant(24))();
+  BoolColumn get isOutsourced => boolean().withDefault(const Constant(false))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 // ---------------------------------------------------------------------------
@@ -38,11 +35,11 @@ class LabTestParameters extends Table {
   TextColumn get unit => text().withDefault(const Constant(''))();
   RealColumn get rangeLow => real().nullable()();
   RealColumn get rangeHigh => real().nullable()();
+
   /// Free-text reference range (e.g. "Negative")
   TextColumn get referenceText => text().nullable()();
   TextColumn get createdAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 // ---------------------------------------------------------------------------
@@ -52,13 +49,11 @@ class LabPackages extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get uuid => text().unique()();
   TextColumn get name => text()();
-  TextColumn get description =>
-      text().withDefault(const Constant(''))();
+  TextColumn get description => text().withDefault(const Constant(''))();
   IntColumn get pricePaise => integer().withDefault(const Constant(0))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 // ---------------------------------------------------------------------------
@@ -68,8 +63,7 @@ class LabPackageTests extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get packageId => integer().references(LabPackages, #id)();
   IntColumn get testId => integer().references(LabTests, #id)();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 
   @override
   List<Set<Column>> get uniqueKeys => [
@@ -90,14 +84,11 @@ class LabOrders extends Table {
   IntColumn get orderedBy => integer().references(Doctors, #id)();
   TextColumn get orderedAt => text()();
   TextColumn get sampleCollectedAt => text().nullable()();
-  TextColumn get status =>
-      text().withDefault(const Constant('pending'))();
-  TextColumn get priority =>
-      text().withDefault(const Constant('routine'))();
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+  TextColumn get priority => text().withDefault(const Constant('routine'))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 // ---------------------------------------------------------------------------
@@ -108,14 +99,11 @@ class LabOrderItems extends Table {
   TextColumn get uuid => text().unique()();
   IntColumn get orderId => integer().references(LabOrders, #id)();
   IntColumn get testId => integer().references(LabTests, #id)();
-  TextColumn get status =>
-      text().withDefault(const Constant('pending'))();
+  TextColumn get status => text().withDefault(const Constant('pending'))();
   TextColumn get remarks => text().nullable()();
-  BoolColumn get isOutsourced =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isOutsourced => boolean().withDefault(const Constant(false))();
   TextColumn get createdAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 // ---------------------------------------------------------------------------
@@ -130,11 +118,11 @@ class LabResults extends Table {
   TextColumn get resultValue => text()();
   TextColumn get abnormalFlag => text().nullable()();
   TextColumn get remarks => text().nullable()();
+
   /// FK → users.id
   IntColumn get enteredBy => integer()();
   TextColumn get enteredAt => text()();
   IntColumn get verifiedBy => integer().nullable()();
   TextColumn get verifiedAt => text().nullable()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }

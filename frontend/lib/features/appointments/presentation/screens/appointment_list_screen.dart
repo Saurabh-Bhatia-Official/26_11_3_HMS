@@ -1,23 +1,32 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/auth/session_service.dart';
+import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
-import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/data/database/app_database.dart';
 import 'package:hospital_management/data/models/hms_models.dart';
+import 'package:hospital_management/data/remote/backend_api_client.dart';
+import 'package:hospital_management/data/remote/hms_sync_service.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class AppointmentListScreen extends ConsumerStatefulWidget {
   const AppointmentListScreen({super.key});
 
   @override
-  ConsumerState<AppointmentListScreen> createState() => _AppointmentListScreenState();
+  ConsumerState<AppointmentListScreen> createState() =>
+      _AppointmentListScreenState();
 }
 
 class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
   DateTime _selectedDate = DateTime.now();
   String _doctorFilter = 'All Doctors';
+  String _specializationFilter = 'All Specializations';
 
   String _doctorLabel(AppointmentModel item) {
     final doctorName = item.doctorName.trim();
@@ -38,7 +47,9 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Appointment #${item.tokenNo} status set to $newStatus.'),
+          content: Text(
+            'Appointment #${item.tokenNo} status set to $newStatus.',
+          ),
           backgroundColor: Colors.teal.shade800,
         ),
       );
@@ -54,7 +65,8 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
           'Are you sure you want to cancel and remove appointment #${item.tokenNo} for ${item.patientName} (${item.uhid}) with ${item.doctorName}?',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Back')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Back')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () async {
@@ -66,7 +78,8 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Appointment #${item.tokenNo} for ${item.patientName} cancelled and deleted.'),
+                    content: Text(
+                        'Appointment #${item.tokenNo} for ${item.patientName} cancelled and deleted.'),
                     backgroundColor: Colors.red.shade800,
                   ),
                 );
@@ -79,6 +92,178 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
     );
   }
 
+  Future<void> _printAppointment(AppointmentModel item) async {
+    try {
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.Page(
+          margin: const pw.EdgeInsets.all(32),
+          build: (context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Text(
+                  'CareSync Central Hospital',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 6),
+                pw.Text(
+                  'APPOINTMENT TOKEN',
+                  style: const pw.TextStyle(fontSize: 12),
+                ),
+                pw.Divider(),
+                pw.SizedBox(height: 12),
+                pw.Text(
+                  'TOKEN #${item.tokenNo}',
+                  style: pw.TextStyle(
+                    fontSize: 28,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 20),
+                _printDetail('Patient Name', item.patientName),
+                _printDetail('UHID', item.uhid),
+                _printDetail('Doctor', item.doctorName),
+                _printDetail('Department', item.department),
+                _printDetail('Appointment Date', item.date),
+                _printDetail('Time Slot', item.timeSlot),
+                _printDetail('Visit Type', item.visitType),
+                if (item.notes.trim().isNotEmpty) ...[
+                  pw.SizedBox(height: 12),
+                  _printDetail('Booking Notes', item.notes),
+                ],
+                pw.Spacer(),
+                pw.Divider(),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  'Please arrive before your appointment time.',
+                  textAlign: pw.TextAlign.center,
+                  style: const pw.TextStyle(fontSize: 10),
+                ),
+                pw.SizedBox(height: 5),
+                pw.Text(
+                  'Thank you for choosing CareSync.',
+                  style: const pw.TextStyle(fontSize: 10),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Print preview opened for Token #${item.tokenNo}.'),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unable to print token: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  pw.Widget _printDetail(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 6),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 120,
+            child: pw.Text(
+              label,
+              style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.Expanded(child: pw.Text(value)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _startOpd(AppointmentModel item) async {
+    final status = item.status.trim().toLowerCase();
+    if (status == 'cancelled') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cancelled appointments cannot start OPD.'),
+        ),
+      );
+      return;
+    }
+
+    final isResuming = status == 'in consultation';
+    try {
+      final db = ref.read(appDatabaseProvider);
+      final visitId = await db.hmsDao.startOpdForAppointment(item);
+      if (ref.read(sessionProvider).user?.isRemote ?? false) {
+        final visit = await db.hmsDao.getOpdVisitById(visitId);
+        final patient = await db.patientsDao.findPatientByUhid(item.uhid);
+        if (visit == null || patient == null) {
+          throw const BackendApiException(
+              'The patient must be synced before this visit can be synced.');
+        }
+        await db.hmsDao.enqueueSyncOperation(
+          operationId: visit.uuid,
+          resourceType: 'visit',
+          method: 'POST',
+          path: '/api/visits',
+          payloadJson: jsonEncode({
+            'uuid': visit.uuid,
+            'patientUuid': patient.uuid,
+            'visitType': 'opd',
+            'visitDate':
+                DateTime.now().toUtc().toIso8601String().substring(0, 10),
+            'status': 'open',
+          }),
+        );
+        final errors = await ref.read(hmsSyncServiceProvider).syncPending();
+        if (errors.isNotEmpty) throw BackendApiException(errors.first);
+      }
+      ref.invalidate(opdQueueProvider);
+      ref.invalidate(appointmentsListProvider);
+      ref.invalidate(dashboardStatsProvider);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isResuming
+                ? 'Resuming consultation for ${item.patientName}.'
+                : 'OPD started for ${item.patientName}.',
+          ),
+        ),
+      );
+
+      if (isResuming) {
+        context.go(AppRoutes.opdConsultationPath(visitId));
+      } else {
+        context.go(AppRoutes.opd);
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not start OPD: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -86,12 +271,29 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
     final staffAsync = ref.watch(staffListProvider);
 
     final staffList = staffAsync.value ?? [];
+
+    final doctorStaff = staffList
+        .where((s) => s.role.toLowerCase().contains('doctor'))
+        .toList();
+
+    final specializationOptions = [
+      'All Specializations',
+      ...doctorStaff
+          .map((s) => s.department.trim())
+          .where((department) => department.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort(),
+    ];
+
+    final availableDoctors = doctorStaff.where((doctor) {
+      return _specializationFilter == 'All Specializations' ||
+          doctor.department.trim() == _specializationFilter;
+    }).toList();
+
     final doctorOptions = [
       'All Doctors',
-      ...staffList
-          .where((s) => s.role.toLowerCase().contains('doctor'))
-          .map((s) => s.name)
-          .toSet(),
+      ...availableDoctors.map((doctor) => doctor.name).toSet(),
     ];
 
     return Scaffold(
@@ -119,7 +321,10 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                 side: BorderSide(color: colorScheme.outlineVariant),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     // Date selector
@@ -132,8 +337,12 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                         final picked = await showDatePicker(
                           context: context,
                           initialDate: _selectedDate,
-                          firstDate: DateTime.now().subtract(const Duration(days: 30)),
-                          lastDate: DateTime.now().add(const Duration(days: 90)),
+                          firstDate: DateTime.now().subtract(
+                            const Duration(days: 30),
+                          ),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 90),
+                          ),
                         );
                         if (picked != null) {
                           setState(() => _selectedDate = picked);
@@ -143,26 +352,92 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                     const Gap(16),
 
                     // Doctor dropdown
+
+// Doctor dropdown
                     DropdownButton<String>(
                       value: doctorOptions.contains(_doctorFilter)
                           ? _doctorFilter
                           : 'All Doctors',
                       underline: const SizedBox.shrink(),
-                      items: doctorOptions
-                          .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) setState(() => _doctorFilter = v);
+                      hint: const Text('Select Doctor'),
+                      items: doctorOptions.map((doctor) {
+                        return DropdownMenuItem(
+                          value: doctor,
+                          child: Text(doctor),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+
+                        setState(() {
+                          _doctorFilter = value;
+
+                          if (value != 'All Doctors') {
+                            final selectedDoctor = doctorStaff.firstWhere(
+                              (doctor) => doctor.name == value,
+                            );
+                            _specializationFilter =
+                                selectedDoctor.department.trim();
+                          }
+                        });
                       },
                     ),
+
+                    const Gap(16),
+
+// Specialization dropdown
+                    DropdownButton<String>(
+                      value:
+                          specializationOptions.contains(_specializationFilter)
+                              ? _specializationFilter
+                              : 'All Specializations',
+                      underline: const SizedBox.shrink(),
+                      hint: const Text('Select Specialization'),
+                      items: specializationOptions.map((specialization) {
+                        return DropdownMenuItem(
+                          value: specialization,
+                          child: Text(specialization),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+
+                        setState(() {
+                          _specializationFilter = value;
+
+                          if (_doctorFilter != 'All Doctors') {
+                            final doctorStillMatches = doctorStaff.any(
+                              (doctor) =>
+                                  doctor.name == _doctorFilter &&
+                                  (value == 'All Specializations' ||
+                                      doctor.department.trim() == value),
+                            );
+
+                            if (!doctorStillMatches) {
+                              _doctorFilter = 'All Doctors';
+                            }
+                          }
+                        });
+                      },
+                    ),
+
                     const Spacer(),
 
                     // Summary counts
                     appointmentsAsync.when(
                       data: (list) {
-                        final filtered = _doctorFilter == 'All Doctors'
-                            ? list
-                            : list.where((a) => a.doctorName.contains(_doctorFilter)).toList();
+                        final filtered = list.where((appointment) {
+                          final matchesDoctor = _doctorFilter ==
+                                  'All Doctors' ||
+                              appointment.doctorName.trim() == _doctorFilter;
+
+                          final matchesSpecialization = _specializationFilter ==
+                                  'All Specializations' ||
+                              appointment.department.trim().toLowerCase() ==
+                                  _specializationFilter.trim().toLowerCase();
+
+                          return matchesDoctor && matchesSpecialization;
+                        }).toList();
                         return Text(
                           'Total: ${filtered.length} Slots Booked',
                           style: TextStyle(
@@ -184,14 +459,25 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
             Expanded(
               child: appointmentsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error loading appointments: $e')),
+                error: (e, _) =>
+                    Center(child: Text('Error loading appointments: $e')),
                 data: (appointments) {
-                  final filtered = _doctorFilter == 'All Doctors'
-                      ? appointments
-                      : appointments.where((a) => a.doctorName.contains(_doctorFilter)).toList();
+                  final filtered = appointments.where((appointment) {
+                    final matchesDoctor = _doctorFilter == 'All Doctors' ||
+                        appointment.doctorName.trim() == _doctorFilter;
+
+                    final matchesSpecialization =
+                        _specializationFilter == 'All Specializations' ||
+                            appointment.department.trim().toLowerCase() ==
+                                _specializationFilter.trim().toLowerCase();
+
+                    return matchesDoctor && matchesSpecialization;
+                  }).toList();
 
                   if (filtered.isEmpty) {
-                    return const Center(child: Text('No appointments booked for this filter.'));
+                    return const Center(
+                      child: Text('No appointments booked for this filter.'),
+                    );
                   }
 
                   return Card(
@@ -203,7 +489,10 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                       itemBuilder: (context, index) {
                         final item = filtered[index];
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
                           leading: CircleAvatar(
                             radius: 20,
                             backgroundColor: colorScheme.primaryContainer,
@@ -218,11 +507,19 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                           ),
                           title: Row(
                             children: [
-                              Text(item.patientName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                              Text(
+                                item.patientName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                               const Gap(8),
                               Text(
                                 item.uhid,
-                                style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
                               ),
                               const Gap(12),
                               StatusChip(label: item.status),
@@ -232,11 +529,19 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                             padding: const EdgeInsets.only(top: 4),
                             child: Row(
                               children: [
-                                const Icon(Icons.access_time, size: 14, color: Colors.grey),
+                                const Icon(
+                                  Icons.access_time,
+                                  size: 14,
+                                  color: Colors.grey,
+                                ),
                                 const Gap(4),
                                 Text(item.timeSlot),
                                 const Gap(16),
-                                const Icon(Icons.person_pin, size: 14, color: Colors.grey),
+                                const Icon(
+                                  Icons.person_pin,
+                                  size: 14,
+                                  color: Colors.grey,
+                                ),
                                 const Gap(4),
                                 Text(_doctorLabel(item)),
                                 const Gap(16),
@@ -247,36 +552,60 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined, size: 20),
+                                tooltip: 'Edit Appointment',
+                                onPressed: () {
+                                  context.go(
+                                    AppRoutes.appointmentsNew,
+                                    extra: item,
+                                  );
+                                },
+                              ),
                               PopupMenuButton<String>(
                                 tooltip: 'Update Appointment Status',
                                 icon: const Icon(Icons.edit_note, size: 20),
-                                onSelected: (status) => _updateStatus(item, status),
+                                onSelected: (status) =>
+                                    _updateStatus(item, status),
                                 itemBuilder: (ctx) => [
                                   'Scheduled',
                                   'Checked In',
                                   'In Consultation',
                                   'Completed',
                                   'Cancelled',
-                                ].map((s) => PopupMenuItem(value: s, child: Text(s))).toList(),
+                                ]
+                                    .map(
+                                      (s) => PopupMenuItem(
+                                        value: s,
+                                        child: Text(s),
+                                      ),
+                                    )
+                                    .toList(),
                               ),
                               IconButton(
                                 icon: const Icon(Icons.print_outlined),
                                 tooltip: 'Print Token Slip',
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Token #${item.tokenNo} printed.')),
-                                  );
-                                },
+                                onPressed: () => _printAppointment(item),
                               ),
                               const Gap(4),
                               FilledButton.tonal(
-                                onPressed: () => context.go(AppRoutes.opd),
-                                child: const Text('Start OPD'),
+                                onPressed: () => _startOpd(item),
+                                child: Text(
+                                  item.status.trim().toLowerCase() ==
+                                          'in consultation'
+                                      ? 'Resume OPD'
+                                      : 'Start OPD',
+                                ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
                                 tooltip: 'Cancel / Delete Appointment',
-                                onPressed: () => _confirmDeleteAppointment(item),
+                                onPressed: () =>
+                                    _confirmDeleteAppointment(item),
                               ),
                             ],
                           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
@@ -423,13 +424,20 @@ class _StaffFormScreenState extends ConsumerState<StaffFormScreen> {
                             child: TextFormField(
                               controller: _phoneController,
                               keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(10),
+                              ],
+                              maxLength: 10,
                               decoration: const InputDecoration(
                                 labelText: 'Mobile Phone *',
-                                hintText: '+91 98XXX XXXXX',
+                                hintText: '10-digit mobile number',
                                 prefixIcon: Icon(Icons.phone_outlined),
                               ),
-                              validator: (v) => v == null || v.trim().isEmpty
-                                  ? 'Required'
+                              validator: (value) => value == null ||
+                                      !RegExp(r'^[0-9]{10}$')
+                                          .hasMatch(value.trim())
+                                  ? 'Enter exactly 10 digits'
                                   : null,
                             ),
                           ),

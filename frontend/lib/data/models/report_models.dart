@@ -2,15 +2,6 @@ import 'dart:convert';
 
 /// Dashboard Key Performance Indicators (KPIs) aggregated model
 class DashboardKpiModel {
-  final int todayAppointments;
-  final int todayOpdVisits;
-  final int admittedPatients;
-  final int totalBeds;
-  final int occupiedBeds;
-  final int todayRevenuePaise;
-  final int lowStockCount;
-  final int pendingLabOrders;
-
   const DashboardKpiModel({
     this.todayAppointments = 0,
     this.todayOpdVisits = 0,
@@ -21,14 +12,6 @@ class DashboardKpiModel {
     this.lowStockCount = 0,
     this.pendingLabOrders = 0,
   });
-
-  String get todayRevenueFormatted =>
-      '₹${(todayRevenuePaise / 100).toStringAsFixed(0)}';
-
-  int get availableBeds => (totalBeds - occupiedBeds).clamp(0, totalBeds);
-
-  double get bedOccupancyPct =>
-      totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0.0;
 
   factory DashboardKpiModel.fromMap(Map<String, dynamic> map) {
     return DashboardKpiModel(
@@ -43,6 +26,25 @@ class DashboardKpiModel {
     );
   }
 
+  factory DashboardKpiModel.fromJson(String source) =>
+      DashboardKpiModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int todayAppointments;
+  final int todayOpdVisits;
+  final int admittedPatients;
+  final int totalBeds;
+  final int occupiedBeds;
+  final int todayRevenuePaise;
+  final int lowStockCount;
+  final int pendingLabOrders;
+
+  String get todayRevenueFormatted =>
+      '₹${(todayRevenuePaise / 100).toStringAsFixed(0)}';
+
+  int get availableBeds => (totalBeds - occupiedBeds).clamp(0, totalBeds);
+
+  double get bedOccupancyPct =>
+      totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0.0;
+
   Map<String, dynamic> toMap() => {
         'todayAppointments': todayAppointments,
         'todayOpdVisits': todayOpdVisits,
@@ -55,20 +57,10 @@ class DashboardKpiModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory DashboardKpiModel.fromJson(String source) =>
-      DashboardKpiModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Daily Financial collection report breakdown
 class DailyRevenueReportModel {
-  final String date;
-  final int opdRevenuePaise;
-  final int ipdRevenuePaise;
-  final int pharmacyRevenuePaise;
-  final int labRevenuePaise;
-  final int totalRevenuePaise;
-
   const DailyRevenueReportModel({
     required this.date,
     this.opdRevenuePaise = 0,
@@ -77,8 +69,6 @@ class DailyRevenueReportModel {
     this.labRevenuePaise = 0,
     this.totalRevenuePaise = 0,
   });
-
-  String get totalFormatted => '₹${(totalRevenuePaise / 100).toStringAsFixed(2)}';
 
   factory DailyRevenueReportModel.fromMap(Map<String, dynamic> map) {
     return DailyRevenueReportModel(
@@ -91,6 +81,19 @@ class DailyRevenueReportModel {
     );
   }
 
+  factory DailyRevenueReportModel.fromJson(String source) =>
+      DailyRevenueReportModel.fromMap(
+          jsonDecode(source) as Map<String, dynamic>);
+  final String date;
+  final int opdRevenuePaise;
+  final int ipdRevenuePaise;
+  final int pharmacyRevenuePaise;
+  final int labRevenuePaise;
+  final int totalRevenuePaise;
+
+  String get totalFormatted =>
+      '₹${(totalRevenuePaise / 100).toStringAsFixed(2)}';
+
   Map<String, dynamic> toMap() => {
         'date': date,
         'opd_revenue_paise': opdRevenuePaise,
@@ -101,26 +104,15 @@ class DailyRevenueReportModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory DailyRevenueReportModel.fromJson(String source) =>
-      DailyRevenueReportModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Ward occupancy statistic summary
 class WardOccupancyReportModel {
-  final String wardName;
-  final int totalBeds;
-  final int occupiedBeds;
-
   const WardOccupancyReportModel({
     required this.wardName,
     required this.totalBeds,
     required this.occupiedBeds,
   });
-
-  int get availableBeds => (totalBeds - occupiedBeds).clamp(0, totalBeds);
-  double get occupancyRatePct =>
-      totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0.0;
 
   factory WardOccupancyReportModel.fromMap(Map<String, dynamic> map) {
     return WardOccupancyReportModel(
@@ -130,6 +122,17 @@ class WardOccupancyReportModel {
     );
   }
 
+  factory WardOccupancyReportModel.fromJson(String source) =>
+      WardOccupancyReportModel.fromMap(
+          jsonDecode(source) as Map<String, dynamic>);
+  final String wardName;
+  final int totalBeds;
+  final int occupiedBeds;
+
+  int get availableBeds => (totalBeds - occupiedBeds).clamp(0, totalBeds);
+  double get occupancyRatePct =>
+      totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0.0;
+
   Map<String, dynamic> toMap() => {
         'ward_name': wardName,
         'total_beds': totalBeds,
@@ -137,19 +140,10 @@ class WardOccupancyReportModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory WardOccupancyReportModel.fromJson(String source) =>
-      WardOccupancyReportModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Department workload breakdown model
 class DepartmentWorkloadModel {
-  final String department;
-  final int opdVisits;
-  final int appointments;
-  final int admittedPatients;
-  final int revenuePaise;
-
   const DepartmentWorkloadModel({
     required this.department,
     this.opdVisits = 0,
@@ -157,8 +151,6 @@ class DepartmentWorkloadModel {
     this.admittedPatients = 0,
     this.revenuePaise = 0,
   });
-
-  String get revenueFormatted => '₹${(revenuePaise / 100).toStringAsFixed(0)}';
 
   factory DepartmentWorkloadModel.fromMap(Map<String, dynamic> map) {
     return DepartmentWorkloadModel(
@@ -170,6 +162,17 @@ class DepartmentWorkloadModel {
     );
   }
 
+  factory DepartmentWorkloadModel.fromJson(String source) =>
+      DepartmentWorkloadModel.fromMap(
+          jsonDecode(source) as Map<String, dynamic>);
+  final String department;
+  final int opdVisits;
+  final int appointments;
+  final int admittedPatients;
+  final int revenuePaise;
+
+  String get revenueFormatted => '₹${(revenuePaise / 100).toStringAsFixed(0)}';
+
   Map<String, dynamic> toMap() => {
         'department': department,
         'opd_visits': opdVisits,
@@ -179,8 +182,4 @@ class DepartmentWorkloadModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory DepartmentWorkloadModel.fromJson(String source) =>
-      DepartmentWorkloadModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
-

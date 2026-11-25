@@ -4,9 +4,10 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/permissions/permission_service.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
+import 'package:hospital_management/core/auth/online_hospital_session.dart';
 import 'package:hospital_management/core/widgets/empty_state.dart';
-import 'package:hospital_management/features/patients/patients_provider.dart';
 import 'package:hospital_management/domain/entities/patient.dart';
+import 'package:hospital_management/features/patients/patients_provider.dart';
 
 class PatientListScreen extends ConsumerStatefulWidget {
   const PatientListScreen({super.key});
@@ -27,7 +28,8 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
           'Are you sure you want to delete/archive patient record for ${patient.name} (${patient.uhid})?\n\nThis will remove them from the active patient registry.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () async {
@@ -38,7 +40,8 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Patient record for ${patient.name} archived.'),
+                    content:
+                        Text('Patient record for ${patient.name} archived.'),
                     backgroundColor: Colors.red.shade800,
                   ),
                 );
@@ -61,6 +64,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
   Widget build(BuildContext context) {
     final patientsAsync = ref.watch(patientListProvider);
     final checker = ref.watch(permissionCheckerProvider);
+    final online = ref.watch(onlineHospitalSessionProvider).isAuthenticated;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -90,7 +94,8 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                 side: BorderSide(color: colorScheme.outlineVariant),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
@@ -101,7 +106,9 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                             icon: const Icon(Icons.clear),
                             onPressed: () {
                               _searchController.clear();
-                              ref.read(patientSearchQueryProvider.notifier).state = '';
+                              ref
+                                  .read(patientSearchQueryProvider.notifier)
+                                  .state = '';
                             },
                           )
                         : null,
@@ -110,7 +117,8 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                     focusedBorder: InputBorder.none,
                   ),
                   onChanged: (value) {
-                    ref.read(patientSearchQueryProvider.notifier).state = value.trim();
+                    ref.read(patientSearchQueryProvider.notifier).state =
+                        value.trim();
                   },
                 ),
               ),
@@ -121,12 +129,14 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
             Expanded(
               child: patientsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(child: Text('Error loading patients: $err')),
+                error: (err, stack) =>
+                    Center(child: Text('Error loading patients: $err')),
                 data: (patients) {
                   if (patients.isEmpty) {
                     return EmptyState(
                       icon: Icons.person_search_outlined,
-                      message: 'No patients found. Register a new patient to get started.',
+                      message:
+                          'No patients found. Register a new patient to get started.',
                       action: FilledButton.icon(
                         onPressed: () => context.go(AppRoutes.patientsNew),
                         icon: const Icon(Icons.add),
@@ -147,12 +157,15 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                       itemBuilder: (context, index) {
                         final patient = patients[index];
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 8),
                           leading: CircleAvatar(
                             radius: 22,
                             backgroundColor: colorScheme.primaryContainer,
                             child: Text(
-                              patient.name.isNotEmpty ? patient.name[0].toUpperCase() : 'P',
+                              patient.name.isNotEmpty
+                                  ? patient.name[0].toUpperCase()
+                                  : 'P',
                               style: TextStyle(
                                 color: colorScheme.onPrimaryContainer,
                                 fontWeight: FontWeight.bold,
@@ -163,17 +176,21 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                             children: [
                               Text(
                                 patient.name,
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 16),
                               ),
                               const Gap(8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: colorScheme.secondaryContainer,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  patient.uhid,
+                                  online
+                                      ? (patient.serverUhid ?? patient.uhid)
+                                      : patient.uhid,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
@@ -183,7 +200,8 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                               ),
                               if (patient.isVip) ...[
                                 const Gap(6),
-                                const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                                const Icon(Icons.star_rounded,
+                                    color: Colors.amber, size: 18),
                               ],
                             ],
                           ),
@@ -191,8 +209,27 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                             padding: const EdgeInsets.only(top: 4),
                             child: Row(
                               children: [
-                                Text('${patient.gender ?? "Unspecified"} • Age: ${patient.age}'),
+                                Text(
+                                    '${patient.gender ?? "Unspecified"} • Age: ${patient.age}'),
                                 const Gap(16),
+                                if (patient.syncState != null &&
+                                    patient.syncState != 'SYNCED')
+                                  Text(
+                                    patient.syncState == 'BLOCKED_AUTH'
+                                        ? 'Sync needs Hospital access'
+                                        : patient.syncState == 'CONFLICT'
+                                            ? 'Sync conflict needs review'
+                                            : 'Sync pending',
+                                    style: TextStyle(
+                                      color: patient.syncState == 'CONFLICT'
+                                          ? colorScheme.error
+                                          : colorScheme.tertiary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                if (patient.syncState != null &&
+                                    patient.syncState != 'SYNCED')
+                                  const Gap(16),
                                 if (patient.bloodGroup != null) ...[
                                   Text('Blood: ${patient.bloodGroup}'),
                                   const Gap(16),
@@ -200,7 +237,8 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                                 if (patient.phone != null)
                                   Row(
                                     children: [
-                                      const Icon(Icons.phone, size: 14, color: Colors.grey),
+                                      const Icon(Icons.phone,
+                                          size: 14, color: Colors.grey),
                                       const Gap(4),
                                       Text(patient.phone!),
                                     ],
@@ -211,29 +249,41 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (checker.can(Modules.patients, AppActions.edit))
+                              if (checker.can(
+                                  Modules.patients, AppActions.edit))
                                 IconButton(
-                                  icon: const Icon(Icons.edit_outlined, size: 20),
+                                  icon:
+                                      const Icon(Icons.edit_outlined, size: 20),
                                   tooltip: 'Edit Patient',
-                                  onPressed: () => context.go('/patients/${patient.id}/edit'),
+                                  onPressed: () => context
+                                      .go('/patients/${patient.id}/edit'),
                                 ),
-                              if (checker.can(Modules.appointments, AppActions.create))
+                              if (checker.can(
+                                  Modules.appointments, AppActions.create))
                                 IconButton(
-                                  icon: const Icon(Icons.calendar_month_outlined, size: 20),
+                                  icon: const Icon(
+                                      Icons.calendar_month_outlined,
+                                      size: 20),
                                   tooltip: 'Book Appointment',
-                                  onPressed: () => context.go(AppRoutes.appointmentsNew),
+                                  onPressed: () =>
+                                      context.go(AppRoutes.appointmentsNew),
                                 ),
                               if (checker.can(Modules.ipd, AppActions.create))
                                 IconButton(
-                                  icon: const Icon(Icons.hotel_outlined, size: 20),
+                                  icon: const Icon(Icons.hotel_outlined,
+                                      size: 20),
                                   tooltip: 'Admit to Ward',
-                                  onPressed: () => context.go(AppRoutes.ipdAdmit),
+                                  onPressed: () =>
+                                      context.go(AppRoutes.ipdAdmit),
                                 ),
-                              if (checker.can(Modules.patients, AppActions.delete))
+                              if (checker.can(
+                                  Modules.patients, AppActions.delete))
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.red, size: 20),
                                   tooltip: 'Archive Patient',
-                                  onPressed: () => _confirmDeletePatient(patient),
+                                  onPressed: () =>
+                                      _confirmDeletePatient(patient),
                                 ),
                               const Icon(Icons.chevron_right_rounded),
                             ],

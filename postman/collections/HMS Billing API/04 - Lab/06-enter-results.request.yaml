@@ -1,0 +1,47 @@
+$kind: http-request
+name: 'Enter Lab Results'
+order: 6000
+method: POST
+url: '{{base_url}}/api/lab/orders/{{lab_order_id}}/results'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "results": [
+        {
+          "parameterName": "Haemoglobin",
+          "value": "14.5",
+          "unit": "g/dL",
+          "referenceRange": "12.0 - 17.5 g/dL",
+          "abnormalFlag": "normal"
+        },
+        {
+          "parameterName": "WBC Count",
+          "value": "7.2",
+          "unit": "x10^9/L",
+          "referenceRange": "4.0 - 11.0 x10^9/L",
+          "abnormalFlag": "normal"
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Order has results", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("results");
+          pm.expect(jsonData.results).to.be.an("array").and.have.length.above(0);
+      });

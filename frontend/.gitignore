@@ -49,3 +49,5 @@ app.*.map.json
 *.sqlite-journal
 *.db
 *.db-journal
+# Widget Preview related
+.widget_preview/

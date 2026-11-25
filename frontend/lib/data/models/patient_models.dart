@@ -3,31 +3,6 @@ import 'package:hospital_management/domain/entities/patient.dart';
 
 /// Data-layer Patient model mirroring SQLite patients table.
 class PatientModel {
-  final int id;
-  final String uuid;
-  final String uhid;
-  final String name;
-  final String gender;
-  final String dob;
-  final int ageYears;
-  final String phone;
-  final String altPhone;
-  final String email;
-  final String address;
-  final String city;
-  final String state;
-  final String pincode;
-  final String bloodGroup;
-  final String emergencyContactName;
-  final String emergencyContactPhone;
-  final String idType;
-  final String idNumber;
-  final String photoPath;
-  final bool isVip;
-  final String notes;
-  final String createdAt;
-  final bool isDeleted;
-
   const PatientModel({
     required this.id,
     required this.uuid,
@@ -88,6 +63,62 @@ class PatientModel {
     );
   }
 
+  factory PatientModel.fromJson(String source) =>
+      PatientModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+
+  factory PatientModel.fromDomain(Patient p) {
+    return PatientModel(
+      id: p.id,
+      uuid: p.uuid,
+      uhid: p.uhid,
+      name: p.name,
+      gender: p.gender ?? '',
+      dob: p.dob?.toIso8601String().split('T').first ?? '',
+      ageYears: p.ageYears ?? p.age,
+      phone: p.phone ?? '',
+      altPhone: p.altPhone ?? '',
+      email: p.email ?? '',
+      address: p.address ?? '',
+      city: p.city ?? '',
+      state: p.state ?? '',
+      pincode: p.pincode ?? '',
+      bloodGroup: p.bloodGroup ?? '',
+      emergencyContactName: p.emergencyContactName ?? '',
+      emergencyContactPhone: p.emergencyContactPhone ?? '',
+      idType: p.idType ?? '',
+      idNumber: p.idNumber ?? '',
+      photoPath: p.photoPath ?? '',
+      isVip: p.isVip,
+      notes: p.notes ?? '',
+      createdAt: p.createdAt.toIso8601String(),
+      isDeleted: p.isDeleted,
+    );
+  }
+  final int id;
+  final String uuid;
+  final String uhid;
+  final String name;
+  final String gender;
+  final String dob;
+  final int ageYears;
+  final String phone;
+  final String altPhone;
+  final String email;
+  final String address;
+  final String city;
+  final String state;
+  final String pincode;
+  final String bloodGroup;
+  final String emergencyContactName;
+  final String emergencyContactPhone;
+  final String idType;
+  final String idNumber;
+  final String photoPath;
+  final bool isVip;
+  final String notes;
+  final String createdAt;
+  final bool isDeleted;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -116,9 +147,6 @@ class PatientModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory PatientModel.fromJson(String source) =>
-      PatientModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   Patient toDomain() {
     DateTime? parsedDob;
@@ -164,50 +192,10 @@ class PatientModel {
       isDeleted: isDeleted,
     );
   }
-
-  factory PatientModel.fromDomain(Patient p) {
-    return PatientModel(
-      id: p.id,
-      uuid: p.uuid,
-      uhid: p.uhid,
-      name: p.name,
-      gender: p.gender ?? '',
-      dob: p.dob?.toIso8601String().split('T').first ?? '',
-      ageYears: p.ageYears ?? p.age,
-      phone: p.phone ?? '',
-      altPhone: p.altPhone ?? '',
-      email: p.email ?? '',
-      address: p.address ?? '',
-      city: p.city ?? '',
-      state: p.state ?? '',
-      pincode: p.pincode ?? '',
-      bloodGroup: p.bloodGroup ?? '',
-      emergencyContactName: p.emergencyContactName ?? '',
-      emergencyContactPhone: p.emergencyContactPhone ?? '',
-      idType: p.idType ?? '',
-      idNumber: p.idNumber ?? '',
-      photoPath: p.photoPath ?? '',
-      isVip: p.isVip,
-      notes: p.notes ?? '',
-      createdAt: p.createdAt.toIso8601String(),
-      isDeleted: p.isDeleted,
-    );
-  }
 }
 
 /// Attached medical documents / scan files for patient records (PAT-09)
 class PatientDocumentModel {
-  final int id;
-  final String uuid;
-  final int patientId;
-  final String uhid;
-  final String title;
-  final String docType; // lab_report, imaging, referral, id_proof, prescription, other
-  final String fileUri;
-  final int fileSizeBytes;
-  final String mimeType;
-  final String uploadedAt;
-
   const PatientDocumentModel({
     required this.id,
     required this.uuid,
@@ -236,6 +224,20 @@ class PatientDocumentModel {
     );
   }
 
+  factory PatientDocumentModel.fromJson(String source) =>
+      PatientDocumentModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int patientId;
+  final String uhid;
+  final String title;
+  final String
+      docType; // lab_report, imaging, referral, id_proof, prescription, other
+  final String fileUri;
+  final int fileSizeBytes;
+  final String mimeType;
+  final String uploadedAt;
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -250,21 +252,10 @@ class PatientDocumentModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory PatientDocumentModel.fromJson(String source) =>
-      PatientDocumentModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Patient comprehensive timeline history event (PAT-05)
 class PatientTimelineEventModel {
-  final String eventType; // opd_visit | ipd_admission | lab_test | invoice | prescription
-  final String title;
-  final String date;
-  final String summary;
-  final String doctorOrDepartment;
-  final String status;
-  final String? refId;
-
   const PatientTimelineEventModel({
     required this.eventType,
     required this.title,
@@ -287,6 +278,18 @@ class PatientTimelineEventModel {
     );
   }
 
+  factory PatientTimelineEventModel.fromJson(String source) =>
+      PatientTimelineEventModel.fromMap(
+          jsonDecode(source) as Map<String, dynamic>);
+  final String
+      eventType; // opd_visit | ipd_admission | lab_test | invoice | prescription
+  final String title;
+  final String date;
+  final String summary;
+  final String doctorOrDepartment;
+  final String status;
+  final String? refId;
+
   Map<String, dynamic> toMap() => {
         'event_type': eventType,
         'title': title,
@@ -298,8 +301,4 @@ class PatientTimelineEventModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory PatientTimelineEventModel.fromJson(String source) =>
-      PatientTimelineEventModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
-

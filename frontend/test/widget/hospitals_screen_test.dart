@@ -14,7 +14,7 @@ void main() {
 
     await tester.binding.setSurfaceSize(const Size(1200, 900));
 
-    final superAdminChecker = PermissionChecker({
+    const superAdminChecker = PermissionChecker({
       Modules.hospitals: {
         AppActions.view,
         AppActions.create,

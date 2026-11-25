@@ -423,7 +423,7 @@ class _LabOrderQueueScreenState extends ConsumerState<LabOrderQueueScreen> {
                                       TextStyle(fontWeight: FontWeight.bold)),
                               const Gap(8),
                               DropdownButtonFormField<String>(
-                                value: const [
+                                initialValue: const [
                                   'Blood / Serum',
                                   'Whole Blood (EDTA)',
                                   'Urine (Midstream)',
@@ -895,8 +895,8 @@ class _LabOrderQueueScreenState extends ConsumerState<LabOrderQueueScreen> {
                                       edit: true,
                                     ),
                                   ),
-                                  icon: const Icon(Icons.edit_outlined,
-                                      size: 16),
+                                  icon:
+                                      const Icon(Icons.edit_outlined, size: 16),
                                   label: const Text('Edit Report'),
                                 ),
                               ] else

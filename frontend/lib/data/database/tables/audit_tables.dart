@@ -10,20 +10,25 @@ import 'package:drift/drift.dart';
 ///         print | export | backup | restore
 class AuditLogs extends Table {
   IntColumn get id => integer().autoIncrement()();
+
   /// FK → users.id (nullable for system actions)
   IntColumn get userId => integer().nullable()();
   TextColumn get action => text()();
   TextColumn get entity => text()();
   IntColumn get entityId => integer().nullable()();
+
   /// JSON-encoded previous state
   TextColumn get oldValue => text().nullable()();
+
   /// JSON-encoded new state
   TextColumn get newValue => text().nullable()();
   TextColumn get ipAddress => text().nullable()();
   TextColumn get deviceInfo => text().nullable()();
   TextColumn get createdAt => text()();
+
   /// Previous log row hash (for tamper-evidence chain)
   TextColumn get prevHash => text().nullable()();
+
   /// SHA-256 of (prevHash + action + entity + entityId + createdAt + userId)
   TextColumn get hash => text().nullable()();
 }
@@ -53,9 +58,7 @@ class Notifications extends Table {
   TextColumn get message => text()();
   TextColumn get entity => text().nullable()();
   IntColumn get entityId => integer().nullable()();
-  BoolColumn get isRead =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isRead => boolean().withDefault(const Constant(false))();
   TextColumn get createdAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }

@@ -3,9 +3,9 @@
 
 import 'package:drift/drift.dart';
 
-import 'pharmacy_tables.dart';
-import 'staff_tables.dart';
-import 'visits_tables.dart';
+import 'package:hospital_management/data/database/tables/pharmacy_tables.dart';
+import 'package:hospital_management/data/database/tables/staff_tables.dart';
+import 'package:hospital_management/data/database/tables/visits_tables.dart';
 
 // ---------------------------------------------------------------------------
 // Prescriptions
@@ -18,12 +18,10 @@ class Prescriptions extends Table {
   IntColumn get doctorId => integer().references(Doctors, #id)();
   TextColumn get prescribedAt => text()();
   TextColumn get notes => text().nullable()();
-  TextColumn get status =>
-      text().withDefault(const Constant('active'))();
+  TextColumn get status => text().withDefault(const Constant('active'))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 // ---------------------------------------------------------------------------
@@ -32,19 +30,15 @@ class Prescriptions extends Table {
 class PrescriptionItems extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get uuid => text().unique()();
-  IntColumn get prescriptionId =>
-      integer().references(Prescriptions, #id)();
+  IntColumn get prescriptionId => integer().references(Prescriptions, #id)();
   IntColumn get medicineId => integer().references(Medicines, #id)();
   TextColumn get dose => text().withDefault(const Constant(''))();
   TextColumn get frequency => text().withDefault(const Constant(''))();
   TextColumn get duration => text().withDefault(const Constant(''))();
   TextColumn get route => text().withDefault(const Constant(''))();
-  TextColumn get instructions =>
-      text().withDefault(const Constant(''))();
-  IntColumn get qtyPrescribed =>
-      integer().withDefault(const Constant(0))();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  TextColumn get instructions => text().withDefault(const Constant(''))();
+  IntColumn get qtyPrescribed => integer().withDefault(const Constant(0))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }
 
 // ---------------------------------------------------------------------------
@@ -55,10 +49,10 @@ class PrescriptionTemplates extends Table {
   TextColumn get uuid => text().unique()();
   IntColumn get doctorId => integer().references(Doctors, #id)();
   TextColumn get name => text()();
+
   /// Serialised JSON array of prescription line items
   TextColumn get itemsJson => text()();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
-  BoolColumn get isDeleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 }

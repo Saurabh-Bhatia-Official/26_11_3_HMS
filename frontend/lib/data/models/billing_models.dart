@@ -2,29 +2,6 @@ import 'dart:convert';
 
 /// Billing Invoice record model for OPD, IPD, Pharmacy and Lab billing.
 class InvoiceModel {
-  final int id;
-  final String invoiceNo;
-  final String patientName;
-  final String uhid;
-  final String billType;
-  final int subtotalPaise;
-  final int taxPaise;
-  final int totalPaise;
-  final int paidPaise;
-  final int duePaise;
-  final String paymentMode;
-  final String status;
-  final String dateTime;
-  final List<Map<String, dynamic>> items;
-  final int patientId;
-  final int visitId;
-  final int admissionId;
-  final int discountPaise;
-  final String discountReason;
-  final String notes;
-  final String createdAt;
-  final String updatedAt;
-
   const InvoiceModel({
     required this.id,
     required this.invoiceNo,
@@ -49,18 +26,6 @@ class InvoiceModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  String get subtotalFormatted => '₹${(subtotalPaise / 100).toStringAsFixed(2)}';
-  String get taxFormatted => '₹${(taxPaise / 100).toStringAsFixed(2)}';
-  String get totalFormatted => '₹${(totalPaise / 100).toStringAsFixed(2)}';
-  String get paidFormatted => '₹${(paidPaise / 100).toStringAsFixed(2)}';
-  String get dueFormatted => '₹${(duePaise / 100).toStringAsFixed(2)}';
-  String get discountFormatted => '₹${(discountPaise / 100).toStringAsFixed(2)}';
-
-  bool get isPaid => status.toLowerCase() == 'paid';
-  bool get isPartial => status.toLowerCase() == 'partial';
-  bool get isDraft => status.toLowerCase() == 'draft';
-  bool get isCancelled => status.toLowerCase() == 'cancelled';
 
   factory InvoiceModel.fromMap(Map<String, dynamic> map) {
     List<Map<String, dynamic>> parsedItems = [];
@@ -100,6 +65,45 @@ class InvoiceModel {
     );
   }
 
+  factory InvoiceModel.fromJson(String source) =>
+      InvoiceModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String invoiceNo;
+  final String patientName;
+  final String uhid;
+  final String billType;
+  final int subtotalPaise;
+  final int taxPaise;
+  final int totalPaise;
+  final int paidPaise;
+  final int duePaise;
+  final String paymentMode;
+  final String status;
+  final String dateTime;
+  final List<Map<String, dynamic>> items;
+  final int patientId;
+  final int visitId;
+  final int admissionId;
+  final int discountPaise;
+  final String discountReason;
+  final String notes;
+  final String createdAt;
+  final String updatedAt;
+
+  String get subtotalFormatted =>
+      '₹${(subtotalPaise / 100).toStringAsFixed(2)}';
+  String get taxFormatted => '₹${(taxPaise / 100).toStringAsFixed(2)}';
+  String get totalFormatted => '₹${(totalPaise / 100).toStringAsFixed(2)}';
+  String get paidFormatted => '₹${(paidPaise / 100).toStringAsFixed(2)}';
+  String get dueFormatted => '₹${(duePaise / 100).toStringAsFixed(2)}';
+  String get discountFormatted =>
+      '₹${(discountPaise / 100).toStringAsFixed(2)}';
+
+  bool get isPaid => status.toLowerCase() == 'paid';
+  bool get isPartial => status.toLowerCase() == 'partial';
+  bool get isDraft => status.toLowerCase() == 'draft';
+  bool get isCancelled => status.toLowerCase() == 'cancelled';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'invoice_no': invoiceNo,
@@ -126,9 +130,6 @@ class InvoiceModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory InvoiceModel.fromJson(String source) =>
-      InvoiceModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   InvoiceModel copyWith({
     int? id,
@@ -198,18 +199,6 @@ class InvoiceModel {
 
 /// Line item within an invoice
 class InvoiceItemModel {
-  final int id;
-  final String uuid;
-  final int invoiceId;
-  final String itemType; // service | lab | medicine | room | procedure
-  final int? itemId;
-  final String description;
-  final int qty;
-  final int unitPricePaise;
-  final int discountPaise;
-  final double taxRatePct;
-  final int totalPaise;
-
   const InvoiceItemModel({
     required this.id,
     required this.uuid,
@@ -224,9 +213,6 @@ class InvoiceItemModel {
     required this.totalPaise,
   });
 
-  String get totalFormatted => '₹${(totalPaise / 100).toStringAsFixed(2)}';
-  String get unitPriceFormatted => '₹${(unitPricePaise / 100).toStringAsFixed(2)}';
-
   factory InvoiceItemModel.fromMap(Map<String, dynamic> map) {
     return InvoiceItemModel(
       id: map['id'] as int? ?? 0,
@@ -236,12 +222,31 @@ class InvoiceItemModel {
       itemId: map['item_id'] as int?,
       description: (map['description'] ?? map['name']) as String? ?? '',
       qty: (map['qty'] ?? map['quantity']) as int? ?? 1,
-      unitPricePaise: (map['unit_price_paise'] ?? map['rate_paise']) as int? ?? 0,
+      unitPricePaise:
+          (map['unit_price_paise'] ?? map['rate_paise']) as int? ?? 0,
       discountPaise: map['discount_paise'] as int? ?? 0,
       taxRatePct: (map['tax_rate_pct'] as num?)?.toDouble() ?? 0.0,
       totalPaise: (map['total_paise'] ?? map['amount_paise']) as int? ?? 0,
     );
   }
+
+  factory InvoiceItemModel.fromJson(String source) =>
+      InvoiceItemModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int invoiceId;
+  final String itemType; // service | lab | medicine | room | procedure
+  final int? itemId;
+  final String description;
+  final int qty;
+  final int unitPricePaise;
+  final int discountPaise;
+  final double taxRatePct;
+  final int totalPaise;
+
+  String get totalFormatted => '₹${(totalPaise / 100).toStringAsFixed(2)}';
+  String get unitPriceFormatted =>
+      '₹${(unitPricePaise / 100).toStringAsFixed(2)}';
 
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
@@ -258,22 +263,10 @@ class InvoiceItemModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory InvoiceItemModel.fromJson(String source) =>
-      InvoiceItemModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Payment receipt record model
 class PaymentModel {
-  final int id;
-  final String uuid;
-  final int invoiceId;
-  final String paymentMode; // cash | card | upi | cheque | insurance
-  final int amountPaise;
-  final String? referenceNo;
-  final String receivedBy;
-  final String paidAt;
-
   const PaymentModel({
     required this.id,
     required this.uuid,
@@ -284,8 +277,6 @@ class PaymentModel {
     required this.receivedBy,
     required this.paidAt,
   });
-
-  String get amountFormatted => '₹${(amountPaise / 100).toStringAsFixed(2)}';
 
   factory PaymentModel.fromMap(Map<String, dynamic> map) {
     return PaymentModel(
@@ -300,6 +291,19 @@ class PaymentModel {
     );
   }
 
+  factory PaymentModel.fromJson(String source) =>
+      PaymentModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final int invoiceId;
+  final String paymentMode; // cash | card | upi | cheque | insurance
+  final int amountPaise;
+  final String? referenceNo;
+  final String receivedBy;
+  final String paidAt;
+
+  String get amountFormatted => '₹${(amountPaise / 100).toStringAsFixed(2)}';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -312,23 +316,10 @@ class PaymentModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory PaymentModel.fromJson(String source) =>
-      PaymentModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
 
 /// Billable Hospital Service catalogue item
 class ServiceModel {
-  final int id;
-  final String uuid;
-  final String name;
-  final String category;
-  final int pricePaise;
-  final double taxRatePct;
-  final bool isActive;
-  final String createdAt;
-  final String updatedAt;
-
   const ServiceModel({
     required this.id,
     required this.uuid,
@@ -340,9 +331,6 @@ class ServiceModel {
     this.createdAt = '',
     this.updatedAt = '',
   });
-
-  String get priceFormatted =>
-      pricePaise > 0 ? '₹${(pricePaise / 100).toStringAsFixed(2)}' : 'Free';
 
   factory ServiceModel.fromMap(Map<String, dynamic> map) {
     return ServiceModel(
@@ -360,6 +348,21 @@ class ServiceModel {
     );
   }
 
+  factory ServiceModel.fromJson(String source) =>
+      ServiceModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  final int id;
+  final String uuid;
+  final String name;
+  final String category;
+  final int pricePaise;
+  final double taxRatePct;
+  final bool isActive;
+  final String createdAt;
+  final String updatedAt;
+
+  String get priceFormatted =>
+      pricePaise > 0 ? '₹${(pricePaise / 100).toStringAsFixed(2)}' : 'Free';
+
   Map<String, dynamic> toMap() => {
         if (id > 0) 'id': id,
         'uuid': uuid,
@@ -373,8 +376,4 @@ class ServiceModel {
       };
 
   String toJson() => jsonEncode(toMap());
-
-  factory ServiceModel.fromJson(String source) =>
-      ServiceModel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }
-

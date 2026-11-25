@@ -69,7 +69,7 @@ class KpiCard extends StatelessWidget {
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: accent.withOpacity(0.15),
+                        color: accent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(icon, color: accent, size: 20),
@@ -112,7 +112,8 @@ class KpiCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant.withOpacity(0.75),
+                      color: theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.75),
                     ),
                   ),
                 ],
@@ -147,7 +148,10 @@ class _TrendBadge extends StatelessWidget {
         const SizedBox(width: 2),
         Text(
           '$sign${trend.toStringAsFixed(1)}%',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600),
+          style: Theme.of(context)
+              .textTheme
+              .labelSmall
+              ?.copyWith(color: color, fontWeight: FontWeight.w600),
         ),
         if (label != null) ...[
           const SizedBox(width: 4),

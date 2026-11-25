@@ -1,0 +1,61 @@
+$kind: http-request
+name: 'Create Lab Test'
+order: 2000
+method: POST
+url: '{{base_url}}/api/lab/tests'
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{access_token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Complete Blood Count",
+      "category": "Haematology",
+      "sampleType": "Blood",
+      "pricePaise": 30000,
+      "turnaroundHours": 4,
+      "outsourced": false,
+      "parameters": [
+        {
+          "parameterName": "Haemoglobin",
+          "unit": "g/dL",
+          "rangeLow": 12.0,
+          "rangeHigh": 17.5,
+          "referenceText": "12.0 - 17.5 g/dL"
+        },
+        {
+          "parameterName": "WBC Count",
+          "unit": "x10^9/L",
+          "rangeLow": 4.0,
+          "rangeHigh": 11.0,
+          "referenceText": "4.0 - 11.0 x10^9/L"
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 201", function () {
+          pm.response.to.have.status(201);
+      });
+
+      pm.test("Response has lab test fields", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+          pm.expect(jsonData).to.have.property("name");
+          pm.expect(jsonData).to.have.property("pricePaise");
+          pm.expect(jsonData).to.have.property("parameters");
+          pm.expect(jsonData.parameters).to.be.an("array");
+      });
+
+      var jsonData = pm.response.json();
+      if (jsonData.id) {
+          pm.collectionVariables.set("lab_test_id", String(jsonData.id));
+      }
