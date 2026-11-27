@@ -332,18 +332,10 @@ public class SecurityConfiguration {
                                 "SUPER_ADMIN",
                                 "ACCOUNTS"
                         )
-<<<<<<< HEAD
 
                         // ==========================================
                         // 16. DENY UNCONFIGURED ENDPOINTS
                         // ==========================================
-=======
-
-                        // ==========================================
-                        // 16. DENY UNCONFIGURED ENDPOINTS
-                        // ==========================================
-
->>>>>>> bf03eae (Update project files)
                         .anyRequest().denyAll()
                 )
 
