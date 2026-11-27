@@ -19,7 +19,9 @@ void main() {
       await db.close();
     });
 
-    test('1. Super Admin role receives full permissions across all modules including hospitals', () async {
+    test(
+        '1. Super Admin role receives full permissions across all modules including hospitals',
+        () async {
       final rows = await db.getPermissionsForRole('Super Admin');
       final modules = rows.map((r) => r.module).toSet();
 
@@ -39,7 +41,9 @@ void main() {
       expect(modules.contains(Modules.hospitals), isTrue);
     });
 
-    test('2. Hospital Admin role has all hospital modules but not multi-hospital management', () async {
+    test(
+        '2. Hospital Admin role has all hospital modules but not multi-hospital management',
+        () async {
       final rows = await db.getPermissionsForRole('Admin');
       final modules = rows.map((r) => r.module).toSet();
 
@@ -49,7 +53,9 @@ void main() {
       expect(modules.contains(Modules.hospitals), isFalse);
     });
 
-    test('3. Doctor role has clinical access but restricted admin access and cannot delete patients', () async {
+    test(
+        '3. Doctor role has clinical access but restricted admin access and cannot delete patients',
+        () async {
       final rows = await db.getPermissionsForRole('Doctor');
       final PermissionMap map = {};
       for (final row in rows) {
@@ -69,7 +75,9 @@ void main() {
       expect(checker.canAccessModule(Modules.settings), isFalse);
     });
 
-    test('4. Pharmacist role has pharmacy access but cannot admit patients or manage beds', () async {
+    test(
+        '4. Pharmacist role has pharmacy access but cannot admit patients or manage beds',
+        () async {
       final rows = await db.getPermissionsForRole('Pharmacist');
       final PermissionMap map = {};
       for (final row in rows) {
@@ -83,7 +91,9 @@ void main() {
       expect(checker.canAccessModule(Modules.beds), isFalse);
     });
 
-    test('5. Super Admin multi-hospital entity insertion, retrieval, and switching', () async {
+    test(
+        '5. Super Admin multi-hospital entity insertion, retrieval, and switching',
+        () async {
       // 1. Initial seeded hospital
       final initialHospitals = await db.hmsDao.getAllHospitals();
       expect(initialHospitals, isNotEmpty);
@@ -123,14 +133,17 @@ void main() {
       expect(afterDelete.length, equals(1));
     });
 
-    test('6. Super Admin account can authenticate with SuperAdmin@1234', () async {
+    test('6. Super Admin account can authenticate with SuperAdmin@1234',
+        () async {
       final user = await db.getUserByUsername('superadmin');
       expect(user, isNotNull);
       expect(user!.role, equals('Super Admin'));
       expect(user.fullName, contains('Super Administrator'));
     });
 
-    test('7. Super Admin can provision staff accounts for any hospital and retrieve all users', () async {
+    test(
+        '7. Super Admin can provision staff accounts for any hospital and retrieve all users',
+        () async {
       await db.createRegularUser(
         username: 'dr_miller',
         passwordHash: 'salt_miller:hash123',
@@ -142,16 +155,26 @@ void main() {
       );
 
       final allUsers = await db.getAllUsers();
-      expect(allUsers.any((u) => u.username == 'dr_miller'), isTrue);
 
-      final miller = allUsers.firstWhere((u) => u.username == 'dr_miller');
+      // Find user by username
+      final miller = allUsers.firstWhere(
+        (u) => u.username == 'dr_miller',
+      );
+
+      expect(miller, isNotNull);
       expect(miller.role, equals('Doctor'));
       expect(miller.hospitalId, equals(1));
       expect(miller.hospitalName, equals('CareSync Central Hospital'));
 
+      // Delete user
       await db.deleteCustomUser('dr_miller');
+
       final afterDelete = await db.getAllUsers();
-      expect(afterDelete.any((u) => u.username == 'dr_miller'), isFalse);
+
+      expect(
+        afterDelete.any((u) => u.username == 'dr_miller'),
+        isFalse,
+      );
     });
   });
 }

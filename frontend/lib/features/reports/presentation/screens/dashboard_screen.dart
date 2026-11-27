@@ -4,7 +4,9 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/auth/session_service.dart';
 import 'package:hospital_management/core/permissions/permission_service.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
+import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/kpi_card.dart';
 import 'package:hospital_management/core/widgets/section_header.dart';
@@ -15,55 +17,91 @@ import 'package:hospital_management/data/remote/hms_remote_repository.dart';
 
 class DashboardStats {
   const DashboardStats({
+    required this.todayOpdPatients,
     required this.todayOpdVisits,
     required this.todayAppointments,
     required this.currentAdmissions,
     required this.todayRevenuePaise,
     required this.availableBeds,
     required this.totalBeds,
+    required this.occupiedBeds,
+    required this.bedOccupancyPercentage,
     required this.pendingLabOrders,
     required this.lowStockMedicines,
   });
+
+  final int todayOpdPatients;
   final int todayOpdVisits;
   final int todayAppointments;
   final int currentAdmissions;
   final int todayRevenuePaise;
   final int availableBeds;
   final int totalBeds;
+  final int occupiedBeds;
+  final double bedOccupancyPercentage;
   final int pendingLabOrders;
   final int lowStockMedicines;
 
-  double get bedOccupancyRate =>
-      totalBeds == 0 ? 0 : ((totalBeds - availableBeds) / totalBeds) * 100;
+  double get bedOccupancyRate => totalBeds == 0 ? 0.0 : bedOccupancyPercentage;
 }
 
 final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
   final db = ref.watch(appDatabaseProvider);
-  final data = await db.hmsDao.getDashboardStats();
+  final today = DateTime.now().toIso8601String().substring(0, 10);
+
   if (ref.watch(backendApiClientProvider).isConfigured &&
       (ref.watch(sessionProvider).user?.isRemote ?? false)) {
     try {
-      final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
       final remote =
           await HmsRemoteRepository(ref.read(backendApiClientProvider))
-              .reportSummary(from: today, to: today);
-      data['todayRevenuePaise'] = remote['revenuePaise'];
-      data['lowStockMedicines'] = remote['lowStockMedicines'];
-      data['pendingLabOrders'] = remote['pendingLabOrders'];
+              .dashboardStats(date: today);
+      final bedOcc = (remote['bedOccupancy'] as Map<String, dynamic>?) ?? {};
+      final totalB = (bedOcc['totalBeds'] as num?)?.toInt() ?? 0;
+      final occB = (bedOcc['occupiedBeds'] as num?)?.toInt() ?? 0;
+      final availB =
+          (bedOcc['availableBeds'] as num?)?.toInt() ?? (totalB - occB);
+      final occPct = (bedOcc['occupancyPercentage'] as num?)?.toDouble() ??
+          (totalB > 0 ? (occB / totalB) * 100.0 : 0.0);
+
+      return DashboardStats(
+        todayOpdPatients: (remote['todayOpdPatients'] as num?)?.toInt() ?? 0,
+        todayOpdVisits: (remote['todayOpdVisits'] as num?)?.toInt() ?? 0,
+        todayAppointments: (remote['todayAppointments'] as num?)?.toInt() ?? 0,
+        currentAdmissions: (remote['currentAdmissions'] as num?)?.toInt() ?? 0,
+        todayRevenuePaise: (remote['todayRevenuePaise'] as num?)?.toInt() ?? 0,
+        availableBeds: availB,
+        totalBeds: totalB,
+        occupiedBeds: occB,
+        bedOccupancyPercentage: occPct,
+        pendingLabOrders: (remote['pendingLabTests'] as num?)?.toInt() ?? 0,
+        lowStockMedicines: (remote['lowStockMedicines'] as num?)?.toInt() ?? 0,
+      );
     } on BackendConnectionException {
       // Local dashboard totals remain available when the backend is offline.
+    } catch (_) {
+      // Fall through to local database
     }
   }
 
+  final data = await db.hmsDao.getDashboardStats(targetDate: today);
+  final totalB = (data['totalBeds'] as num?)?.toInt() ?? 0;
+  final occB = (data['occupiedBeds'] as num?)?.toInt() ?? 0;
+  final availB = (data['availableBeds'] as num?)?.toInt() ?? (totalB - occB);
+  final occPct = (data['occupancyPercentage'] as num?)?.toDouble() ??
+      (totalB > 0 ? (occB / totalB) * 100.0 : 0.0);
+
   return DashboardStats(
-    todayOpdVisits: data['todayOpdVisits'] as int,
-    todayAppointments: data['todayAppointments'] as int,
-    currentAdmissions: data['currentAdmissions'] as int,
-    todayRevenuePaise: data['todayRevenuePaise'] as int,
-    availableBeds: data['availableBeds'] as int,
-    totalBeds: data['totalBeds'] as int,
-    pendingLabOrders: data['pendingLabOrders'] as int,
-    lowStockMedicines: data['lowStockMedicines'] as int,
+    todayOpdPatients: (data['todayOpdPatients'] as num?)?.toInt() ?? 0,
+    todayOpdVisits: (data['todayOpdVisits'] as num?)?.toInt() ?? 0,
+    todayAppointments: (data['todayAppointments'] as num?)?.toInt() ?? 0,
+    currentAdmissions: (data['currentAdmissions'] as num?)?.toInt() ?? 0,
+    todayRevenuePaise: (data['todayRevenuePaise'] as num?)?.toInt() ?? 0,
+    availableBeds: availB,
+    totalBeds: totalB,
+    occupiedBeds: occB,
+    bedOccupancyPercentage: occPct,
+    pendingLabOrders: (data['pendingLabOrders'] as num?)?.toInt() ?? 0,
+    lowStockMedicines: (data['lowStockMedicines'] as num?)?.toInt() ?? 0,
   );
 });
 
@@ -124,6 +162,33 @@ class DashboardScreen extends ConsumerWidget {
                       Wrap(
                         spacing: 12,
                         children: [
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              final stats = statsAsync.value;
+                              final hosp =
+                                  ref.read(hospitalNameProvider).value ??
+                                      'CareSync Hospital';
+                              if (stats != null) {
+                                HmsPdfGenerator.printDashboardSummary(
+                                  hospitalName: hosp,
+                                  stats: {
+                                    'todayVisits': stats.todayOpdVisits,
+                                    'todayAppointments':
+                                        stats.todayAppointments,
+                                    'todayRevenuePaise':
+                                        stats.todayRevenuePaise,
+                                    'occupiedBeds': stats.occupiedBeds,
+                                    'totalBeds': stats.totalBeds,
+                                    'bedOccupancyPercentage':
+                                        stats.bedOccupancyPercentage,
+                                    'pendingLabTests': stats.pendingLabOrders,
+                                  },
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.print_outlined, size: 18),
+                            label: const Text('Print Operations Summary'),
+                          ),
                           if (checker.can(Modules.patients, AppActions.create))
                             FilledButton.icon(
                               onPressed: () =>
@@ -168,7 +233,7 @@ class DashboardScreen extends ConsumerWidget {
                         children: [
                           KpiCard(
                             label: "Today's OPD Patients",
-                            value: stats.todayOpdVisits.toString(),
+                            value: stats.todayOpdPatients.toString(),
                             icon: Icons.people_outline_rounded,
                             color: Colors.blue.shade700,
                             subtitle: (queueAsync.value?.length ?? 0) > 0
@@ -191,7 +256,7 @@ class DashboardScreen extends ConsumerWidget {
                             icon: Icons.hotel_rounded,
                             color: Colors.indigo.shade600,
                             subtitle:
-                                '${stats.totalBeds - stats.availableBeds} of ${stats.totalBeds} beds occupied',
+                                '${stats.occupiedBeds} of ${stats.totalBeds} beds occupied (${stats.availableBeds} available)',
                             onTap: () => context.go(AppRoutes.beds),
                           ),
                           KpiCard(

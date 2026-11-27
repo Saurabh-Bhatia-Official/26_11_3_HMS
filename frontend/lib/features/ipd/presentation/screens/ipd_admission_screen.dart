@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
+import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
 import 'package:hospital_management/data/database/app_database.dart';
@@ -126,16 +128,41 @@ class _IpdAdmissionScreenState extends ConsumerState<IpdAdmissionScreen> {
           onPressed: () => context.go(AppRoutes.ipd),
         ),
         actions: [
-          OutlinedButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content:
-                        Text('Discharge summary generated & sent to printer.')),
+          admissionAsync.maybeWhen(
+            data: (adm) {
+              if (adm == null) return const SizedBox.shrink();
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      final hosp = ref.read(hospitalNameProvider).value ??
+                          'CareSync Hospital';
+                      HmsPdfGenerator.printAdmissionFaceSheet(
+                        hospitalName: hosp,
+                        admission: adm,
+                      );
+                    },
+                    icon: const Icon(Icons.assignment_outlined, size: 18),
+                    label: const Text('Face Sheet & MAR'),
+                  ),
+                  const Gap(8),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      final hosp = ref.read(hospitalNameProvider).value ??
+                          'CareSync Hospital';
+                      HmsPdfGenerator.printDischargeSummary(
+                        hospitalName: hosp,
+                        admission: adm,
+                      );
+                    },
+                    icon: const Icon(Icons.print_outlined, size: 18),
+                    label: const Text('Discharge Summary'),
+                  ),
+                ],
               );
             },
-            icon: const Icon(Icons.print_outlined, size: 18),
-            label: const Text('Print Summary'),
+            orElse: () => const SizedBox.shrink(),
           ),
           const Gap(12),
           admissionAsync.maybeWhen(

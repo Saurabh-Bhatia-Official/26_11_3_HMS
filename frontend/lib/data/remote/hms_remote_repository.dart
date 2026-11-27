@@ -189,6 +189,32 @@ class HmsRemoteRepository {
     }).toList();
   }
 
+  Future<Map<String, dynamic>> dashboardStats({String? date}) async {
+    final value = await _api.get('/api/reports/dashboard/stats', query: {
+      if (date != null) 'date': date,
+    });
+    final row = _asObject(value);
+    final data = _asObject(row['data'] ?? row);
+    final bedOcc = _asObject(data['bedOccupancy'] ?? const {});
+    return {
+      'todayOpdPatients': data['todayOpdPatients'] ?? 0,
+      'todayRevenue': (data['todayRevenue'] as num?)?.toDouble() ?? 0.0,
+      'todayRevenuePaise': data['todayRevenuePaise'] ?? 0,
+      'bedOccupancy': {
+        'totalBeds': bedOcc['totalBeds'] ?? 0,
+        'occupiedBeds': bedOcc['occupiedBeds'] ?? 0,
+        'availableBeds': bedOcc['availableBeds'] ?? 0,
+        'occupancyPercentage':
+            (bedOcc['occupancyPercentage'] as num?)?.toDouble() ?? 0.0,
+      },
+      'pendingLabTests': data['pendingLabTests'] ?? 0,
+      'todayOpdVisits': data['todayOpdVisits'] ?? 0,
+      'todayAppointments': data['todayAppointments'] ?? 0,
+      'currentAdmissions': data['currentAdmissions'] ?? 0,
+      'lowStockMedicines': data['lowStockMedicines'] ?? 0,
+    };
+  }
+
   Future<Map<String, dynamic>> reportSummary({String? from, String? to}) async {
     final value = await _api.get('/api/reports/summary', query: {
       if (from != null) 'from': from,

@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/auth/online_hospital_session.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
 import 'package:hospital_management/core/widgets/status_chip.dart';
+import 'package:hospital_management/core/providers/hospital_name_provider.dart';
+import 'package:hospital_management/core/router/app_routes.dart';
+import 'package:hospital_management/core/widgets/status_chip.dart';
+import 'package:hospital_management/data/database/app_database.dart';
+import 'package:hospital_management/data/models/hms_models.dart';
 import 'package:hospital_management/domain/entities/patient.dart';
 
 class PatientProfileScreen extends ConsumerWidget {
@@ -33,9 +39,26 @@ class PatientProfileScreen extends ConsumerWidget {
             icon: const Icon(Icons.print_outlined),
             tooltip: 'Print Registration Card',
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Registration card sent to printer.')),
+              final patient = patientAsync.value;
+              if (patient == null) return;
+              final hosp =
+                  ref.read(hospitalNameProvider).value ?? 'CareSync Hospital';
+              final model = PatientModel(
+                id: patient.id,
+                uuid: patient.uuid,
+                uhid: patient.uhid,
+                name: patient.name,
+                gender: patient.gender ?? '',
+                ageYears: patient.ageYears ?? 0,
+                phone: patient.phone ?? '',
+                bloodGroup: patient.bloodGroup ?? '',
+                emergencyContactName: patient.emergencyContactName ?? '',
+                emergencyContactPhone: patient.emergencyContactPhone ?? '',
+                createdAt: patient.createdAt.toIso8601String(),
+              );
+              HmsPdfGenerator.printPatientRegistrationCard(
+                hospitalName: hosp,
+                patient: model,
               );
             },
           ),

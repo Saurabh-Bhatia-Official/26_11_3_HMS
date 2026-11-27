@@ -236,20 +236,27 @@ final auditLogsProvider = FutureProvider<List<AuditLogModel>>((ref) async {
 final dashboardStatsProvider =
     FutureProvider<Map<String, dynamic>>((ref) async {
   final db = ref.watch(appDatabaseProvider);
-  final local = await db.hmsDao.getDashboardStats();
+  final today = DateTime.now().toIso8601String().substring(0, 10);
+  final local = await db.hmsDao.getDashboardStats(targetDate: today);
   if (!_remoteEnabled(ref)) return local;
   try {
-    final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
     final remote = await HmsRemoteRepository(ref.read(backendApiClientProvider))
-        .reportSummary(
-      from: today,
-      to: today,
-    );
+        .dashboardStats(date: today);
+    final bedOcc = (remote['bedOccupancy'] as Map<String, dynamic>?) ?? {};
     return {
       ...local,
-      'todayRevenuePaise': remote['revenuePaise'],
-      'lowStockMedicines': remote['lowStockMedicines'],
-      'pendingLabOrders': remote['pendingLabOrders'],
+      'todayOpdPatients': remote['todayOpdPatients'] ?? local['todayOpdPatients'],
+      'todayRevenuePaise': remote['todayRevenuePaise'] ?? local['todayRevenuePaise'],
+      'todayRevenue': remote['todayRevenue'] ?? local['todayRevenue'],
+      'pendingLabOrders': remote['pendingLabTests'] ?? local['pendingLabOrders'],
+      'todayOpdVisits': remote['todayOpdVisits'] ?? local['todayOpdVisits'],
+      'todayAppointments': remote['todayAppointments'] ?? local['todayAppointments'],
+      'currentAdmissions': remote['currentAdmissions'] ?? local['currentAdmissions'],
+      'lowStockMedicines': remote['lowStockMedicines'] ?? local['lowStockMedicines'],
+      'totalBeds': bedOcc['totalBeds'] ?? local['totalBeds'],
+      'occupiedBeds': bedOcc['occupiedBeds'] ?? local['occupiedBeds'],
+      'availableBeds': bedOcc['availableBeds'] ?? local['availableBeds'],
+      'occupancyPercentage': bedOcc['occupancyPercentage'] ?? local['occupancyPercentage'],
     };
   } on BackendConnectionException {
     return local;

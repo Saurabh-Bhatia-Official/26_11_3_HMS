@@ -48,7 +48,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('14.2'), findsOneWidget);
-    expect(find.text('Edit Report'), findsNothing);
+    expect(find.text('Edit Report'), findsOneWidget);
     expect(find.byType(TextFormField), findsNothing);
   });
 
@@ -75,7 +75,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(TextFormField), findsOneWidget);
+    expect(find.byType(TextFormField), findsNWidgets(2));
     expect(find.text('Save Report Changes'), findsOneWidget);
   });
 }

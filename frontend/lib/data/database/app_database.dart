@@ -80,7 +80,7 @@ class AppDatabase extends _$AppDatabase {
   // ── Schema ────────────────────────────────────────────────────────────────
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -96,6 +96,14 @@ class AppDatabase extends _$AppDatabase {
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await _createPatientSyncTables();
+          }
+
+          if (from < 3) {
+            // Add the nullable hospital ownership column without deleting
+            // or rewriting existing patient records.
+            await customStatement(
+              'ALTER TABLE patients ADD COLUMN hospital_id INTEGER',
+            );
           }
         },
       );

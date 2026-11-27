@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hospital_management/core/printing/hms_pdf_generator.dart';
 import 'package:hospital_management/core/providers/hms_providers.dart';
 import 'package:hospital_management/core/providers/hospital_name_provider.dart';
 import 'package:hospital_management/core/router/app_routes.dart';
@@ -100,18 +101,19 @@ class InvoiceDetailScreen extends ConsumerWidget {
       );
     }
 
-    final items = invoice.items;
-    final subtotal = invoice.subtotalPaise / 100.0;
-    final discount = invoice.discountPaise / 100.0;
-    final tax = invoice.taxPaise / 100.0;
-    final grandTotal = invoice.totalPaise / 100.0;
-    final paid = invoice.paidPaise / 100.0;
-    final due = invoice.duePaise / 100.0;
+    final resolvedInvoice = invoice;
+    final items = resolvedInvoice.items;
+    final subtotal = resolvedInvoice.subtotalPaise / 100.0;
+    final discount = resolvedInvoice.discountPaise / 100.0;
+    final tax = resolvedInvoice.taxPaise / 100.0;
+    final grandTotal = resolvedInvoice.totalPaise / 100.0;
+    final paid = resolvedInvoice.paidPaise / 100.0;
+    final due = resolvedInvoice.duePaise / 100.0;
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
-        title: Text('Invoice #${invoice.invoiceNo}'),
+        title: Text('Invoice #${resolvedInvoice.invoiceNo}'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(AppRoutes.billing),
@@ -119,10 +121,11 @@ class InvoiceDetailScreen extends ConsumerWidget {
         actions: [
           OutlinedButton.icon(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content: Text(
-                        'Printing 80mm thermal receipt for ${invoice!.invoiceNo}…')),
+              final hosp =
+                  ref.read(hospitalNameProvider).value ?? 'CareSync Hospital';
+              HmsPdfGenerator.printThermalReceipt80mm(
+                hospitalName: hosp,
+                invoice: resolvedInvoice,
               );
             },
             icon: const Icon(Icons.receipt, size: 16),
@@ -131,10 +134,11 @@ class InvoiceDetailScreen extends ConsumerWidget {
           const Gap(12),
           FilledButton.icon(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content: Text(
-                        'Printing full A4 itemized invoice for ${invoice!.invoiceNo}…')),
+              final hosp =
+                  ref.read(hospitalNameProvider).value ?? 'CareSync Hospital';
+              HmsPdfGenerator.printInvoiceA4(
+                hospitalName: hosp,
+                invoice: resolvedInvoice,
               );
             },
             icon: const Icon(Icons.print_outlined, size: 16),

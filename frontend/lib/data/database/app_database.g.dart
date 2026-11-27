@@ -9,6 +9,12 @@ class $PatientsTable extends Patients
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $PatientsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _hospitalIdMeta =
+      const VerificationMeta('hospitalId');
+  @override
+  late final GeneratedColumn<int> hospitalId = GeneratedColumn<int>(
+      'hospital_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -181,6 +187,7 @@ class $PatientsTable extends Patients
       defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns => [
+        hospitalId,
         id,
         uuid,
         uhid,
@@ -219,6 +226,12 @@ class $PatientsTable extends Patients
       {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('hospital_id')) {
+      context.handle(
+          _hospitalIdMeta,
+          hospitalId.isAcceptableOrUnknown(
+              data['hospital_id']!, _hospitalIdMeta));
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
@@ -351,6 +364,8 @@ class $PatientsTable extends Patients
   PatientRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return PatientRow(
+      hospitalId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}hospital_id']),
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       uuid: attachedDatabase.typeMapping
@@ -417,6 +432,7 @@ class $PatientsTable extends Patients
 }
 
 class PatientRow extends DataClass implements Insertable<PatientRow> {
+  final int? hospitalId;
   final int id;
   final String uuid;
   final String uhid;
@@ -459,7 +475,8 @@ class PatientRow extends DataClass implements Insertable<PatientRow> {
   final int? updatedBy;
   final bool isDeleted;
   const PatientRow(
-      {required this.id,
+      {this.hospitalId,
+      required this.id,
       required this.uuid,
       required this.uhid,
       required this.name,
@@ -489,6 +506,9 @@ class PatientRow extends DataClass implements Insertable<PatientRow> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (!nullToAbsent || hospitalId != null) {
+      map['hospital_id'] = Variable<int>(hospitalId);
+    }
     map['id'] = Variable<int>(id);
     map['uuid'] = Variable<String>(uuid);
     map['uhid'] = Variable<String>(uhid);
@@ -559,6 +579,9 @@ class PatientRow extends DataClass implements Insertable<PatientRow> {
 
   PatientsCompanion toCompanion(bool nullToAbsent) {
     return PatientsCompanion(
+      hospitalId: hospitalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hospitalId),
       id: Value(id),
       uuid: Value(uuid),
       uhid: Value(uhid),
@@ -621,6 +644,7 @@ class PatientRow extends DataClass implements Insertable<PatientRow> {
       {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return PatientRow(
+      hospitalId: serializer.fromJson<int?>(json['hospitalId']),
       id: serializer.fromJson<int>(json['id']),
       uuid: serializer.fromJson<String>(json['uuid']),
       uhid: serializer.fromJson<String>(json['uhid']),
@@ -656,6 +680,7 @@ class PatientRow extends DataClass implements Insertable<PatientRow> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'hospitalId': serializer.toJson<int?>(hospitalId),
       'id': serializer.toJson<int>(id),
       'uuid': serializer.toJson<String>(uuid),
       'uhid': serializer.toJson<String>(uhid),
@@ -688,7 +713,8 @@ class PatientRow extends DataClass implements Insertable<PatientRow> {
   }
 
   PatientRow copyWith(
-          {int? id,
+          {Value<int?> hospitalId = const Value.absent(),
+          int? id,
           String? uuid,
           String? uhid,
           String? name,
@@ -716,6 +742,7 @@ class PatientRow extends DataClass implements Insertable<PatientRow> {
           Value<int?> updatedBy = const Value.absent(),
           bool? isDeleted}) =>
       PatientRow(
+        hospitalId: hospitalId.present ? hospitalId.value : this.hospitalId,
         id: id ?? this.id,
         uuid: uuid ?? this.uuid,
         uhid: uhid ?? this.uhid,
@@ -750,6 +777,8 @@ class PatientRow extends DataClass implements Insertable<PatientRow> {
       );
   PatientRow copyWithCompanion(PatientsCompanion data) {
     return PatientRow(
+      hospitalId:
+          data.hospitalId.present ? data.hospitalId.value : this.hospitalId,
       id: data.id.present ? data.id.value : this.id,
       uuid: data.uuid.present ? data.uuid.value : this.uuid,
       uhid: data.uhid.present ? data.uhid.value : this.uhid,
@@ -788,6 +817,7 @@ class PatientRow extends DataClass implements Insertable<PatientRow> {
   @override
   String toString() {
     return (StringBuffer('PatientRow(')
+          ..write('hospitalId: $hospitalId, ')
           ..write('id: $id, ')
           ..write('uuid: $uuid, ')
           ..write('uhid: $uhid, ')
@@ -821,6 +851,7 @@ class PatientRow extends DataClass implements Insertable<PatientRow> {
 
   @override
   int get hashCode => Object.hashAll([
+        hospitalId,
         id,
         uuid,
         uhid,
@@ -853,6 +884,7 @@ class PatientRow extends DataClass implements Insertable<PatientRow> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is PatientRow &&
+          other.hospitalId == this.hospitalId &&
           other.id == this.id &&
           other.uuid == this.uuid &&
           other.uhid == this.uhid &&
@@ -883,6 +915,7 @@ class PatientRow extends DataClass implements Insertable<PatientRow> {
 }
 
 class PatientsCompanion extends UpdateCompanion<PatientRow> {
+  final Value<int?> hospitalId;
   final Value<int> id;
   final Value<String> uuid;
   final Value<String> uhid;
@@ -911,6 +944,7 @@ class PatientsCompanion extends UpdateCompanion<PatientRow> {
   final Value<int?> updatedBy;
   final Value<bool> isDeleted;
   const PatientsCompanion({
+    this.hospitalId = const Value.absent(),
     this.id = const Value.absent(),
     this.uuid = const Value.absent(),
     this.uhid = const Value.absent(),
@@ -940,6 +974,7 @@ class PatientsCompanion extends UpdateCompanion<PatientRow> {
     this.isDeleted = const Value.absent(),
   });
   PatientsCompanion.insert({
+    this.hospitalId = const Value.absent(),
     this.id = const Value.absent(),
     required String uuid,
     required String uhid,
@@ -973,6 +1008,7 @@ class PatientsCompanion extends UpdateCompanion<PatientRow> {
         createdAt = Value(createdAt),
         updatedAt = Value(updatedAt);
   static Insertable<PatientRow> custom({
+    Expression<int>? hospitalId,
     Expression<int>? id,
     Expression<String>? uuid,
     Expression<String>? uhid,
@@ -1002,6 +1038,7 @@ class PatientsCompanion extends UpdateCompanion<PatientRow> {
     Expression<bool>? isDeleted,
   }) {
     return RawValuesInsertable({
+      if (hospitalId != null) 'hospital_id': hospitalId,
       if (id != null) 'id': id,
       if (uuid != null) 'uuid': uuid,
       if (uhid != null) 'uhid': uhid,
@@ -1035,7 +1072,8 @@ class PatientsCompanion extends UpdateCompanion<PatientRow> {
   }
 
   PatientsCompanion copyWith(
-      {Value<int>? id,
+      {Value<int?>? hospitalId,
+      Value<int>? id,
       Value<String>? uuid,
       Value<String>? uhid,
       Value<String>? name,
@@ -1063,6 +1101,7 @@ class PatientsCompanion extends UpdateCompanion<PatientRow> {
       Value<int?>? updatedBy,
       Value<bool>? isDeleted}) {
     return PatientsCompanion(
+      hospitalId: hospitalId ?? this.hospitalId,
       id: id ?? this.id,
       uuid: uuid ?? this.uuid,
       uhid: uhid ?? this.uhid,
@@ -1097,6 +1136,9 @@ class PatientsCompanion extends UpdateCompanion<PatientRow> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (hospitalId.present) {
+      map['hospital_id'] = Variable<int>(hospitalId.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -1186,6 +1228,7 @@ class PatientsCompanion extends UpdateCompanion<PatientRow> {
   @override
   String toString() {
     return (StringBuffer('PatientsCompanion(')
+          ..write('hospitalId: $hospitalId, ')
           ..write('id: $id, ')
           ..write('uuid: $uuid, ')
           ..write('uhid: $uhid, ')
@@ -1845,6 +1888,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 }
 
 typedef $$PatientsTableCreateCompanionBuilder = PatientsCompanion Function({
+  Value<int?> hospitalId,
   Value<int> id,
   required String uuid,
   required String uhid,
@@ -1874,6 +1918,7 @@ typedef $$PatientsTableCreateCompanionBuilder = PatientsCompanion Function({
   Value<bool> isDeleted,
 });
 typedef $$PatientsTableUpdateCompanionBuilder = PatientsCompanion Function({
+  Value<int?> hospitalId,
   Value<int> id,
   Value<String> uuid,
   Value<String> uhid,
@@ -1912,6 +1957,9 @@ class $$PatientsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<int> get hospitalId => $composableBuilder(
+      column: $table.hospitalId, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
 
@@ -2005,6 +2053,9 @@ class $$PatientsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<int> get hospitalId => $composableBuilder(
+      column: $table.hospitalId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
@@ -2098,6 +2149,9 @@ class $$PatientsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<int> get hospitalId => $composableBuilder(
+      column: $table.hospitalId, builder: (column) => column);
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -2203,6 +2257,7 @@ class $$PatientsTableTableManager extends RootTableManager<
           createComputedFieldComposer: () =>
               $$PatientsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
+            Value<int?> hospitalId = const Value.absent(),
             Value<int> id = const Value.absent(),
             Value<String> uuid = const Value.absent(),
             Value<String> uhid = const Value.absent(),
@@ -2232,6 +2287,7 @@ class $$PatientsTableTableManager extends RootTableManager<
             Value<bool> isDeleted = const Value.absent(),
           }) =>
               PatientsCompanion(
+            hospitalId: hospitalId,
             id: id,
             uuid: uuid,
             uhid: uhid,
@@ -2261,6 +2317,7 @@ class $$PatientsTableTableManager extends RootTableManager<
             isDeleted: isDeleted,
           ),
           createCompanionCallback: ({
+            Value<int?> hospitalId = const Value.absent(),
             Value<int> id = const Value.absent(),
             required String uuid,
             required String uhid,
@@ -2290,6 +2347,7 @@ class $$PatientsTableTableManager extends RootTableManager<
             Value<bool> isDeleted = const Value.absent(),
           }) =>
               PatientsCompanion.insert(
+            hospitalId: hospitalId,
             id: id,
             uuid: uuid,
             uhid: uhid,

@@ -5,7 +5,7 @@ import 'package:drift/drift.dart';
 class Patients extends Table {
   @override
   String get tableName => 'patients';
-
+  IntColumn get hospitalId => integer().nullable()();
   IntColumn get id => integer().autoIncrement()();
   TextColumn get uuid => text().withLength(min: 36, max: 36)();
   TextColumn get uhid => text().withLength(min: 1, max: 30)();

@@ -214,9 +214,42 @@ class HmsDao {
         status TEXT NOT NULL,
         ordered_at TEXT,
         params_json TEXT,
+        sample_collected_at TEXT,
+        result_date TEXT,
+        technician_notes TEXT,
+        patient_id INTEGER DEFAULT 0,
+        test_id INTEGER DEFAULT 0,
+        updated_at TEXT,
         created_at TEXT
       );
     ''');
+
+    final labColumns =
+        await db.customSelect('PRAGMA table_info(lab_orders)').get();
+    if (!labColumns.any((col) => col.data['name'] == 'result_date')) {
+      await db.customStatement(
+          'ALTER TABLE lab_orders ADD COLUMN result_date TEXT;');
+    }
+    if (!labColumns.any((col) => col.data['name'] == 'sample_collected_at')) {
+      await db.customStatement(
+          'ALTER TABLE lab_orders ADD COLUMN sample_collected_at TEXT;');
+    }
+    if (!labColumns.any((col) => col.data['name'] == 'technician_notes')) {
+      await db.customStatement(
+          'ALTER TABLE lab_orders ADD COLUMN technician_notes TEXT;');
+    }
+    if (!labColumns.any((col) => col.data['name'] == 'patient_id')) {
+      await db.customStatement(
+          'ALTER TABLE lab_orders ADD COLUMN patient_id INTEGER DEFAULT 0;');
+    }
+    if (!labColumns.any((col) => col.data['name'] == 'test_id')) {
+      await db.customStatement(
+          'ALTER TABLE lab_orders ADD COLUMN test_id INTEGER DEFAULT 0;');
+    }
+    if (!labColumns.any((col) => col.data['name'] == 'updated_at')) {
+      await db.customStatement(
+          'ALTER TABLE lab_orders ADD COLUMN updated_at TEXT;');
+    }
 
     // 7. Medicines Table
     await db.customStatement('''
@@ -477,6 +510,27 @@ class HmsDao {
       SET status = 'failed', attempts = attempts + 1, last_error = '${_esc(error)}'
       WHERE operation_id = '${_esc(operationId)}'
     ''');
+  }
+
+  Future<int> getPendingSyncCount() async {
+    final row = await db
+        .customSelect(
+            "SELECT count(*) as count FROM sync_outbox WHERE status = 'pending'")
+        .getSingle();
+    return (row.data['count'] as int?) ?? 0;
+  }
+
+  Future<int> getFailedSyncCount() async {
+    final row = await db
+        .customSelect(
+            "SELECT count(*) as count FROM sync_outbox WHERE status = 'failed'")
+        .getSingle();
+    return (row.data['count'] as int?) ?? 0;
+  }
+
+  Future<void> retryAllFailedSyncOperations() async {
+    await db.customStatement(
+        "UPDATE sync_outbox SET status = 'pending' WHERE status = 'failed'");
   }
 
   Future<void> _seedIfEmpty() async {
@@ -768,45 +822,78 @@ class HmsDao {
 
   // ── App Users (Authentication with per-hospital scoping) ──────────────────
 
-  Future<List<Map<String, dynamic>>> getAllUsers({int? hospitalId}) async {
+  Future<List<Map<String, dynamic>>> getAllUsers({
+    int? hospitalId,
+  }) async {
+    // Strict hospital-level filtering.
+    // Never include users belonging to other hospitals.
+
     final filter = hospitalId != null
-        ? ' WHERE (hospital_id = $hospitalId OR hospital_id IS NULL)'
-        : '';
+        ? ' WHERE hospital_id = $hospitalId AND is_deleted = 0'
+        : ' WHERE hospital_id IS NULL AND is_deleted = 0';
+
     final rows = await db
-        .customSelect('SELECT * FROM app_users$filter ORDER BY id ASC')
+        .customSelect(
+          'SELECT * FROM app_users$filter ORDER BY id ASC',
+        )
         .get();
+
     return rows.map((r) {
       final row = Map<String, dynamic>.from(r.data);
+
       row['passwordHash'] = row['password_hash'] ?? row['passwordHash'];
       row['password_hash'] = row['passwordHash'];
+
       row['fullName'] = row['full_name'] ?? row['fullName'];
       row['full_name'] = row['fullName'];
+
       row['hospitalId'] = row['hospital_id'] ?? row['hospitalId'];
       row['hospital_id'] = row['hospitalId'];
+
       row['hospitalName'] = row['hospital_name'] ?? row['hospitalName'];
       row['hospital_name'] = row['hospitalName'];
+
       return row;
     }).toList();
   }
 
-  Future<Map<String, dynamic>?> getUserByUsernameAndHospital(String username,
-      {int? hospitalId}) async {
-    final lower = username.trim().toLowerCase();
+  Future<Map<String, dynamic>?> getUserByUsernameAndHospital(
+    String username, {
+    int? hospitalId,
+  }) async {
+    final lower = _esc(username.trim().toLowerCase());
+
     final filter = hospitalId != null
-        ? " WHERE LOWER(TRIM(username)) = LOWER(TRIM('$lower')) AND (hospital_id = $hospitalId OR hospital_id IS NULL OR role = 'Super Admin') AND is_deleted = 0"
-        : " WHERE LOWER(TRIM(username)) = LOWER(TRIM('$lower')) AND is_deleted = 0";
+        ? '''
+        WHERE LOWER(TRIM(username)) = '$lower'
+        AND hospital_id = $hospitalId
+        AND is_deleted = 0
+      '''
+        : '''
+        WHERE LOWER(TRIM(username)) = '$lower'
+        AND hospital_id IS NULL
+        AND is_deleted = 0
+      ''';
+
     final rows =
-        await db.customSelect('SELECT * FROM app_users$filter LIMIT 1').get();
+        await db.customSelect('SELECT * FROM app_users $filter LIMIT 1').get();
+
     if (rows.isEmpty) return null;
+
     final row = Map<String, dynamic>.from(rows.first.data);
+
     row['passwordHash'] = row['password_hash'] ?? row['passwordHash'];
     row['password_hash'] = row['passwordHash'];
+
     row['fullName'] = row['full_name'] ?? row['fullName'];
     row['full_name'] = row['fullName'];
+
     row['hospitalId'] = row['hospital_id'] ?? row['hospitalId'];
     row['hospital_id'] = row['hospitalId'];
+
     row['hospitalName'] = row['hospital_name'] ?? row['hospitalName'];
     row['hospital_name'] = row['hospitalName'];
+
     return row;
   }
 
@@ -906,6 +993,20 @@ class HmsDao {
     ''');
     await insertAuditLog(
         'admin', 'UPDATE', 'Bed #$bedNo', 'Changed bed status to $status');
+    try {
+      await enqueueSyncOperation(
+        operationId: 'bed_${bedNo}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'bed',
+        method: 'PUT',
+        path: '/api/admissions/beds/$bedNo',
+        payloadJson: jsonEncode({
+          'bedNo': bedNo,
+          'status': status,
+          'patientName': patientName,
+          'uhid': uhid,
+        }),
+      );
+    } catch (_) {}
   }
 
   // Appointments
@@ -965,6 +1066,27 @@ class HmsDao {
         'BOOK',
         'Appointment #${appointment.patientName}',
         'Booked appointment for ${appointment.patientName} with ${appointment.doctorName}');
+    try {
+      await enqueueSyncOperation(
+        operationId:
+            'apt_${appointment.tokenNo}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'appointment',
+        method: 'POST',
+        path: '/api/appointments',
+        payloadJson: jsonEncode({
+          'tokenNo': appointment.tokenNo,
+          'patientName': appointment.patientName,
+          'uhid': appointment.uhid,
+          'doctorName': appointment.doctorName,
+          'department': appointment.department,
+          'date': appointment.date,
+          'timeSlot': appointment.timeSlot,
+          'status': appointment.status,
+          'visitType': appointment.visitType,
+          'notes': appointment.notes,
+        }),
+      );
+    } catch (_) {}
   }
 
   Future<void> updateAppointmentStatus(int id, String status) async {
@@ -973,6 +1095,16 @@ class HmsDao {
     ''');
     await insertAuditLog('reception', 'UPDATE', 'Appointment #$id',
         'Changed appointment status to $status');
+    try {
+      await enqueueSyncOperation(
+        operationId:
+            'apt_status_${id}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'appointment',
+        method: 'PUT',
+        path: '/api/appointments/$id/status',
+        payloadJson: jsonEncode({'status': status}),
+      );
+    } catch (_) {}
   }
 
   Future<int> startOpdForAppointment(AppointmentModel appointment) async {
@@ -1313,6 +1445,22 @@ class HmsDao {
     ''');
     await insertAuditLog('lab', 'UPDATE', 'Lab Order #$orderNo',
         'Results recorded, status set to $status');
+    try {
+      await enqueueSyncOperation(
+        operationId:
+            'lab_res_${orderNo}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'lab_order',
+        method: 'POST',
+        path: '/api/lab/orders/$orderNo/results',
+        payloadJson: jsonEncode({
+          'orderNo': orderNo,
+          'status': status,
+          'parameters': parameters,
+          'notes': notes,
+          'resultDate': effectiveResultDate,
+        }),
+      );
+    } catch (_) {}
   }
 
   Future<void> insertLabOrder(LabOrderModel order) async {
@@ -1324,6 +1472,27 @@ class HmsDao {
     ''');
     await insertAuditLog('lab', 'CREATE', 'Lab Order #${order.orderNo}',
         'Ordered investigation ${order.testName} for ${order.patientName}');
+    try {
+      await enqueueSyncOperation(
+        operationId:
+            'lab_new_${order.orderNo}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'lab_order',
+        method: 'POST',
+        path: '/api/lab/orders',
+        payloadJson: jsonEncode({
+          'orderNo': order.orderNo,
+          'patientName': order.patientName,
+          'uhid': order.uhid,
+          'testName': order.testName,
+          'doctorName': order.doctorName,
+          'sampleType': order.sampleType,
+          'priority': order.priority,
+          'status': order.status,
+          'orderedAt': order.orderedAt,
+          'parameters': order.parameters,
+        }),
+      );
+    } catch (_) {}
   }
 
   Future<void> deleteLabOrder(String orderNo, String testName) async {
@@ -1696,6 +1865,16 @@ class HmsDao {
     }
     await insertAuditLog('ipd', 'DISCHARGE', 'Admission #$admissionId',
         'Patient discharged from bed $bedNo. Bed marked for cleaning.');
+    try {
+      await enqueueSyncOperation(
+        operationId:
+            'discharge_${admissionId}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'admission',
+        method: 'POST',
+        path: '/api/admissions/$admissionId/discharge',
+        payloadJson: jsonEncode({'bedNo': bedNo}),
+      );
+    } catch (_) {}
   }
 
   Future<void> updateIpdAdmission(IpdAdmissionModel admission) async {
@@ -1740,6 +1919,30 @@ class HmsDao {
     ''');
     await insertAuditLog('accounts', 'INVOICE', 'Invoice #${invoice.invoiceNo}',
         'Generated invoice ${invoice.invoiceNo} for ${invoice.patientName} total ₹${(invoice.totalPaise / 100).toStringAsFixed(2)}');
+    try {
+      await enqueueSyncOperation(
+        operationId:
+            'inv_${invoice.invoiceNo}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'invoice',
+        method: 'POST',
+        path: '/api/billing/invoices',
+        payloadJson: jsonEncode({
+          'invoiceNo': invoice.invoiceNo,
+          'patientName': invoice.patientName,
+          'uhid': invoice.uhid,
+          'billType': invoice.billType,
+          'subtotalPaise': invoice.subtotalPaise,
+          'taxPaise': invoice.taxPaise,
+          'totalPaise': invoice.totalPaise,
+          'paidPaise': invoice.paidPaise,
+          'duePaise': invoice.duePaise,
+          'paymentMode': invoice.paymentMode,
+          'status': invoice.status,
+          'dateTime': invoice.dateTime,
+          'items': invoice.items,
+        }),
+      );
+    } catch (_) {}
   }
 
   Future<void> updateInvoiceStatus(
@@ -1750,6 +1953,20 @@ class HmsDao {
     ''');
     await insertAuditLog('accounts', 'UPDATE', 'Invoice #$invoiceNo',
         'Updated payment status to $status (Paid ₹${(paidPaise / 100).toStringAsFixed(2)})');
+    try {
+      await enqueueSyncOperation(
+        operationId:
+            'inv_pay_${invoiceNo}_${DateTime.now().millisecondsSinceEpoch}',
+        resourceType: 'payment',
+        method: 'POST',
+        path: '/api/billing/invoices/$invoiceNo/payments',
+        payloadJson: jsonEncode({
+          'invoiceNo': invoiceNo,
+          'status': status,
+          'paidPaise': paidPaise,
+        }),
+      );
+    } catch (_) {}
   }
 
   Future<void> deleteInvoice(int id, String invoiceNo) async {
@@ -1779,42 +1996,87 @@ class HmsDao {
   }
 
   // Dashboard Aggregates
-  Future<Map<String, dynamic>> getDashboardStats() async {
-    final opdVisitsRow = await db
-        .customSelect('SELECT count(*) as count FROM opd_visits')
-        .getSingle();
-    final appointmentsRow = await db
-        .customSelect('SELECT count(*) as count FROM appointments')
-        .getSingle();
+  Future<Map<String, dynamic>> getDashboardStats({String? targetDate}) async {
+    final today =
+        targetDate ?? DateTime.now().toIso8601String().substring(0, 10);
+
+    // 1. Today's OPD Visits & Distinct Patients
+    final opdVisitsTodayRow = await db.customSelect('''
+      SELECT 
+        COUNT(*) as total_visits,
+        COUNT(DISTINCT uhid) as distinct_patients
+      FROM opd_visits 
+      WHERE (substr(COALESCE(NULLIF(created_at, ''), ''), 1, 10) = '$today')
+        AND LOWER(status) != 'cancelled'
+    ''').getSingle();
+
+    final appointmentsRow = await db.customSelect('''
+      SELECT count(*) as count FROM appointments
+      WHERE (substr(COALESCE(NULLIF(date, ''), ''), 1, 10) = '$today')
+        AND LOWER(status) != 'cancelled'
+    ''').getSingle();
+
     final admissionsRow = await db
         .customSelect(
-            "SELECT count(*) as count FROM ipd_admissions WHERE status = 'Admitted'")
+            "SELECT count(*) as count FROM ipd_admissions WHERE LOWER(status) = 'admitted'")
         .getSingle();
-    final revenueRow = await db
-        .customSelect("SELECT sum(paid_paise) as sum_paid FROM invoices")
+
+    // 2. Today's Revenue (completed payments for invoices created/paid today, excluding cancelled)
+    final revenueTodayRow = await db.customSelect('''
+      SELECT coalesce(sum(paid_paise), 0) as sum_paid FROM invoices 
+      WHERE (substr(COALESCE(NULLIF(created_at, ''), date_time), 1, 10) = '$today')
+        AND LOWER(status) != 'cancelled'
+    ''').getSingle();
+
+    int todayRevenuePaise = (revenueTodayRow.data['sum_paid'] as int?) ?? 0;
+
+    // 3. Bed Occupancy
+    final totalBedsRow =
+        await db.customSelect('SELECT count(*) as count FROM beds').getSingle();
+    final occupiedBedsRow = await db
+        .customSelect(
+            "SELECT count(*) as count FROM beds WHERE LOWER(status) = 'occupied'")
         .getSingle();
     final availableBedsRow = await db
         .customSelect(
-            "SELECT count(*) as count FROM beds WHERE status = 'Available'")
+            "SELECT count(*) as count FROM beds WHERE LOWER(status) = 'available'")
         .getSingle();
-    final totalBedsRow =
-        await db.customSelect('SELECT count(*) as count FROM beds').getSingle();
-    final pendingLabRow = await db
-        .customSelect(
-            "SELECT count(*) as count FROM lab_orders WHERE status != 'Completed'")
-        .getSingle();
+
+    final totalBeds = totalBedsRow.data['count'] as int;
+    final occupiedBeds = occupiedBedsRow.data['count'] as int;
+    int availableBeds = availableBedsRow.data['count'] as int;
+    if (availableBeds == 0 && occupiedBeds < totalBeds) {
+      availableBeds = totalBeds - occupiedBeds;
+    }
+    final occupancyPercentage =
+        totalBeds > 0 ? ((occupiedBeds / totalBeds) * 100.0) : 0.0;
+
+    // 4. Pending Lab Orders (Pending, Pending Collection, Collected, Processing; excludes Completed, Resulted, Verified, Cancelled, Rejected)
+    final pendingLabRow = await db.customSelect('''
+      SELECT count(*) as count FROM lab_orders 
+      WHERE LOWER(status) IN ('pending', 'pending collection', 'collected', 'processing')
+        AND LOWER(status) NOT IN ('completed', 'cancelled', 'rejected', 'resulted', 'verified')
+    ''').getSingle();
+
     final lowStockRow = await db
         .customSelect(
             'SELECT count(*) as count FROM medicines WHERE stock_qty <= reorder_level')
         .getSingle();
 
+    int distinctOpd = opdVisitsTodayRow.data['distinct_patients'] as int;
+    int todayVisits = opdVisitsTodayRow.data['total_visits'] as int;
+
     return {
-      'todayOpdVisits': opdVisitsRow.data['count'] as int,
+      'todayOpdPatients': distinctOpd,
+      'todayOpdVisits': todayVisits,
       'todayAppointments': appointmentsRow.data['count'] as int,
       'currentAdmissions': admissionsRow.data['count'] as int,
-      'todayRevenuePaise': (revenueRow.data['sum_paid'] as int?) ?? 0,
-      'availableBeds': availableBedsRow.data['count'] as int,
-      'totalBeds': totalBedsRow.data['count'] as int,
+      'todayRevenuePaise': todayRevenuePaise,
+      'todayRevenue': todayRevenuePaise / 100.0,
+      'availableBeds': availableBeds,
+      'totalBeds': totalBeds,
+      'occupiedBeds': occupiedBeds,
+      'occupancyPercentage': occupancyPercentage,
       'pendingLabOrders': pendingLabRow.data['count'] as int,
       'lowStockMedicines': lowStockRow.data['count'] as int,
     };

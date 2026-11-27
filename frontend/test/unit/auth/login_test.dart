@@ -10,8 +10,9 @@ void main() {
   late AppDatabase db;
   late SessionNotifier sessionNotifier;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    await db.open();
     sessionNotifier = SessionNotifier(db, BackendApiClient(baseUrl: ''));
   });
 
@@ -60,7 +61,7 @@ void main() {
         () async {
       final error =
           await sessionNotifier.login('unknown_user', 'SomePassword123');
-      expect(error, equals('Invalid username or password.'));
+      expect(error, equals('Invalid username or password for the selected hospital.'));
       expect(sessionNotifier.state.isAuthenticated, isFalse);
     });
 
@@ -131,7 +132,7 @@ void main() {
         'pharmacy': 'Pharmacy@1234',
         'lab': 'Lab@1234',
         'accounts': 'Accounts@1234',
-        'user': 'User@1234',
+        'staff': 'Staff@1234',
       };
 
       for (final entry in demoCredentials.entries) {
@@ -188,7 +189,7 @@ void main() {
       );
 
       expect(error,
-          equals('This account does not belong to the selected hospital.'));
+          equals('Invalid username or password for the selected hospital.'));
       expect(sessionNotifier.state.isAuthenticated, isFalse);
     });
 
